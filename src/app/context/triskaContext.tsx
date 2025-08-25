@@ -3,20 +3,8 @@
 import React, { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import { db } from '../config'
 import { collection, getDocs } from "firebase/firestore";
+import { User } from "../types/user";
 
-enum UserRole {
-  Student = 0,
-  Teacher = 1,
-  Admin   = 2,
-  Parent  = 3,
-  Staff   = 4, 
-}
-
-interface User {
-    id: string;
-    name: string;
-    role: UserRole;
-}
 
 interface TriskaContextProps {
     users: User[];
