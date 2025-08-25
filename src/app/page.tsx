@@ -1,8 +1,14 @@
+'use client';
+
 import { GoHomeFill } from "react-icons/go";
+import { useTriskaContext } from "./context/triskaContext";
 
 export default function Home() {
+
+  const { users } = useTriskaContext();
+
   return (
-    <div className=" bg-gradient-to-tl from-gray-900 p-2 gap-x-5 to-gray-800 min-h-screen flex">
+    <div className=" bg-gradient-to-tl from-gray-900 p-2 gap-x-5 to-gray-800 h-screen flex">
       <aside className=" w-full max-h-screen flex-1 max-w-2xs bg-white rounded-md flex flex-col justify-between">
         <div className="p-5">
           <ul className="space-y-3 *:underline *:underline-offset-4">
@@ -114,7 +120,7 @@ export default function Home() {
           <div className="mb-8">
             <h2 className="text-2xl font-semibold mb-4 text-gray-700">Lista de Profesores</h2>
             <div className="overflow-x-auto">
-              <table className="min-w-full bg-white border border-gray-200">
+              <table className="min-w-full bg-white border border-gray-200 ">
                 <thead>
                   <tr>
                     <th className="py-2 px-4 border-b">Nombre</th>
@@ -123,11 +129,15 @@ export default function Home() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td className="py-2 px-4 border-b">Laura Martínez</td>
-                    <td className="py-2 px-4 border-b">Matemáticas</td>
-                    <td className="py-2 px-4 border-b">laura.martinez@escuela.edu</td>
-                  </tr>
+                  {
+                    users.map((user) => (
+                      <tr key={user.id}>
+                        <td className="py-2 px-4 border-b">{user.name}</td>
+                        <td className="py-2 px-4 border-b">{user.role}</td>
+                        <td className="py-2 px-4 border-b">{user.id}</td>
+                      </tr>
+                    ))
+                  }
                   <tr>
                     <td className="py-2 px-4 border-b">Pedro Gómez</td>
                     <td className="py-2 px-4 border-b">Historia</td>
