@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, ReactNode, useContext, useEffect, useState } from "react";
-import { db } from '../config'
+import { db, auth } from '../config'
 import { collection, getDocs } from "firebase/firestore";
 import { User } from "../types/user";
 
@@ -27,10 +27,11 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const fetchUsers = async () => {
         try {
+            const user = auth.currentUser
+            console.log(user)
             const getusers = await getDocs(userRef)
             const usersData = getusers.docs.map((doc) => ({...doc.data() as Omit<User, 'id'>, id: doc.id}));
             setUsers(usersData)
-            console.log(usersData)
         } catch (error) {
             console.error("Error fetching users: ", error);
         }

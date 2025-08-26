@@ -1,8 +1,10 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import {User,onAuthStateChanged,signInWithEmailAndPassword,signOut} from "firebase/auth";
-import { auth } from "../config";
+import React, { useEffect, useState, createContext, useContext, ReactNode } from "react";
+import { User as FirebaseUser, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { auth, db } from "../config";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { User } from "../types/user";
 
 interface AuthProps {
   user: User | null;
@@ -16,9 +18,7 @@ export const AuthContext = createContext<AuthProps | undefined>(undefined);
 
 export const useAuthContext = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuthContext debe usarse dentro de AuthContextProvider");
-  }
+  if (!context) throw new Error("useAuthContext debe usarse dentro de AuthContextProvider");
   return context;
 };
 
@@ -26,39 +26,61 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [user, setUser] = useState<User | null>(null);
   const [uid, setUid] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  console.log(uid)
+  console.log(user)
 
-  // Escuchar cambios en el estado del usuario
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user: User | null) => {
-      setUid(user ? user.uid : null);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        const currentUid = firebaseUser.uid;
+        setUid(currentUid);
+
+        // 🔍 Buscar en Firestore donde el campo "uid" == currentUid
+        try {
+          const q = query(collection(db, "users"), where("uid", "==", currentUid));
+          const querySnapshot = await getDocs(q);
+
+          if (!querySnapshot.empty) {
+            const userData = querySnapshot.docs[0].data() as User;
+            setUser(userData);
+          } else {
+            console.warn("No se encontró un usuario con ese UID.");
+            setUser(null);
+          }
+        } catch (error) {
+          console.error("Error al buscar usuario en Firestore:", error);
+        }
+
+      } else {
+        // No autenticado
+        setUid(null);
+        setUser(null);
+      }
+
       setLoading(false);
     });
+
     return () => unsubscribe();
   }, []);
 
-  // Función para loguear
   const login = async (email: string, password: string) => {
     await signInWithEmailAndPassword(auth, email, password);
   };
 
-  // Función para cerrar sesión
   const logout = async () => {
     await signOut(auth);
   };
 
-  // Valores del contexto
-  const authValues: AuthProps = {
+  const authValues = {
     user,
     uid,
     loading,
-    login,
-    logout
-  };
+    logout,
+    login
+  } 
 
   return (
     <AuthContext.Provider value={authValues}>
-        {children}
+      {children}
     </AuthContext.Provider>
-  )
+  );
 };

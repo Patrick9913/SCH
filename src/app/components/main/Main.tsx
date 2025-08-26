@@ -1,19 +1,17 @@
 'use client';
 
 import { useAuthContext } from "@/app/context/authContext";
-import { useTriskaContext } from "@/app/context/triskaContext";
 import { UserRole } from "@/app/types/user";
 import React from "react";
 import { GoHomeFill } from "react-icons/go";
+import { FaFile } from "react-icons/fa";
+import { IoPeople } from "react-icons/io5";
+import { FaBuildingColumns } from "react-icons/fa6";
 
 export const Main: React.FC = () => {
 
-    const { users } = useTriskaContext();
-    const { logout, uid } = useAuthContext();
-
-    const currentUser = users.filter( u => u.uid === uid)
-    const currentRol = currentUser[0]?.role
-    console.log('El rol',currentRol)
+    const { logout, uid, user } = useAuthContext();
+    
 
     return (
         <div className=" bg-gradient-to-tl w-full h-full gap-x-3 flex">
@@ -28,21 +26,21 @@ export const Main: React.FC = () => {
                     </li>
                     <li>
                     <a href="#" className="text-gray-800 hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                        <GoHomeFill className=" w-5 h-5" />
+                        <FaFile className=" w-5 h-5" />
                         <span>Materias</span>
                     </a>
                     </li>
                     <li>
                     <a href="#" className="text-gray-800 hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                        <GoHomeFill className=" w-5 h-5" />
+                        <IoPeople className=" w-5 h-5" />
                         <span>Personal</span>
                     </a>
                     </li>
                     {
-                        currentUser && currentRol == 2 && (
+                        user?.role == 1 && (
                             <li>
                                 <a href="#" className="text-gray-800 hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <GoHomeFill className=" w-5 h-5" />
+                                    <FaBuildingColumns className=" w-5 h-5" />
                                     <span>Escuelas</span>
                                 </a>
                             </li>
@@ -55,7 +53,7 @@ export const Main: React.FC = () => {
                     </a>
                     </li>
                     {
-                        currentUser && currentRol == 2 && (
+                        user?.role == 1 && (
                             <li>
                                 <a href="#" className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
                                     <GoHomeFill className=" group-hover:text-orange-500 w-5 h-5" />
@@ -65,7 +63,7 @@ export const Main: React.FC = () => {
                         )
                     }
                     {
-                        currentUser && currentRol == 4 && (
+                        user?.role == 1 && (
                             <li>
                                 <a href="#" className="text-gray-800 group flex items-center gap-x-2 *:text-sm">
                                     <GoHomeFill className=" group-hover:text-emerald-500 w-5 h-5" />
@@ -78,11 +76,11 @@ export const Main: React.FC = () => {
                 </div>
                 <div className="*:text-sm flex flex-col gap-y-2 p-5 items-start">
                     {
-                        currentUser.map( u => (
-                            <div className="text-gray-800 font-semibold">
-                                {u.name} - {UserRole[u.role]}
+                        user?.name && user.role && (
+                            <div>
+                                {user?.name} - <span className=" text-blue-600">{UserRole[user?.role]}</span>
                             </div>
-                        ))
+                        )
                     }
                     <button className=" hover:underline hover:underline-offset-2" onClick={logout}>Cerrar Sesión</button>
                     <p className="text-gray-500 ">
@@ -92,23 +90,30 @@ export const Main: React.FC = () => {
             </aside>
             <section className=" flex-1 p-5 overflow-y-scroll max-h-screen h-full bg-white rounded-md">
                 <div>
-                <h1 className="text-2xl font-bold text-gray-800 mb-2">Sistema de Gestión Escolar</h1>
+                <h1 className="text-2xl font-bold text-gray-800 mb-2">Campus Virtual - Margarita</h1>
                 <p className="mb-6 text-gray-600">
                     Bienvenido al panel principal del sistema de gestión escolar. Aquí puedes visualizar información relevante de alumnos, profesores y materias.
                 </p>
 
                 {/* Resumen rápido */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    <div className="bg-blue-100 p-4 rounded-lg shadow">
-                    <h2 className="text-xl font-semibold text-blue-800">Alumnos</h2>
-                    <p className="text-3xl font-bold">320</p>
-                    <p className="text-sm text-blue-700">Matriculados este ciclo</p>
-                    </div>
-                    <div className="bg-green-100 p-4 rounded-lg shadow">
-                    <h2 className="text-xl font-semibold text-green-800">Profesores</h2>
-                    <p className="text-3xl font-bold">28</p>
-                    <p className="text-sm text-green-700">Activos</p>
-                    </div>
+                    {
+                        user?.role == 2 && (
+                            <>
+                                <div className="bg-blue-100 p-4 rounded-lg shadow">
+                                <h2 className="text-xl font-semibold text-blue-800">Alumnos</h2>
+                                <p className="text-3xl font-bold">320</p>
+                                <p className="text-sm text-blue-700">Matriculados este ciclo</p>
+                                </div>
+                                <div className="bg-green-100 p-4 rounded-lg shadow">
+                                <h2 className="text-xl font-semibold text-green-800">Profesores</h2>
+                                <p className="text-3xl font-bold">28</p>
+                                <p className="text-sm text-green-700">Activos</p>
+                                </div>
+                            </>
+                        )
+                    }
+                    
                     <div className="bg-yellow-100 p-4 rounded-lg shadow">
                     <h2 className="text-xl font-semibold text-yellow-800">Materias</h2>
                     <p className="text-3xl font-bold">15</p>
@@ -166,15 +171,6 @@ export const Main: React.FC = () => {
                             </tr>
                             </thead>
                             <tbody>
-                            {
-                                users.map((user) => (
-                                <tr key={user.id}>
-                                    <td className="py-2 px-4 border-b">{user.name}</td>
-                                    <td className="py-2 px-4 border-b">{user.role}</td>
-                                    <td className="py-2 px-4 border-b">{user.id}</td>
-                                </tr>
-                                ))
-                            }
                             <tr>
                                 <td className="py-2 px-4 border-b">Pedro Gómez</td>
                                 <td className="py-2 px-4 border-b">Historia</td>
