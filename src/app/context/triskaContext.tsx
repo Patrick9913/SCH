@@ -2,8 +2,9 @@
 
 import React, { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import { db, auth } from '../config'
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDoc, getDocs, query, where } from "firebase/firestore";
 import { User } from "../types/user";
+import { useAuthContext } from "./authContext";
 
 
 interface TriskaContextProps {
@@ -24,22 +25,48 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     
     const userRef = collection(db, "users");
     const [users, setUsers] = useState<User[]>([]);
+    const {user} = useAuthContext();
+    console.log(users)
 
     const fetchUsers = async () => {
         try {
-            const user = auth.currentUser
-            console.log(user)
-            const getusers = await getDocs(userRef)
-            const usersData = getusers.docs.map((doc) => ({...doc.data() as Omit<User, 'id'>, id: doc.id}));
-            setUsers(usersData)
+            if (user?.role === 1) {
+                // Admin: obtener todos los usuarios
+                const snapshot = await getDocs(userRef);
+                const usersData = snapshot.docs.map((doc) => ({
+                    ...(doc.data() as Omit<User, 'id'>),
+                    id: doc.id,
+                }));
+                setUsers(usersData);
+                console.log("Todos los usuarios:", users)
+            } else if (user?.role === 3) {
+                // Usuario común: obtener solo su propio documento
+                const q = query(collection(db, "users"), where("uid", "==", user.uid));
+                const snapshot = await getDocs(q);
+
+                if (!snapshot.empty) {
+                    const userData = snapshot.docs[0].data() as User;
+                    setUsers([userData]); // mantener array por coherencia
+                    console.log("El usuario es:", users)
+                } else {
+                    console.warn("No se encontró usuario con ese UID.");
+                    setUsers([]); // opcional: dejar vacío
+                }
+            }
         } catch (error) {
             console.error("Error fetching users: ", error);
         }
     }
 
     useEffect(() => {
+        if (!user || !user.uid || user.role === undefined) {
+            // Usuario no está logueado, limpiar usuarios
+            setUsers([]);
+            return;
+        }
+
         fetchUsers();
-    }, []);
+    }, [user]);
 
     const triskaValues = {
         users

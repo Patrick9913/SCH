@@ -44,33 +44,39 @@ const Login: React.FC = () => {
   };
 
   return (
-    <main className="h-full w-full rounded bg-white flex items-center justify-center">
+    <main className="h-screen w-full rounded bg-white flex items-center justify-center">
       <div className="p-10 rounded shadow-md w-full max-w-sm">
-        <h1 className="text-2xl font-bold mb-6 text-gray-800">Iniciar Sesión</h1>
+        <h1 className="text-2xl text-center font-bold mb-6 text-gray-800">Iniciar Sesión</h1>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="email" className="block text-gray-700 mb-2">
+            <label htmlFor="email" className="block text-sm text-gray-700">
               Correo Electrónico
+              <span className="text-orange-500">*</span>
             </label>
             <input
               type="email"
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border shadow border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-gray-700 mb-2">
+            <label htmlFor="password" className="block text-sm text-gray-700">
               Contraseña
+              <span className="text-orange-500">*</span>
             </label>
             <input
               type="password"
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border shadow border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+          </div>
+          <div className=" flex flex-col items-center gap-y-2">
+            <a className=" text-sm underline underline-offset-2" href="#">¿Olvidaste tu Contraseña?</a>
+            <a className=" text-sm underline underline-offset-2" href="#">Registrarse</a>
           </div>
           <button
             type="submit"

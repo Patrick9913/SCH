@@ -68,6 +68,7 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
 
   const logout = async () => {
     await signOut(auth);
+    setUser(null)
   };
 
   const authValues = {
