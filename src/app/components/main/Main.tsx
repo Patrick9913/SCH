@@ -21,8 +21,9 @@ export const Main: React.FC = () => {
     
 
     return (
-        <div className=" bg-gradient-to-tl w-full h-full gap-x-3 flex">
-            <aside className=" w-full flex-1 max-w-2xs bg-white rounded-md flex flex-col justify-between">
+        <div className="min-h-screen h-screen w-screen p-2">
+            <div className=" w-full h-full gap-x-3 flex">
+                <aside className=" w-full flex-1 max-w-2xs bg-white rounded-md flex flex-col justify-between">
                 <div className="p-5">
                 <ul className="space-y-3">
                     {/* Opciones para ADMIN (role === 1) */}
@@ -199,6 +200,7 @@ export const Main: React.FC = () => {
                 }
                 </div>
             </section>
+            </div>
         </div>
     )
 }

@@ -27,7 +27,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} bg-gradient-to-tl from-gray-800 to-gray-900 antialiased p-2`}
+        className={`${geistSans.variable} ${geistMono.variable} bg-gradient-to-tl from-gray-800 to-gray-900 antialiased`}
       >
         <AuthContextProvider>
           <TriskaProvider>
