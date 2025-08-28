@@ -1,9 +1,17 @@
 export enum UserRole {
-  Admin   = 1,
-  Staff   = 2,
-  Student = 3,
-  Teacher = 4,
-  Parent  = 5,
+  Administrador = 1,
+  Staff = 2,
+  Estudiante = 3,
+  Docente = 4,
+  Familia  = 5,
+}
+
+export enum UserCurses {
+  "1 °" = 1,
+  "2 °" = 2,
+  "3 °" = 3,
+  "4 °" = 4,
+  "5 °" = 5
 }
 
 
@@ -12,5 +20,7 @@ export interface User {
   name: string;
   role: UserRole;
   uid: string;
+  mail?: string;
+  level?: UserCurses;
   childId?: string;
 }

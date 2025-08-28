@@ -1,15 +1,16 @@
 'use client';
 
 import { useAuthContext } from "@/app/context/authContext";
-import { UserRole } from "@/app/types/user";
+import { UserCurses, UserRole } from "@/app/types/user";
 import React from "react";
 import { IoPeople } from "react-icons/io5";
 import { FaBuildingColumns } from "react-icons/fa6";
 import { useTriskaContext } from "@/app/context/triskaContext";
-import { IoMail } from "react-icons/io5";
+import { HiMail } from "react-icons/hi";
 import { IoCalendarClear } from "react-icons/io5";
-import { FaBookOpen } from "react-icons/fa";
-import { FaGear } from "react-icons/fa6";
+import { HiBookOpen } from "react-icons/hi";
+import { HiCog } from "react-icons/hi";
+import { HiHome } from "react-icons/hi";
 
 export const Main: React.FC = () => {
 
@@ -31,19 +32,19 @@ export const Main: React.FC = () => {
                         <>
                             <li>
                                 <a href="#" className="text-gray-800 hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <IoPeople className="w-5 h-5" />
-                                    <span>Personal</span>
+                                    <HiHome className="w-5 h-5" />
+                                    <span>Inicio</span>
                                 </a>
                             </li>
                             <li>
                                 <a href="#" className="text-gray-800 hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <FaBuildingColumns className="w-5 h-5" />
-                                    <span>Escuelas</span>
+                                    <IoPeople    className="w-5 h-5" />
+                                    <span>Personal</span>
                                 </a>
                             </li>
                             <li>
                                 <a href="#" className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <FaGear className="group-hover:text-orange-500 w-5 h-5" />
+                                    <HiCog className="group-hover:text-orange-500 w-5 h-5" />
                                     <span className="group-hover:text-orange-800">Ajustes</span>
                                 </a>
                             </li>
@@ -54,7 +55,7 @@ export const Main: React.FC = () => {
                         <>
                             <li>
                                 <a href="#" className="text-gray-800 hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <FaBookOpen className="w-5 h-5" />
+                                    <HiBookOpen className="w-5 h-5" />
                                     <span>Mi Boletín</span>
                                 </a>
                             </li>
@@ -64,13 +65,19 @@ export const Main: React.FC = () => {
                                     <span>Mis horarios</span>
                                 </a>
                             </li>
+                            <li>
+                                <a href="#" className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
+                                    <HiCog className="group-hover:text-orange-500 w-5 h-5" />
+                                    <span className="group-hover:text-orange-800">Ajustes</span>
+                                </a>
+                            </li>
                         </>
                     )}
                     {/* Opciones comunes para todos */}
                     <li>
-                        <a href="#" className="text-gray-800 hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                            <IoMail className="w-5 h-5" />
-                            <span>Comunicación</span>
+                        <a href="#" className="text-gray-800 hover:text-blue-500 flex items-center gap-x-2">
+                            <HiMail className="w-5 h-5" />
+                            <span className=" text-sm">Comunicación</span>
                         </a>
                     </li>
                 </ul>
@@ -78,8 +85,8 @@ export const Main: React.FC = () => {
                 <div className="*:text-sm flex flex-col gap-y-2 p-5 items-start">
                     {
                         user?.name && user.role && (
-                            <div>
-                                {user?.name} - <span className=" text-blue-600">{UserRole[user?.role]}</span>
+                            <div className="">
+                                <span>{user?.name}</span> - <span className=" text-blue-600">{UserRole[user?.role]}</span>
                             </div>
                         )
                     }
@@ -135,64 +142,17 @@ export const Main: React.FC = () => {
                             {/* Tabla de alumnos */}
                             <div className="mb-8">
                                 <h2 className="text-2xl font-semibold mb-4 text-gray-700">Lista de Alumnos</h2>
-                                <div className="overflow-x-auto">
-                                <table className="min-w-full bg-white border border-gray-200">
-                                    <thead>
-                                    <tr>
-                                        <th className="py-2 px-4 border-b">Nombre</th>
-                                        <th className="py-2 px-4 border-b">Grado</th>
-                                        <th className="py-2 px-4 border-b">Grupo</th>
-                                        <th className="py-2 px-4 border-b">Estatus</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    <tr>
-                                        <td className="py-2 px-4 border-b">Juan Pérez</td>
-                                        <td className="py-2 px-4 border-b">3°</td>
-                                        <td className="py-2 px-4 border-b">A</td>
-                                        <td className="py-2 px-4 border-b text-green-600">Activo</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="py-2 px-4 border-b">María López</td>
-                                        <td className="py-2 px-4 border-b">2°</td>
-                                        <td className="py-2 px-4 border-b">B</td>
-                                        <td className="py-2 px-4 border-b text-green-600">Activo</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="py-2 px-4 border-b">Carlos Sánchez</td>
-                                        <td className="py-2 px-4 border-b">1°</td>
-                                        <td className="py-2 px-4 border-b">C</td>
-                                        <td className="py-2 px-4 border-b text-red-600">Baja</td>
-                                    </tr>
-                                    </tbody>
-                                </table>
-                                </div>
-                            </div>
-                            {/* Tabla de profesores */}
-                            <div className="mb-8">
-                                <h2 className="text-2xl font-semibold mb-4 text-gray-700">Lista de Profesores</h2>
-                                <div className="overflow-x-auto">
-                                    <table className="min-w-full bg-white border border-gray-200 ">
-                                        <thead>
-                                        <tr>
-                                            <th className="py-2 px-4 border-b">Nombre</th>
-                                            <th className="py-2 px-4 border-b">Materia</th>
-                                            <th className="py-2 px-4 border-b">Correo</th>
-                                        </tr>
-                                        </thead>
-                                        <tbody>
-                                        <tr>
-                                            <td className="py-2 px-4 border-b">Pedro Gómez</td>
-                                            <td className="py-2 px-4 border-b">Historia</td>
-                                            <td className="py-2 px-4 border-b">pedro.gomez@escuela.edu</td>
-                                        </tr>
-                                        <tr>
-                                            <td className="py-2 px-4 border-b">Ana Torres</td>
-                                            <td className="py-2 px-4 border-b">Ciencias</td>
-                                            <td className="py-2 px-4 border-b">ana.torres@escuela.edu</td>
-                                        </tr>
-                                        </tbody>
-                                    </table>
+                                <div className=" p-2 rounded shadow">
+                                    {
+                                        students.map( s => (
+                                            <div className=" flex justify-between hover:bg-gray-50 p-2">
+                                                <span className=" w-1/6">{s.name}</span>
+                                                <a className=" hover:underline" href={`mailto:${s.mail}`}>{s.mail}</a>
+                                                <span className=" w-1/6">{UserRole[s.role]}</span>
+                                                <span className=" w-1/6">{s.level && UserCurses[s.level]}</span>
+                                            </div>
+                                        ))
+                                    }
                                 </div>
                             </div>
                         </>
