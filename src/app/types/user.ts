@@ -7,13 +7,26 @@ export enum UserRole {
 }
 
 export enum UserCurses {
-  "1 °" = 1,
-  "2 °" = 2,
-  "3 °" = 3,
-  "4 °" = 4,
-  "5 °" = 5
+  "1°" = 1,
+  "2°" = 2,
+  "3°" = 3,
+  "4°" = 4,
+  "5°" = 5
 }
 
+export enum Assignments {
+  Matematica = 1,
+  Lengua = 2,
+  Historia = 3,
+  Geografia = 4,
+  Biologia = 5,
+  Fisica = 6,
+  Quimica = 7,
+  Ingles = 8,
+  EducacionFisica = 9,
+  Arte = 10,
+  Tecnologia = 11,
+}
 
 export interface User {
   id: string;
@@ -23,4 +36,13 @@ export interface User {
   mail?: string;
   level?: UserCurses;
   childId?: string;
+  dni?: number;
+  asig?: number;
+}
+
+export interface PersonalView {
+  src?: string,
+  name: string,
+  role: string,
+  level?: string
 }

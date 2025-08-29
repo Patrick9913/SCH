@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import React, { createContext, Dispatch, ReactNode, SetStateAction, useContext, useEffect, useState } from "react";
 import { db, auth } from '../config'
 import { collection, getDoc, getDocs, query, where } from "firebase/firestore";
 import { User } from "../types/user";
@@ -9,6 +9,8 @@ import { useAuthContext } from "./authContext";
 
 interface TriskaContextProps {
     users: User[];
+    menu: number,
+    setMenu: Dispatch<SetStateAction<number>>
 }
 
 export const TriskaContext = createContext<TriskaContextProps | null>(null);
@@ -26,7 +28,7 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const userRef = collection(db, "users");
     const [users, setUsers] = useState<User[]>([]);
     const {user} = useAuthContext();
-    console.log(users)
+    const [menu, setMenu] = useState<number>(1)
 
     const fetchUsers = async () => {
         try {
@@ -69,6 +71,8 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }, [user]);
 
     const triskaValues = {
+        menu,
+        setMenu,
         users
     }
 
