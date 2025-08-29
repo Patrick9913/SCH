@@ -141,15 +141,33 @@ export const Main: React.FC = () => {
                         <>
                             {/* Tabla de alumnos */}
                             <div className="mb-8">
+                                <h2 className="text-2xl font-semibold mb-4 text-gray-700">Lista de Profesores</h2>
+                                <div className=" p-2 rounded shadow">
+                                    {
+                                        teachers.map( s => (
+                                            <div className=" flex justify-start items-center gap-x-10 hover:bg-gray-50 p-2">
+                                                <span className="">{s.name}</span>
+                                                <a className=" hover:underline" href={`mailto:${s.mail}`}>{s.mail}</a>
+                                                <span className=" ">{UserRole[s.role]}</span>
+                                                {
+                                                    s.level &&<span className="  p-2 rounded bg-emerald-500 text-white w-fit">{UserCurses[s.level]}</span>
+                                                }
+                                            </div>
+                                        ))
+                                    }
+                                </div>
+                            </div>
+                            {/* Tabla de Profesores */}
+                            <div className="mb-8">
                                 <h2 className="text-2xl font-semibold mb-4 text-gray-700">Lista de Alumnos</h2>
                                 <div className=" p-2 rounded shadow">
                                     {
                                         students.map( s => (
-                                            <div className=" flex justify-between hover:bg-gray-50 p-2">
-                                                <span className=" w-1/6">{s.name}</span>
+                                            <div className=" flex justify-start items-center gap-x-10 hover:bg-gray-50 p-2">
+                                                <span className="">{s.name}</span>
                                                 <a className=" hover:underline" href={`mailto:${s.mail}`}>{s.mail}</a>
-                                                <span className=" w-1/6">{UserRole[s.role]}</span>
-                                                <span className=" w-1/6">{s.level && UserCurses[s.level]}</span>
+                                                <span className=" ">{UserRole[s.role]}</span>
+                                                <span className="  p-2 rounded bg-emerald-500 text-white w-fit">{s.level && UserCurses[s.level]}</span>
                                             </div>
                                         ))
                                     }
