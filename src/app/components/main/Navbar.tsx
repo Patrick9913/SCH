@@ -10,6 +10,7 @@ import { HiBookOpen } from "react-icons/hi";
 import { HiCog } from "react-icons/hi";
 import { HiHome } from "react-icons/hi";
 import { HiDocumentCheck } from "react-icons/hi2";
+import { HiChatBubbleOvalLeft } from "react-icons/hi2";
 import { UserRole } from "@/app/types/user";
 
 export const Navbar: React.FC = () => {
@@ -55,20 +56,14 @@ export const Navbar: React.FC = () => {
                             </li>
                             <li>
                                 <a href="#" className="text-gray-800 hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiBookOpen className="w-5 h-5" />
-                                    <span>Mi Boletín</span>
-                                </a>
-                            </li>
-                            <li>
-                                <a href="#" className="text-gray-800 hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
                                     <IoCalendarClear className="w-5 h-5" />
                                     <span>Mis horarios</span>
                                 </a>
                             </li>
                             <li>
-                                <button onClick={() => setMenu(1)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
+                                <button onClick={() => setMenu(5)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
                                     <HiDocumentCheck className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Inasistencias</span>
+                                    <span className="group-hover:text-orange-800">Asistencias</span>
                                 </button>
                             </li>
                             <li>
@@ -81,10 +76,10 @@ export const Navbar: React.FC = () => {
                     )}
                     {/* Opciones comunes para todos */}
                     <li>
-                        <a href="#" className="text-gray-800 hover:text-blue-500 flex items-center gap-x-2">
-                            <HiMail className="w-5 h-5" />
-                            <span className=" text-sm">Comunicación</span>
-                        </a>
+                        <button onClick={() => setMenu(4)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
+                            <HiChatBubbleOvalLeft className="w-5 h-5" />
+                            <span>Mensajes</span>
+                        </button>
                     </li>
                 </ul>
             </div>

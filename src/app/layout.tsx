@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { TriskaProvider } from "./context/triskaContext";
+import { AnnouncementsProvider } from "./context/announcementsContext";
+import { MessagesProvider } from "./context/messagesContext";
+import { AttendanceProvider } from "./context/attendanceContext";
 import { AuthContextProvider } from "./context/authContext";
 
 const geistSans = Geist({
@@ -30,9 +33,15 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} bg-gradient-to-tl from-gray-800 to-gray-900 antialiased`}
       >
         <AuthContextProvider>
-          <TriskaProvider>
-            {children}
-          </TriskaProvider>
+          <AnnouncementsProvider>
+            <MessagesProvider>
+              <AttendanceProvider>
+                <TriskaProvider>
+                  {children}
+                </TriskaProvider>
+              </AttendanceProvider>
+            </MessagesProvider>
+          </AnnouncementsProvider>
         </AuthContextProvider>
       </body>
     </html>

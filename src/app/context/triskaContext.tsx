@@ -152,4 +152,3 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         </TriskaContext.Provider>
     );
 };
-``

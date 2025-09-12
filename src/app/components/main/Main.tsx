@@ -6,6 +6,8 @@ import { Settings } from "../fccomponents/Settings";
 import { Personal } from "../fccomponents/Personal";
 import { Home } from "../fccomponents/Home"
 import { Navbar } from "./Navbar";
+import { Messages } from "../fccomponents/Messages";
+import { Attendance } from "../fccomponents/Attendance";
 
 export const Main: React.FC = () => {
 
@@ -31,6 +33,16 @@ export const Main: React.FC = () => {
                 {
                     menu == 3 && (
                         <Personal />
+                    )
+                }
+                {
+                    menu == 4 && (
+                        <Messages />
+                    )
+                }
+                {
+                    menu == 5 && (
+                        <Attendance />
                     )
                 }
             </div>

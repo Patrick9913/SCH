@@ -1,5 +1,6 @@
 import { useAuthContext } from "@/app/context/authContext";
 import { useTriskaContext } from "@/app/context/triskaContext";
+import { useAnnouncements } from "@/app/context/announcementsContext";
 import { Assignments, UserCurses} from "@/app/types/user";
 import { HiHome } from "react-icons/hi";
 
@@ -9,6 +10,7 @@ export const Home: React.FC = () => {
 
     const { user} = useAuthContext()
     const { users} = useTriskaContext()
+    const { announcements, createAnnouncement, deleteAnnouncement } = useAnnouncements()
 
     const students = users.filter( s => s.role === 3)
     const teachers = users.filter( t => t.role === 4)
@@ -26,13 +28,62 @@ export const Home: React.FC = () => {
                         administrar opciones avanzadas.
                         </p>
                     </div>
-                {/* Avisos */}
+                {/* Avisos dinámicos */}
                 <div className="bg-gray-100 p-4 rounded-lg border-l-4 border-blue-400 mb-8">
-                    <h2 className="text-xl font-semibold text-blue-700 mb-2">Avisos Importantes</h2>
-                    <ul className="list-disc pl-6 text-gray-700">
-                    <li>Inscripciones abiertas hasta el 31 de agosto.</li>
-                    <li>Entrega de boletas: 20 de septiembre.</li>
-                    <li>Reunión de padres de familia: 5 de septiembre a las 18:00 hrs.</li>
+                    <h2 className="text-xl font-semibold text-blue-700 mb-4">Avisos</h2>
+                    {user?.role === 1 && (
+                        <form
+                            className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-2"
+                            onSubmit={async (e) => {
+                                e.preventDefault();
+                                const form = e.currentTarget as HTMLFormElement & {
+                                    title: { value: string };
+                                    body: { value: string };
+                                    audience: { value: any };
+                                };
+                                const title = form.title.value;
+                                const body = form.body.value;
+                                const audience = form.audience.value as any;
+                                if (!title.trim()) return;
+                                await createAnnouncement({ title, body, audience });
+                                form.title.value = '';
+                                form.body.value = '';
+                                form.audience.value = 'all';
+                            }}
+                        >
+                            <input name="title" placeholder="Título" className="border rounded px-2 py-1" />
+                            <input name="body" placeholder="Descripción" className="border rounded px-2 py-1 md:col-span-2" />
+                            <select name="audience" defaultValue="all" className="border rounded px-2 py-1">
+                                <option value="all">Todos</option>
+                                <option value="students">Estudiantes</option>
+                                <option value="teachers">Docentes</option>
+                                <option value="staff">Staff</option>
+                                <option value="families">Familias</option>
+                            </select>
+                            <button type="submit" className="bg-blue-600 text-white rounded px-3 py-1 md:col-span-4 w-fit">Publicar</button>
+                        </form>
+                    )}
+                    <ul className="space-y-2">
+                        {announcements.map((a) => (
+                            <li key={a.id} className="bg-white border rounded p-3 flex justify-between items-start">
+                                <div>
+                                    <p className="font-semibold text-gray-800">{a.title}</p>
+                                    {a.body && <p className="text-gray-600 text-sm">{a.body}</p>}
+                                    <p className="text-xs text-gray-500">Para: {a.audience} • {new Date(a.createdAt).toLocaleString()}</p>
+                                </div>
+                                {user?.role === 1 && (
+                                    <button
+                                        className="text-red-600 text-sm hover:underline"
+                                        onClick={() => deleteAnnouncement(a.id)}
+                                    >
+                                        Eliminar
+                                    </button>
+                                )}
+                            </li>
+                        ))}
+                        {announcements.length === 0 && (
+                            <li className="text-gray-500">Sin avisos por ahora.</li>
+                        )}
                     </ul>
                 </div>
                 {/* Resumen rápido */}
