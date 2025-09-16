@@ -2,8 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { db, auth } from '../config';
-import { addDoc, collection, onSnapshot, orderBy, query, where, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { DirectMessage } from '../types/message';
+import { addDoc, collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { DirectMessage } from '../types/messages';
 import { useAuthContext } from './authContext';
 
 interface MessagesContextProps {
@@ -14,14 +14,14 @@ interface MessagesContextProps {
 const MessagesContext = createContext<MessagesContextProps | null>(null);
 
 export const useMessages = () => {
-  const ctx = useContext(MessagesContext);
-  if (!ctx) throw new Error('useMessages debe usarse dentro de MessagesProvider');
-  return ctx;
+  const context = useContext(MessagesContext);
+  if (!context) throw new Error('useMessages debe usarse dentro de MessagesProvider');
+  return context;
 };
 
 export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { uid } = useAuthContext();
-  const [directMessages, setDirectMessages] = useState<DirectMessage[]>([]);
+  const [ directMessages, setDirectMessages ] = useState<DirectMessage[]>([]);
 
   useEffect(() => {
     if (!uid) return; // ⚡ No crear suscripción hasta que uid exista
@@ -38,19 +38,15 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const unsub = onSnapshot(q, (snap) => {
       console.log('snapshot size', snap.size);
       const items: DirectMessage[] = snap.docs.map((d) => {
-        const data = d.data() as any;
+        const data = d.data();
         return {
           id: d.id,
+          body: data.body,
+          createdAt: data.createdAt,
           fromUid: data.fromUid,
           toUid: data.toUid,
-          body: data.body,
-          createdAt:
-            typeof data.createdAt === 'number'
-              ? data.createdAt
-              : data.createdAt instanceof Timestamp
-              ? data.createdAt.toMillis()
-              : Date.now(),
-          readBy: data.readBy ?? [],
+          participants: data.participants || [data.fromUid, data.toUid], // 👈 clave
+          readBy: data.readBy || []
         };
       });
       setDirectMessages(items);
@@ -75,6 +71,8 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const value = useMemo(() => ({ directMessages, sendDirectMessage }), [directMessages]);
   return <MessagesContext.Provider value={value}>{children}</MessagesContext.Provider>;
 };
+
+
 
 
 
