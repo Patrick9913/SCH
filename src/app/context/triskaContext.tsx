@@ -1,12 +1,12 @@
 'use client';
 
 import React, { createContext, Dispatch, ReactNode, SetStateAction, useContext, useEffect, useState } from "react";
-import { db, auth } from '../config';
-import { addDoc, collection, getDocs, onSnapshot, query, where } from "firebase/firestore";
-import { User } from "../types/user";
+import { db, auth, app } from '../config';
+import { addDoc, collection, onSnapshot, query, where } from "firebase/firestore";
+import { NewUserData, User } from "../types/user";
 import { useAuthContext } from "./authContext";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-
+// Firebase Functions removido - usando autenticación directa
 
 interface TriskaContextProps {
     users: User[];
@@ -24,8 +24,12 @@ interface TriskaContextProps {
     password: string;
     setPassword: Dispatch<SetStateAction<string>>
     setDni: Dispatch<SetStateAction<string>>;
-    newUser: (email: string, password: string) => void;
+    newUser: (data: NewUserData) => Promise<void>;
 }
+
+type CreateUserResponse = {
+  uid: string;
+};
 
 export const TriskaContext = createContext<TriskaContextProps | null>(null);
 
@@ -49,6 +53,8 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const [mail, setMail] = useState<string>("");
     const [role, setRole] = useState<number>(0);
     const [nUser, setNUser] = useState<boolean>(false);
+
+    // Firebase Functions removido - usando autenticación directa
 
     // Función para obtener usuarios
     const fetchUsers = () => {
@@ -86,28 +92,46 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
 };
 
-    // Función para crear un nuevo usuario
-    const newUser = async (email: string, password: string) => {
+    // Función para crear un nuevo usuario (solo en Firestore)
+    const newUser = async ({ firstName, mail, dni, role, password }: NewUserData) => {
         try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
-            const userId = user.uid;
-
-            // Crear el nuevo documento de usuario
+            console.log("📝 Datos recibidos:", { firstName, mail, dni, role, password });
+            
+            // Validar que firstName no esté vacío
+            if (!firstName || firstName.trim() === '') {
+                throw new Error("El nombre es requerido");
+            }
+            
+            // Generar un UID temporal (puedes usar uuid o cualquier método)
+            const tempUid = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            
+            console.log("🆔 UID generado:", tempUid);
+            
+            // Crear documento en Firestore
+            const { addDoc, collection } = await import("firebase/firestore");
             await addDoc(collection(db, "users"), {
                 name: firstName.trim(),
                 mail: mail.trim(),
                 dni: Number(dni),
                 role: role,
-                uid: userId,
+                uid: tempUid,
+                password: password, // Guardamos la contraseña temporalmente
+                createdAt: new Date(),
+                status: 'pending' // Estado pendiente hasta que se cree en Auth
             });
-            console.log("Usuario creado correctamente");
-            setNUser(false)
-            setDni("")
-            setFirstName("")
-            setMail("")
+
+            console.log("✅ Usuario creado en Firestore:", tempUid);
+            alert("Usuario creado exitosamente. El administrador deberá crear la cuenta de autenticación por separado.");
+
+            // Resetear campos
+            setNUser(false);
+            setDni("");
+            setFirstName("");
+            setMail("");
+            setPassword("");
         } catch (error) {
-            console.log("Ha ocurrido un error al cargar el usuario", error);
+            console.error("💥 Ha ocurrido un error al crear el usuario:", error);
+            alert("Error al crear el usuario: " + (error instanceof Error ? error.message : String(error)));
         }
     };
 

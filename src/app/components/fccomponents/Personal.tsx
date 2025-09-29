@@ -18,9 +18,18 @@ export const Personal: React.FC = () => {
 
         if (!firstName || !mail || !dni || !role || !password) {
             console.log("Faltan Datos")
+            alert("Por favor completa todos los campos");
             return;
         }
-        newUser(mail, password)  
+        
+        // Llamar a newUser con el objeto completo
+        newUser({
+            firstName: firstName,
+            mail: mail,
+            dni: Number(dni),
+            role: role,
+            password: password
+        });  
     }
 
     return (

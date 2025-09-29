@@ -38,6 +38,9 @@ export interface User {
   childId?: string;
   dni?: number;
   asig?: number;
+  password?: string; // Para usuarios pendientes
+  createdAt?: Date;
+  status?: 'pending' | 'active'; // Estado del usuario
 }
 
 export interface PersonalView {
@@ -46,3 +49,11 @@ export interface PersonalView {
   role: string,
   level?: string
 }
+
+export type NewUserData = {
+  firstName: string;
+  mail: string;
+  dni: number;
+  role: number; // Cambiado de string a number
+  password: string;
+};

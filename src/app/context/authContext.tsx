@@ -38,7 +38,7 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
         try {
           const q = query(collection(db, "users"), where("uid", "==", currentUid));
           const querySnapshot = await getDocs(q);
-
+          
           if (!querySnapshot.empty) {
             const userData = querySnapshot.docs[0].data() as User;
             setUser(userData);
