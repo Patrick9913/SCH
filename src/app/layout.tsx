@@ -9,6 +9,8 @@ import { AttendanceProvider } from "./context/attendanceContext";
 import { GradesProvider } from "./context/gradesContext";
 import { SettingsProvider } from "./context/settingsContext";
 import { AuthContextProvider } from "./context/authContext";
+import { ScheduleProvider } from "./context/scheduleContext";
+import { TasksProvider } from "./context/tasksContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,18 +42,22 @@ export default function RootLayout({
             <AnnouncementsProvider>
               <MessagesProvider>
                 <AttendanceProvider>
-                  <TriskaProvider>
-                    <ChatProvider>
-                      <GradesProvider>
-                        {children}
-                      </GradesProvider>
-                    </ChatProvider>
-                  </TriskaProvider>
-                </AttendanceProvider>
-              </MessagesProvider>
-            </AnnouncementsProvider>
-          </SettingsProvider>
-        </AuthContextProvider>
+                    <TriskaProvider>
+                      <ChatProvider>
+                        <GradesProvider>
+                          <ScheduleProvider>
+                            <TasksProvider>
+                              {children}
+                            </TasksProvider>
+                          </ScheduleProvider>
+                        </GradesProvider>
+                      </ChatProvider>
+                    </TriskaProvider>
+                  </AttendanceProvider>
+                </MessagesProvider>
+              </AnnouncementsProvider>
+            </SettingsProvider>
+          </AuthContextProvider>
       </body>
     </html>
   );
