@@ -8,6 +8,8 @@ import { Home } from "../fccomponents/Home"
 import { Navbar } from "./Navbar";
 import { Messages } from "../fccomponents/Messages";
 import { Attendance } from "../fccomponents/Attendance";
+import { Grades } from "../fccomponents/Grades";
+import { BulletinReports } from "../fccomponents/BulletinReports";
 
 export const Main: React.FC = () => {
 
@@ -43,6 +45,16 @@ export const Main: React.FC = () => {
                 {
                     menu == 5 && (
                         <Attendance />
+                    )
+                }
+                {
+                    menu == 6 && (
+                        <Grades />
+                    )
+                }
+                {
+                    menu == 7 && (
+                        <BulletinReports />
                     )
                 }
             </div>

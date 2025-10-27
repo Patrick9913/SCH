@@ -11,6 +11,7 @@ import { HiCog } from "react-icons/hi";
 import { HiHome } from "react-icons/hi";
 import { HiDocumentCheck } from "react-icons/hi2";
 import { HiChatBubbleOvalLeft } from "react-icons/hi2";
+import { HiChartBar, HiDocumentText } from "react-icons/hi";
 import { UserRole } from "@/app/types/user";
 
 export const Navbar: React.FC = () => {
@@ -35,6 +36,12 @@ export const Navbar: React.FC = () => {
                                 <button onClick={() => setMenu(3)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
                                     <IoPeople className="group-hover:text-orange-500 w-5 h-5" />
                                     <span className="group-hover:text-orange-800">Personal</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button onClick={() => setMenu(6)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
+                                    <HiChartBar className="group-hover:text-orange-500 w-5 h-5" />
+                                    <span className="group-hover:text-orange-800">Calificaciones</span>
                                 </button>
                             </li>
                             <li>
@@ -67,6 +74,12 @@ export const Navbar: React.FC = () => {
                                 </button>
                             </li>
                             <li>
+                                <button onClick={() => setMenu(6)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
+                                    <HiChartBar className="group-hover:text-orange-500 w-5 h-5" />
+                                    <span className="group-hover:text-orange-800">Calificaciones</span>
+                                </button>
+                            </li>
+                            <li>
                                 <button onClick={() => setMenu(2)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
                                     <HiCog className="group-hover:text-orange-500 w-5 h-5" />
                                     <span className="group-hover:text-orange-800">Ajustes</span>
@@ -79,6 +92,12 @@ export const Navbar: React.FC = () => {
                         <button onClick={() => setMenu(4)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
                             <HiChatBubbleOvalLeft className="w-5 h-5" />
                             <span>Mensajes</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button onClick={() => setMenu(7)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
+                            <HiDocumentText className="group-hover:text-orange-500 w-5 h-5" />
+                            <span className="group-hover:text-orange-800">Boletines</span>
                         </button>
                     </li>
                 </ul>

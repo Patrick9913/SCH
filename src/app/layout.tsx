@@ -4,7 +4,10 @@ import "./globals.css";
 import { TriskaProvider } from "./context/triskaContext";
 import { AnnouncementsProvider } from "./context/announcementsContext";
 import { MessagesProvider } from "./context/messagesContext";
+import { ChatProvider } from "./context/chatContext";
 import { AttendanceProvider } from "./context/attendanceContext";
+import { GradesProvider } from "./context/gradesContext";
+import { SettingsProvider } from "./context/settingsContext";
 import { AuthContextProvider } from "./context/authContext";
 
 const geistSans = Geist({
@@ -33,15 +36,21 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} bg-gradient-to-tl from-gray-800 to-gray-900 antialiased`}
       >
         <AuthContextProvider>
-          <AnnouncementsProvider>
-            <MessagesProvider>
-              <AttendanceProvider>
-                <TriskaProvider>
-                  {children}
-                </TriskaProvider>
-              </AttendanceProvider>
-            </MessagesProvider>
-          </AnnouncementsProvider>
+          <SettingsProvider>
+            <AnnouncementsProvider>
+              <MessagesProvider>
+                <AttendanceProvider>
+                  <TriskaProvider>
+                    <ChatProvider>
+                      <GradesProvider>
+                        {children}
+                      </GradesProvider>
+                    </ChatProvider>
+                  </TriskaProvider>
+                </AttendanceProvider>
+              </MessagesProvider>
+            </AnnouncementsProvider>
+          </SettingsProvider>
         </AuthContextProvider>
       </body>
     </html>
