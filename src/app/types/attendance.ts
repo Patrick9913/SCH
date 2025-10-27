@@ -1,9 +1,11 @@
+export type AttendanceStatus = 'present' | 'absent' | 'late';
+
 export interface AttendanceRecord {
   id: string;
   date: string; // YYYY-MM-DD
   studentUid: string;
-  subjectId?: string;
-  status: 'present' | 'absent' | 'late' | 'excused';
+  courseLevel: number; // Reference to UserCurses enum
+  status: AttendanceStatus;
   createdByUid: string;
   createdAt: number;
 }

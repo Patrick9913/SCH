@@ -39,6 +39,12 @@ export const Navbar: React.FC = () => {
                                 </button>
                             </li>
                             <li>
+                                <button onClick={() => setMenu(5)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
+                                    <HiDocumentCheck className="group-hover:text-orange-500 w-5 h-5" />
+                                    <span className="group-hover:text-orange-800">Asistencias</span>
+                                </button>
+                            </li>
+                            <li>
                                 <button onClick={() => setMenu(6)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
                                     <HiChartBar className="group-hover:text-orange-500 w-5 h-5" />
                                     <span className="group-hover:text-orange-800">Calificaciones</span>
@@ -66,6 +72,64 @@ export const Navbar: React.FC = () => {
                                     <IoCalendarClear className="w-5 h-5" />
                                     <span>Mis horarios</span>
                                 </a>
+                            </li>
+                            <li>
+                                <button onClick={() => setMenu(5)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
+                                    <HiDocumentCheck className="group-hover:text-orange-500 w-5 h-5" />
+                                    <span className="group-hover:text-orange-800">Asistencias</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button onClick={() => setMenu(6)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
+                                    <HiChartBar className="group-hover:text-orange-500 w-5 h-5" />
+                                    <span className="group-hover:text-orange-800">Calificaciones</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button onClick={() => setMenu(2)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
+                                    <HiCog className="group-hover:text-orange-500 w-5 h-5" />
+                                    <span className="group-hover:text-orange-800">Ajustes</span>
+                                </button>
+                            </li>
+                        </>
+                    )}
+                    {/* Opciones para DOCENTE (role === 4) */}
+                    {user?.role === 4 && (
+                        <>
+                            <li>
+                                <button onClick={() => setMenu(1)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
+                                    <HiHome className="group-hover:text-orange-500 w-5 h-5" />
+                                    <span className="group-hover:text-orange-800">Inicio</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button onClick={() => setMenu(5)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
+                                    <HiDocumentCheck className="group-hover:text-orange-500 w-5 h-5" />
+                                    <span className="group-hover:text-orange-800">Asistencias</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button onClick={() => setMenu(6)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
+                                    <HiChartBar className="group-hover:text-orange-500 w-5 h-5" />
+                                    <span className="group-hover:text-orange-800">Calificaciones</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button onClick={() => setMenu(2)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
+                                    <HiCog className="group-hover:text-orange-500 w-5 h-5" />
+                                    <span className="group-hover:text-orange-800">Ajustes</span>
+                                </button>
+                            </li>
+                        </>
+                    )}
+                    {/* Opciones para STAFF (role === 2) */}
+                    {user?.role === 2 && (
+                        <>
+                            <li>
+                                <button onClick={() => setMenu(1)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
+                                    <HiHome className="group-hover:text-orange-500 w-5 h-5" />
+                                    <span className="group-hover:text-orange-800">Inicio</span>
+                                </button>
                             </li>
                             <li>
                                 <button onClick={() => setMenu(5)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">

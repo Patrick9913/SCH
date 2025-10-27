@@ -9,6 +9,8 @@ import { useAuthContext } from './authContext';
 interface AttendanceContextProps {
   records: AttendanceRecord[];
   markAttendance: (data: Omit<AttendanceRecord, 'id' | 'createdAt' | 'createdByUid'>) => Promise<void>;
+  addMultipleAttendances: (attendances: Omit<AttendanceRecord, 'id' | 'createdAt' | 'createdByUid'>[]) => Promise<void>;
+  getAttendanceForStudent: (studentUid: string, date: string) => AttendanceRecord | undefined;
 }
 
 const AttendanceContext = createContext<AttendanceContextProps | null>(null);
@@ -54,7 +56,29 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   };
 
-  const value = useMemo(() => ({ records, markAttendance }), [records]);
+  const addMultipleAttendances = async (attendancesToAdd: Omit<AttendanceRecord, 'id' | 'createdAt' | 'createdByUid'>[]) => {
+    if (!uid) return;
+    // Firestore batch write
+    const batch = attendancesToAdd.map(attendance => 
+      addDoc(collection(db, 'attendance'), {
+        ...attendance,
+        createdByUid: uid,
+        createdAt: Date.now(),
+      })
+    );
+    await Promise.all(batch);
+  };
+
+  const getAttendanceForStudent = (studentUid: string, date: string): AttendanceRecord | undefined => {
+    return records.find(r => r.studentUid === studentUid && r.date === date);
+  };
+
+  const value = useMemo(() => ({ 
+    records, 
+    markAttendance, 
+    addMultipleAttendances,
+    getAttendanceForStudent
+  }), [records]);
   return <AttendanceContext.Provider value={value}>{children}</AttendanceContext.Provider>;
 };
 
