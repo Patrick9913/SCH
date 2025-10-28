@@ -28,8 +28,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [gradeLoadingEnabled, setGradeLoadingEnabled] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<number>();
-  const previousValue = useRef<boolean>(false); // Para detectar cambios
+  const previousValue = useRef<boolean | null>(null); // null = no inicializado
   const previousUpdated = useRef<number>(0); // Para detectar nuevas actualizaciones
+  const isInitialized = useRef<boolean>(false); // Para saber si ya se inicializó
 
   const isMainAdmin = user?.role === 1;
   
@@ -93,17 +94,34 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             userUid: user?.uid
           });
           
-          // Detectar si cambió el valor (más simple y directo)
-          const hasValueChanged = enabled !== previousValue.current;
+          // Detectar si cambió el valor
+          const hasValueChanged = previousValue.current !== null && enabled !== previousValue.current;
           const isNewUpdate = updated !== previousUpdated.current;
+          
+          console.log('🔍 Análisis de cambio:', {
+            enabled,
+            previousValue: previousValue.current,
+            hasValueChanged,
+            isNewUpdate,
+            isInitialized: isInitialized.current,
+            previousUpdated: previousUpdated.current,
+            currentUpdated: updated,
+            canManageGrades,
+            userUid: user?.uid
+          });
           
           // Actualizar el estado SIEMPRE (esto es lo más importante)
           setGradeLoadingEnabled(enabled);
           setLastUpdated(updated);
           
-          // Mostrar notificación solo si cambió el valor y es una actualización real
-          if (hasValueChanged && isNewUpdate && canManageGrades && user?.uid && previousUpdated.current > 0) {
+          // Mostrar notificación solo si:
+          // 1. Ya se inicializó (no es la primera carga)
+          // 2. El valor cambió
+          // 3. Es una actualización nueva
+          // 4. El usuario puede gestionar calificaciones
+          if (isInitialized.current && hasValueChanged && isNewUpdate && canManageGrades && user?.uid) {
             console.log('🔔 Mostrando notificación por cambio de estado');
+            
             if (enabled) {
               toast.success('¡La carga de notas está disponible!', {
                 duration: 5000,
@@ -125,11 +143,24 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 },
               });
             }
+          } else {
+            console.log('🔕 No se muestra notificación:', {
+              isInitialized: isInitialized.current,
+              hasValueChanged,
+              isNewUpdate,
+              canManageGrades,
+              userUid: user?.uid,
+              enabled,
+              previousValue: previousValue.current,
+              previousUpdated: previousUpdated.current,
+              currentUpdated: updated
+            });
           }
           
           // Actualizar referencias para la próxima comparación
           previousValue.current = enabled;
           previousUpdated.current = updated;
+          isInitialized.current = true; // Marcar como inicializado después del primer snapshot
           
         } else {
           // Si el documento no existe, crear uno con valores por defecto
