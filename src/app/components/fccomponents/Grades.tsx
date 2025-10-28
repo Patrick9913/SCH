@@ -8,6 +8,7 @@ import { Assignments, UserCurses } from '@/app/types/user';
 import { GradeLabels, PeriodLabels, GradeValue, Period } from '@/app/types/grade';
 import { HiChartBar, HiCheck } from 'react-icons/hi';
 import { useSettings } from '@/app/context/settingsContext';
+import { useSubjects } from '@/app/context/subjectContext';
 import { 
   isAdmin, 
   isStaff, 
@@ -24,6 +25,12 @@ export const Grades: React.FC = () => {
   const { users } = useTriskaContext();
   const { user } = useAuthContext();
   const { gradeLoadingEnabled, isMainAdmin, isConnected } = useSettings();
+  const { 
+    subjects,
+    getSubjectsByTeacher, 
+    getSubjectByCourseAndSubject,
+    isTeacherAssignedToSubject 
+  } = useSubjects();
 
   const isStaffUser = isStaff(user);
   const isAdminUser = isAdmin(user);
@@ -42,35 +49,111 @@ export const Grades: React.FC = () => {
     if (isAdminUser || isStaffUser) {
       // Admin y Staff pueden ver todas las materias
       return Object.entries(Assignments)
-        .filter(([key]) => !isNaN(Number(key)))
-        .map(([key, name]) => ({ id: Number(key), name: name as string }));
+        .filter(([key, value]) => !isNaN(Number(value)))
+        .map(([key, value]) => ({ id: Number(value), name: key }));
     } else if (isTeacherUser && user) {
-      // Docente solo ve sus materias asignadas
-      return getAvailableSubjects(user);
+      // Docente solo ve sus materias asignadas usando el nuevo sistema
+      const teacherSubjects = getSubjectsByTeacher(user.uid);
+      return teacherSubjects.map(subject => ({
+        id: subject.subjectId,
+        name: subject.name
+      }));
     }
     return [];
-  }, [isAdminUser, isStaffUser, isTeacherUser, user]);
+  }, [isAdminUser, isStaffUser, isTeacherUser, user, getSubjectsByTeacher]);
 
   const availableCourses = useMemo(() => {
     if (isAdminUser || isStaffUser) {
       // Admin y Staff pueden ver todos los cursos
       return Object.entries(UserCurses)
-        .filter(([key]) => !isNaN(Number(key)))
-        .map(([key, name]) => ({ id: Number(key), name: name as string }));
+        .filter(([key, value]) => !isNaN(Number(value)))
+        .map(([key, value]) => ({ id: Number(value), name: key }));
     } else if (isTeacherUser && user) {
-      // Docente solo ve sus cursos asignados
-      return getAvailableCourses(user);
+      // Docente solo ve sus cursos asignados usando el nuevo sistema
+      const teacherSubjects = getSubjectsByTeacher(user.uid);
+      const assignedCourses = [...new Set(teacherSubjects.map(ts => ts.courseLevel))];
+      return Object.entries(UserCurses)
+        .filter(([key, value]) => !isNaN(Number(value)))
+        .filter(([key, value]) => assignedCourses.includes(Number(value)))
+        .map(([key, value]) => ({ id: Number(value), name: key }));
     }
     return [];
-  }, [isAdminUser, isStaffUser, isTeacherUser, user]);
+  }, [isAdminUser, isStaffUser, isTeacherUser, user, getSubjectsByTeacher]);
 
-  // Estudiantes filtrados por curso seleccionado
+  // Estudiantes filtrados por curso seleccionado y materia
   const studentsInCourse = useMemo(() => {
-    if (!selectedCourse) return [];
-    return users.filter(u => u.role === 3 && u.level === selectedCourse);
-  }, [users, selectedCourse]);
+    if (!selectedCourse || !selectedSubject) return [];
+    
+    // Debug info
+    console.log('Debug Grades:', {
+      selectedCourse,
+      selectedSubject,
+      selectedCourseType: typeof selectedCourse,
+      selectedSubjectType: typeof selectedSubject,
+      isAdminUser,
+      isStaffUser,
+      isTeacherUser,
+      totalUsers: users.length,
+      studentsInSystem: users.filter(u => u.role === 3).length,
+      studentsInCourse: users.filter(u => u.role === 3 && u.level === selectedCourse).length
+    });
+    
+    if (isAdminUser || isStaffUser) {
+      // Admin y Staff ven todos los estudiantes del curso
+      const allStudents = users.filter(u => u.role === 3 && u.level === selectedCourse);
+      console.log('Admin/Staff - All students:', allStudents);
+      console.log('Admin/Staff - User levels:', users.filter(u => u.role === 3).map(u => ({ name: u.name, level: u.level, levelType: typeof u.level })));
+      return allStudents;
+    } else if (isTeacherUser && user) {
+      // Docente solo ve estudiantes asignados a la materia específica usando el nuevo sistema
+      const subject = getSubjectByCourseAndSubject(selectedCourse, selectedSubject);
+      console.log('Teacher - Subject found:', subject);
+      console.log('Teacher - All subjects:', subjects);
+      console.log('Teacher - Looking for course:', selectedCourse, 'subject:', selectedSubject);
+      
+      if (!subject) {
+        console.log('Teacher - No subject found for course:', selectedCourse, 'subject:', selectedSubject);
+        console.log('Teacher - Available subjects:', subjects.map(s => ({ 
+          id: s.id, 
+          name: s.name, 
+          courseLevel: s.courseLevel, 
+          subjectId: s.subjectId,
+          teacherUid: s.teacherUid 
+        })));
+        return [];
+      }
+      
+      const assignedStudentUids = subject.studentUids;
+      console.log('Teacher - Assigned student UIDs:', assignedStudentUids);
+      
+      // Debug: mostrar todos los estudiantes del curso
+      const allStudentsInCourse = users.filter(u => u.role === 3 && u.level === selectedCourse);
+      console.log('Teacher - All students in course:', allStudentsInCourse.map(s => ({ name: s.name, uid: s.uid })));
+      
+      const filteredStudents = users.filter(u => 
+        u.role === 3 && 
+        u.level === selectedCourse && 
+        assignedStudentUids.includes(u.uid)
+      );
+      console.log('Teacher - Filtered students:', filteredStudents);
+      return filteredStudents;
+    }
+    return [];
+  }, [users, selectedCourse, selectedSubject, isAdminUser, isStaffUser, isTeacherUser, user, getSubjectByCourseAndSubject]);
 
-  // Cargar calificaciones existentes cuando se selecciona curso, materia y periodo
+  // Validar que el docente esté asignado a la materia seleccionada
+  const canManageSelectedSubject = useMemo(() => {
+    if (!selectedSubject || !selectedCourse || !user) return true;
+    
+    if (isAdminUser || isStaffUser) return true;
+    
+    if (isTeacherUser) {
+      const subject = getSubjectByCourseAndSubject(selectedCourse, selectedSubject);
+      return subject ? subject.teacherUid === user.uid : false;
+    }
+    
+    return false;
+  }, [selectedSubject, selectedCourse, user, isAdminUser, isStaffUser, isTeacherUser, getSubjectByCourseAndSubject]);
   React.useEffect(() => {
     if (!selectedCourse || !selectedSubject || !selectedPeriod) {
       setStudentGrades({});
@@ -255,6 +338,18 @@ export const Grades: React.FC = () => {
                   {isConnected ? 'Conectado en tiempo real' : 'Desconectado - Los cambios pueden no reflejarse inmediatamente'}
                 </span>
               </div>
+            </div>
+          )}
+
+          {/* Mensaje cuando el docente no está asignado a la materia */}
+          {selectedSubject && selectedCourse && !canManageSelectedSubject && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+              <h3 className="font-semibold text-red-800 mb-2">
+                🚫 No Tienes Acceso a Esta Materia
+              </h3>
+              <p className="text-red-700">
+                No estás asignado a esta materia en este curso. Contacta al administrador para que te asigne a esta materia.
+              </p>
             </div>
           )}
 

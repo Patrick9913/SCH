@@ -9,6 +9,7 @@ import { AttendanceProvider } from "./context/attendanceContext";
 import { GradesProvider } from "./context/gradesContext";
 import { SettingsProvider } from "./context/settingsContext";
 import { AuthContextProvider } from "./context/authContext";
+import { SubjectProvider } from "./context/subjectContext";
 import { ScheduleProvider } from "./context/scheduleContext";
 import { Toaster } from 'react-hot-toast';
 
@@ -38,14 +39,15 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} bg-gradient-to-tl from-gray-800 to-gray-900 antialiased`}
       >
         <AuthContextProvider>
-          <SettingsProvider>
-            <AnnouncementsProvider>
-              <MessagesProvider>
-                <AttendanceProvider>
-                    <TriskaProvider>
-                      <ChatProvider>
-                        <GradesProvider>
-                          <ScheduleProvider>
+            <SettingsProvider>
+              <AnnouncementsProvider>
+                <MessagesProvider>
+                  <AttendanceProvider>
+                      <TriskaProvider>
+                        <SubjectProvider>
+                        <ChatProvider>
+                          <GradesProvider>
+                            <ScheduleProvider>
                             <Toaster 
                               position="top-right"
                               toastOptions={{
@@ -69,14 +71,15 @@ export default function RootLayout({
                               }}
                             />
                             {children}
-                          </ScheduleProvider>
-                        </GradesProvider>
-                      </ChatProvider>
-                    </TriskaProvider>
-                  </AttendanceProvider>
-                </MessagesProvider>
-              </AnnouncementsProvider>
-            </SettingsProvider>
+                            </ScheduleProvider>
+                          </GradesProvider>
+                        </ChatProvider>
+                        </SubjectProvider>
+                      </TriskaProvider>
+                    </AttendanceProvider>
+                  </MessagesProvider>
+                </AnnouncementsProvider>
+              </SettingsProvider>
           </AuthContextProvider>
       </body>
     </html>

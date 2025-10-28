@@ -14,6 +14,8 @@ interface GradesContextProps {
   addMultipleGrades: (grades: Omit<Grade, 'id' | 'createdAt' | 'createdByUid'>[]) => Promise<void>;
   getGradeForStudent: (studentUid: string, subjectId: number, courseLevel: number, period: Period) => Grade | undefined;
   publishGrades: (courseLevel: number, period: Period) => Promise<void>;
+  publishBulletins: (courseLevel: number, period: Period) => Promise<{ success: boolean; message: string; publishedCount: number }>;
+  getBulletinStatus: (courseLevel: number, period: Period) => { totalStudents: number; gradedStudents: number; publishedStudents: number; isComplete: boolean };
 }
 
 const GradesContext = createContext<GradesContextProps | null>(null);
@@ -91,6 +93,75 @@ export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     await Promise.all(updatePromises);
   };
 
+  const publishBulletins = async (courseLevel: number, period: Period): Promise<{ success: boolean; message: string; publishedCount: number }> => {
+    try {
+      // Buscar todas las calificaciones del curso y período que no estén publicadas
+      const q = query(
+        collection(db, 'grades'),
+        where('courseLevel', '==', courseLevel),
+        where('period', '==', period),
+        where('published', '==', false)
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        return {
+          success: false,
+          message: 'No hay calificaciones pendientes de publicar para este curso y período.',
+          publishedCount: 0
+        };
+      }
+      
+      const updatePromises = snapshot.docs.map(docSnap => 
+        updateDoc(doc(db, 'grades', docSnap.id), { published: true })
+      );
+      
+      await Promise.all(updatePromises);
+      
+      return {
+        success: true,
+        message: `Se publicaron ${snapshot.docs.length} calificaciones exitosamente.`,
+        publishedCount: snapshot.docs.length
+      };
+    } catch (error) {
+      console.error('Error al publicar boletines:', error);
+      return {
+        success: false,
+        message: 'Error al publicar los boletines. Inténtalo de nuevo.',
+        publishedCount: 0
+      };
+    }
+  };
+
+  const getBulletinStatus = (courseLevel: number, period: Period): { totalStudents: number; gradedStudents: number; publishedStudents: number; isComplete: boolean } => {
+    // Filtrar calificaciones por curso y período
+    const courseGrades = grades.filter(g => g.courseLevel === courseLevel && g.period === period);
+    
+    // Obtener estudiantes únicos
+    const studentUids = [...new Set(courseGrades.map(g => g.studentUid))];
+    const totalStudents = studentUids.length;
+    
+    // Contar estudiantes con calificaciones
+    const gradedStudents = studentUids.filter(studentUid => {
+      const studentGrades = courseGrades.filter(g => g.studentUid === studentUid);
+      return studentGrades.length > 0;
+    }).length;
+    
+    // Contar estudiantes con calificaciones publicadas
+    const publishedStudents = studentUids.filter(studentUid => {
+      const studentGrades = courseGrades.filter(g => g.studentUid === studentUid);
+      return studentGrades.length > 0 && studentGrades.every(g => g.published);
+    }).length;
+    
+    return {
+      totalStudents,
+      gradedStudents,
+      publishedStudents,
+      isComplete: gradedStudents === totalStudents && totalStudents > 0
+    };
+  };
+
   const studentGrades = (studentUid: string): Grade[] => {
     return grades.filter(g => g.studentUid === studentUid);
   };
@@ -118,7 +189,9 @@ export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     addGrade, 
     addMultipleGrades,
     getGradeForStudent,
-    publishGrades
+    publishGrades,
+    publishBulletins,
+    getBulletinStatus
   }), [grades]);
 
   return <GradesContext.Provider value={value}>{children}</GradesContext.Provider>;

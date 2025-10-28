@@ -2,6 +2,8 @@ import { User, Assignments, UserCurses } from '@/app/types/user';
 
 /**
  * Utilidades para manejar permisos de docentes y staff
+ * NOTA: Estas funciones ahora deben usar el contexto de asignaciones
+ * para obtener las asignaciones reales desde Firebase
  */
 
 export interface TeacherPermissions {
@@ -11,6 +13,7 @@ export interface TeacherPermissions {
 
 /**
  * Obtiene las materias asignadas a un docente
+ * @deprecated Usar useAssignments().getTeacherSubjects() en su lugar
  */
 export const getTeacherSubjects = (teacher: User): number[] => {
   if (!teacher || teacher.role !== 4) return [];
@@ -28,6 +31,7 @@ export const getTeacherSubjects = (teacher: User): number[] => {
 
 /**
  * Obtiene los cursos asignados a un docente
+ * @deprecated Usar useAssignments().getTeacherSubjects() en su lugar
  */
 export const getTeacherCourses = (teacher: User): number[] => {
   if (!teacher || teacher.role !== 4) return [];
@@ -42,6 +46,7 @@ export const getTeacherCourses = (teacher: User): number[] => {
 
 /**
  * Obtiene los permisos completos de un docente
+ * @deprecated Usar useAssignments() en su lugar
  */
 export const getTeacherPermissions = (teacher: User): TeacherPermissions => {
   return {
@@ -52,6 +57,7 @@ export const getTeacherPermissions = (teacher: User): TeacherPermissions => {
 
 /**
  * Verifica si un docente puede acceder a una materia específica
+ * @deprecated Usar useAssignments().isTeacherAssignedToSubject() en su lugar
  */
 export const canAccessSubject = (teacher: User, subjectId: number): boolean => {
   if (!teacher || teacher.role !== 4) return false;
@@ -62,6 +68,7 @@ export const canAccessSubject = (teacher: User, subjectId: number): boolean => {
 
 /**
  * Verifica si un docente puede acceder a un curso específico
+ * @deprecated Usar useAssignments().isTeacherAssignedToSubject() en su lugar
  */
 export const canAccessCourse = (teacher: User, courseId: number): boolean => {
   if (!teacher || teacher.role !== 4) return false;
@@ -72,6 +79,7 @@ export const canAccessCourse = (teacher: User, courseId: number): boolean => {
 
 /**
  * Filtra las materias disponibles para un docente
+ * @deprecated Usar useAssignments().getTeacherSubjects() en su lugar
  */
 export const getAvailableSubjects = (teacher: User): Array<{id: number, name: string}> => {
   const permissions = getTeacherPermissions(teacher);
@@ -87,6 +95,7 @@ export const getAvailableSubjects = (teacher: User): Array<{id: number, name: st
 
 /**
  * Filtra los cursos disponibles para un docente
+ * @deprecated Usar useAssignments().getTeacherSubjects() en su lugar
  */
 export const getAvailableCourses = (teacher: User): Array<{id: number, name: string}> => {
   const permissions = getTeacherPermissions(teacher);
