@@ -2,9 +2,10 @@
 
 import React, { createContext, Dispatch, ReactNode, SetStateAction, useContext, useEffect, useState } from "react";
 import { db, auth, app } from '../config';
-import { addDoc, collection, onSnapshot, query, where } from "firebase/firestore";
+import { addDoc, collection, onSnapshot, query, where, getDocs } from "firebase/firestore";
 import { NewUserData, User } from "../types/user";
 import { useAuthContext } from "./authContext";
+import { useSubjects } from "./subjectContext";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 // Firebase Functions removido - usando autenticación directa
 
@@ -46,6 +47,7 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const userRef = collection(db, "users");
     const [users, setUsers] = useState<User[]>([]);
     const { user } = useAuthContext();
+    const { getStudentsByTeacher } = useSubjects();
     const [menu, setMenu] = useState<number>(1);
     const [firstName, setFirstName] = useState<string>("");
     const [password, setPassword] = useState<string>(""); 
@@ -69,7 +71,6 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 setUsers(usersData);
             });
 
-            // Devolver la función de desuscripción en caso de que necesites dejar de escuchar los cambios
             return unsubscribe;
         } else if (user?.role === 3) {
             // Usuario común: obtener solo su propio documento en tiempo real
@@ -78,14 +79,17 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             const unsubscribe = onSnapshot(q, (snapshot) => {
                 if (!snapshot.empty) {
                     const userData = snapshot.docs[0].data() as User;
-                    setUsers([userData]);  // Mantener array por coherencia
+                    setUsers([userData]);
                 } else {
-                    setUsers([]);  // Si no se encuentra, dejar vacío
+                    setUsers([]);
                 }
             });
 
-            // Devolver la función de desuscripción
             return unsubscribe;
+        } else if (user?.role === 4) {
+            // Docente: no usar suscripción, solo obtener datos una vez
+            // La actualización se manejará con el useEffect adicional
+            return () => {}; // No hay suscripción que limpiar
         }
     } catch (error) {
         console.error("Error fetching users: ", error);
@@ -152,6 +156,35 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     useEffect(() => {
         console.log("Usuarios cargados:", users);
     }, [users]);
+
+    // useEffect adicional para docentes: actualizar usuarios cuando cambien los subjects
+    useEffect(() => {
+        if (user?.role === 4 && user.uid) {
+            const updateTeacherStudents = () => {
+                try {
+                    const teacherStudents = getStudentsByTeacher(user.uid);
+                    setUsers(teacherStudents);
+                    
+                    console.log('Docente - Estudiantes actualizados:', {
+                        teacherUid: user.uid,
+                        studentsCount: teacherStudents.length,
+                        studentNames: teacherStudents.map(s => s.name)
+                    });
+                } catch (error) {
+                    console.error('Error al obtener estudiantes del docente:', error);
+                    setUsers([]);
+                }
+            };
+            
+            // Ejecutar inmediatamente
+            updateTeacherStudents();
+            
+            // También ejecutar después de un pequeño delay para asegurar que los datos estén disponibles
+            const timeoutId = setTimeout(updateTeacherStudents, 500);
+            
+            return () => clearTimeout(timeoutId);
+        }
+    }, [user?.uid, user?.role]);
 
     const triskaValues = {
         menu,

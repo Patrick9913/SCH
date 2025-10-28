@@ -4,9 +4,8 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { addDoc, collection, doc, getDocs, onSnapshot, orderBy, query, updateDoc, where, Timestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '../config';
 import { Subject, SubjectInput, SubjectUpdate, SubjectSummary, TeacherSubjectInfo, StudentSubjectInfo } from '../types/subject';
-import { Assignments, UserCurses } from '../types/user';
+import { Assignments, UserCurses, User } from '../types/user';
 import { useAuthContext } from './authContext';
-import { useTriskaContext } from './triskaContext';
 
 interface SubjectContextProps {
   subjects: Subject[];
@@ -28,6 +27,7 @@ interface SubjectContextProps {
   getSubjectByCourseAndSubject: (courseLevel: number, subjectId: number) => Subject | undefined;
   getStudentsInSubject: (subjectId: string) => string[];
   getTeacherOfSubject: (subjectId: string) => string | undefined;
+  getStudentsByTeacher: (teacherUid: string) => User[];
   
   // Utility Functions
   getSubjectSummary: () => SubjectSummary[];
@@ -49,8 +49,26 @@ export const useSubjects = () => {
 
 export const SubjectProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { uid } = useAuthContext();
-  const { users } = useTriskaContext();
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+
+  // Listen to users
+  useEffect(() => {
+    if (!uid) {
+      setUsers([]);
+      return;
+    }
+    
+    const userRef = collection(db, 'users');
+    const unsub = onSnapshot(userRef, (snap) => {
+      const usersData: User[] = snap.docs.map((d) => ({
+        ...(d.data() as Omit<User, 'id'>),
+        id: d.id,
+      }));
+      setUsers(usersData);
+    });
+    return () => unsub();
+  }, [uid]);
 
   // Listen to subjects
   useEffect(() => {
@@ -174,6 +192,29 @@ export const SubjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return subject ? subject.teacherUid : undefined;
   };
 
+  const getStudentsByTeacher = (teacherUid: string): User[] => {
+    // Verificar que tenemos datos disponibles
+    if (!users.length || !subjects.length) {
+      return [];
+    }
+    
+    // Obtener las materias del docente
+    const teacherSubjects = getSubjectsByTeacher(teacherUid);
+    
+    // Obtener todos los UIDs de estudiantes de las materias del docente
+    const studentUidsInTeacherSubjects = new Set<string>();
+    teacherSubjects.forEach(subject => {
+      subject.studentUids.forEach(studentUid => {
+        studentUidsInTeacherSubjects.add(studentUid);
+      });
+    });
+    
+    // Filtrar solo estudiantes que están en las materias del docente
+    return users.filter(u => {
+      return u.role === 3 && studentUidsInTeacherSubjects.has(u.uid);
+    });
+  };
+
   // Utility Functions
   const getSubjectSummary = (): SubjectSummary[] => {
     return subjects.map(subject => {
@@ -250,12 +291,13 @@ export const SubjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     getSubjectByCourseAndSubject,
     getStudentsInSubject,
     getTeacherOfSubject,
+    getStudentsByTeacher,
     getSubjectSummary,
     getTeacherSubjectInfo,
     getStudentSubjectInfo,
     isStudentAssignedToSubject,
     isTeacherAssignedToSubject,
-  }), [subjects]);
+  }), [subjects, users]);
 
   return <SubjectContext.Provider value={value}>{children}</SubjectContext.Provider>;
 };

@@ -43,8 +43,8 @@ export default function RootLayout({
               <AnnouncementsProvider>
                 <MessagesProvider>
                   <AttendanceProvider>
-                      <TriskaProvider>
                         <SubjectProvider>
+                      <TriskaProvider>
                         <ChatProvider>
                           <GradesProvider>
                             <ScheduleProvider>
@@ -74,8 +74,8 @@ export default function RootLayout({
                             </ScheduleProvider>
                           </GradesProvider>
                         </ChatProvider>
-                        </SubjectProvider>
                       </TriskaProvider>
+                        </SubjectProvider>
                     </AttendanceProvider>
                   </MessagesProvider>
                 </AnnouncementsProvider>
