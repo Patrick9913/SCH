@@ -15,7 +15,7 @@ export const BulletinReports: React.FC = () => {
   const { grades, publishGrades } = useGrades();
   const { users } = useTriskaContext();
   const { user } = useAuthContext();
-  const { isMainAdmin, gradeLoadingEnabled, toggleGradeLoading } = useSettings();
+  const { isMainAdmin, gradeLoadingEnabled, toggleGradeLoading, isConnected, lastUpdated } = useSettings();
 
   const isStaff = user?.role === 1 || user?.role === 4 || user?.role === 2;
   const isStudent = user?.role === 3;
@@ -290,6 +290,30 @@ export const BulletinReports: React.FC = () => {
                     {gradeLoadingEnabled ? 'HABILITADA' : 'DESHABILITADA'}
                   </span>
                 </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className={`w-2 h-2 rounded-full ${
+                    isConnected ? 'bg-green-500' : 'bg-red-500'
+                  }`}></div>
+                  <span className="text-xs text-gray-500">
+                    {isConnected ? 'Conectado en tiempo real' : 'Desconectado'}
+                  </span>
+                  {lastUpdated && (
+                    <span className="text-xs text-gray-400">
+                      • Última actualización: {new Date(lastUpdated).toLocaleTimeString()}
+                    </span>
+                  )}
+                </div>
+                {/* Debug info temporal */}
+                <div className="mt-2 p-2 bg-gray-100 rounded text-xs text-gray-600">
+                  <strong>Debug:</strong> Estado: {gradeLoadingEnabled ? 'HABILITADA' : 'DESHABILITADA'} | 
+                  Conexión: {isConnected ? 'ACTIVA' : 'INACTIVA'} | 
+                  Timestamp: {lastUpdated ? new Date(lastUpdated).toLocaleString() : 'N/A'}
+                </div>
+                {!isConnected && (
+                  <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700">
+                    ⚠️ Sin conexión en tiempo real. El botón sigue funcionando pero los cambios pueden tardar en reflejarse.
+                  </div>
+                )}
               </div>
             </div>
             <button
@@ -298,7 +322,7 @@ export const BulletinReports: React.FC = () => {
                 gradeLoadingEnabled
                   ? 'bg-red-600 text-white hover:bg-red-700'
                   : 'bg-green-600 text-white hover:bg-green-700'
-              }`}
+              } ${!isConnected ? 'opacity-75' : ''}`}
             >
               {gradeLoadingEnabled ? 'Deshabilitar Carga' : 'Habilitar Carga'}
             </button>

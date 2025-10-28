@@ -7,14 +7,25 @@ import { useAuthContext } from '@/app/context/authContext';
 import { UserCurses } from '@/app/types/user';
 import { AttendanceStatus, AttendanceRecord } from '@/app/types/attendance';
 import { HiUserGroup, HiCheck, HiXCircle, HiClock } from 'react-icons/hi';
+import { 
+  isAdmin, 
+  isStaff, 
+  isTeacher, 
+  canManageGrades, 
+  getAvailableCourses,
+  getCourseName
+} from '@/app/utils/permissions';
 
 export const Attendance: React.FC = () => {
   const { records, addMultipleAttendances, getAttendanceForStudent } = useAttendance();
   const { users } = useTriskaContext();
   const { user } = useAuthContext();
 
-  const isStaff = user?.role === 1 || user?.role === 4 || user?.role === 2;
+  const isStaffUser = isStaff(user);
+  const isAdminUser = isAdmin(user);
+  const isTeacherUser = isTeacher(user);
   const isStudent = user?.role === 3;
+  const canManage = canManageGrades(user);
 
   // Estados para el flujo de registro
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -23,6 +34,20 @@ export const Attendance: React.FC = () => {
   
   // Estado para estudiantes: mes seleccionado
   const [selectedMonth, setSelectedMonth] = useState<string>('');
+
+  // Obtener cursos disponibles según permisos
+  const availableCourses = useMemo(() => {
+    if (isAdminUser || isStaffUser) {
+      // Admin y Staff pueden ver todos los cursos
+      return Object.entries(UserCurses)
+        .filter(([key]) => !isNaN(Number(key)))
+        .map(([key, name]) => ({ id: Number(key), name: name as string }));
+    } else if (isTeacherUser && user) {
+      // Docente solo ve sus cursos asignados
+      return getAvailableCourses(user);
+    }
+    return [];
+  }, [isAdminUser, isStaffUser, isTeacherUser, user]);
 
   // Estudiantes filtrados por curso seleccionado
   const studentsInCourse = useMemo(() => {
@@ -315,16 +340,24 @@ export const Attendance: React.FC = () => {
           )}
         </div>
         <p className="text-gray-600">
-          {isStaff 
+          {canManage 
             ? 'Registra asistencias seleccionando el día y curso' 
             : 'Consulta tus registros de asistencia por mes'}
         </p>
+        {isTeacherUser && user && (
+          <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-700">
+              <strong>Cursos asignados:</strong> {getAvailableCourses(user).map(c => c.name).join(', ')}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Vista para Estudiantes */}
       {isStudent && studentView}
 
-      {isStaff && (
+      {/* Vista para Staff/Docente */}
+      {canManage && (
         <div className="space-y-6">
           {/* Paso 1: Seleccionar Fecha */}
           <div>
@@ -358,13 +391,11 @@ export const Attendance: React.FC = () => {
               className="w-full border rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               <option value="">Seleccionar curso...</option>
-              {Object.entries(UserCurses)
-                .filter(([key]) => !isNaN(Number(key)))
-                .map(([key, name]) => (
-                  <option key={key} value={key}>
-                    {name}
-                  </option>
-                ))}
+              {availableCourses.map((course) => (
+                <option key={course.id} value={course.id}>
+                  {course.name}
+                </option>
+              ))}
             </select>
           </div>
 

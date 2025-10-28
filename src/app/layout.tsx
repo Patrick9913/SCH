@@ -10,7 +10,7 @@ import { GradesProvider } from "./context/gradesContext";
 import { SettingsProvider } from "./context/settingsContext";
 import { AuthContextProvider } from "./context/authContext";
 import { ScheduleProvider } from "./context/scheduleContext";
-import { TasksProvider } from "./context/tasksContext";
+import { Toaster } from 'react-hot-toast';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -46,9 +46,29 @@ export default function RootLayout({
                       <ChatProvider>
                         <GradesProvider>
                           <ScheduleProvider>
-                            <TasksProvider>
-                              {children}
-                            </TasksProvider>
+                            <Toaster 
+                              position="top-right"
+                              toastOptions={{
+                                duration: 4000,
+                                style: {
+                                  background: '#363636',
+                                  color: '#fff',
+                                },
+                                success: {
+                                  iconTheme: {
+                                    primary: '#10b981',
+                                    secondary: '#fff',
+                                  },
+                                },
+                                error: {
+                                  iconTheme: {
+                                    primary: '#ef4444',
+                                    secondary: '#fff',
+                                  },
+                                },
+                              }}
+                            />
+                            {children}
                           </ScheduleProvider>
                         </GradesProvider>
                       </ChatProvider>

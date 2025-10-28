@@ -93,9 +93,9 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 };
 
     // Función para crear un nuevo usuario (solo en Firestore)
-    const newUser = async ({ firstName, mail, dni, role, password }: NewUserData) => {
+    const newUser = async ({ firstName, mail, dni, role, password, asignatura, curso }: NewUserData & { asignatura?: number, curso?: number }) => {
         try {
-            console.log("📝 Datos recibidos:", { firstName, mail, dni, role, password });
+            console.log("📝 Datos recibidos:", { firstName, mail, dni, role, password, asignatura, curso });
             
             // Validar que firstName no esté vacío
             if (!firstName || firstName.trim() === '') {
@@ -116,6 +116,8 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 role: role,
                 uid: tempUid,
                 password: password, // Guardamos la contraseña temporalmente
+                ...(asignatura && { asig: asignatura }),
+                ...(curso && { level: curso }),
                 createdAt: new Date(),
                 status: 'pending' // Estado pendiente hasta que se cree en Auth
             });

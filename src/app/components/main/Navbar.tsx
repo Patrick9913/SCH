@@ -11,7 +11,7 @@ import { HiCog } from "react-icons/hi";
 import { HiHome } from "react-icons/hi";
 import { HiDocumentCheck } from "react-icons/hi2";
 import { HiChatBubbleOvalLeft } from "react-icons/hi2";
-import { HiChartBar, HiDocumentText, HiClipboardList } from "react-icons/hi";
+import { HiChartBar, HiDocumentText } from "react-icons/hi";
 import { UserRole } from "@/app/types/user";
 
 export const Navbar: React.FC = () => {
@@ -80,12 +80,6 @@ export const Navbar: React.FC = () => {
                                 </button>
                             </li>
                             <li>
-                                <button onClick={() => setMenu(9)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiClipboardList className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Tareas</span>
-                                </button>
-                            </li>
-                            <li>
                                 <button onClick={() => setMenu(6)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
                                     <HiChartBar className="group-hover:text-orange-500 w-5 h-5" />
                                     <span className="group-hover:text-orange-800">Calificaciones</span>
@@ -121,12 +115,6 @@ export const Navbar: React.FC = () => {
                                 </button>
                             </li>
                             <li>
-                                <button onClick={() => setMenu(9)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiClipboardList className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Tareas</span>
-                                </button>
-                            </li>
-                            <li>
                                 <button onClick={() => setMenu(6)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
                                     <HiChartBar className="group-hover:text-orange-500 w-5 h-5" />
                                     <span className="group-hover:text-orange-800">Calificaciones</span>
@@ -159,12 +147,6 @@ export const Navbar: React.FC = () => {
                                 <button onClick={() => setMenu(8)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
                                     <IoCalendarClear className="group-hover:text-orange-500 w-5 h-5" />
                                     <span className="group-hover:text-orange-800">Horarios</span>
-                                </button>
-                            </li>
-                            <li>
-                                <button onClick={() => setMenu(9)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiClipboardList className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Tareas</span>
                                 </button>
                             </li>
                             <li>

@@ -8,21 +8,61 @@ import { Assignments, UserCurses } from '@/app/types/user';
 import { GradeLabels, PeriodLabels, GradeValue, Period } from '@/app/types/grade';
 import { HiChartBar, HiCheck } from 'react-icons/hi';
 import { useSettings } from '@/app/context/settingsContext';
+import { 
+  isAdmin, 
+  isStaff, 
+  isTeacher, 
+  canManageGrades, 
+  getAvailableSubjects, 
+  getAvailableCourses,
+  getSubjectName,
+  getCourseName
+} from '@/app/utils/permissions';
 
 export const Grades: React.FC = () => {
   const { grades, addMultipleGrades, getGradeForStudent } = useGrades();
   const { users } = useTriskaContext();
   const { user } = useAuthContext();
-  const { gradeLoadingEnabled, isMainAdmin } = useSettings();
+  const { gradeLoadingEnabled, isMainAdmin, isConnected } = useSettings();
 
-  const isStaff = user?.role === 1 || user?.role === 4 || user?.role === 2;
+  const isStaffUser = isStaff(user);
+  const isAdminUser = isAdmin(user);
+  const isTeacherUser = isTeacher(user);
   const isStudent = user?.role === 3;
+  const canManage = canManageGrades(user);
 
   // Estados para el flujo de registro
   const [selectedCourse, setSelectedCourse] = useState<number | ''>('');
   const [selectedSubject, setSelectedSubject] = useState<number | ''>('');
   const [selectedPeriod, setSelectedPeriod] = useState<Period | ''>('');
   const [studentGrades, setStudentGrades] = useState<Record<string, GradeValue>>({});
+
+  // Obtener materias y cursos disponibles según permisos
+  const availableSubjects = useMemo(() => {
+    if (isAdminUser || isStaffUser) {
+      // Admin y Staff pueden ver todas las materias
+      return Object.entries(Assignments)
+        .filter(([key]) => !isNaN(Number(key)))
+        .map(([key, name]) => ({ id: Number(key), name: name as string }));
+    } else if (isTeacherUser && user) {
+      // Docente solo ve sus materias asignadas
+      return getAvailableSubjects(user);
+    }
+    return [];
+  }, [isAdminUser, isStaffUser, isTeacherUser, user]);
+
+  const availableCourses = useMemo(() => {
+    if (isAdminUser || isStaffUser) {
+      // Admin y Staff pueden ver todos los cursos
+      return Object.entries(UserCurses)
+        .filter(([key]) => !isNaN(Number(key)))
+        .map(([key, name]) => ({ id: Number(key), name: name as string }));
+    } else if (isTeacherUser && user) {
+      // Docente solo ve sus cursos asignados
+      return getAvailableCourses(user);
+    }
+    return [];
+  }, [isAdminUser, isStaffUser, isTeacherUser, user]);
 
   // Estudiantes filtrados por curso seleccionado
   const studentsInCourse = useMemo(() => {
@@ -69,7 +109,8 @@ export const Grades: React.FC = () => {
         subjectId: Number(selectedSubject),
         courseLevel: Number(selectedCourse),
         period: selectedPeriod as Period,
-        grade: grade as GradeValue
+        grade: grade as GradeValue,
+        published: false
       }));
 
     if (gradesToSave.length === 0) {
@@ -124,7 +165,7 @@ export const Grades: React.FC = () => {
     return (
       <div className="space-y-6">
         {Object.entries(groupedBySubject).map(([subjectId, periods]) => {
-          const subjectName = Assignments[Number(subjectId) as keyof typeof Assignments];
+          const subjectName = getSubjectName(Number(subjectId));
           return (
             <div key={subjectId} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
               <h3 className="text-xl font-semibold text-gray-800 mb-4">{subjectName}</h3>
@@ -179,17 +220,24 @@ export const Grades: React.FC = () => {
           <span>Calificaciones</span>
         </div>
         <p className="text-gray-600">
-          {isStaff 
+          {canManage 
             ? 'Registra calificaciones seleccionando curso, materia y período' 
             : 'Consulta tus calificaciones por materia y período'}
         </p>
+        {isTeacherUser && user && (
+          <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-700">
+              <strong>Materias asignadas:</strong> {getAvailableSubjects(user).map(s => s.name).join(', ')}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Vista de Estudiante */}
       {isStudent && studentView}
 
-      {/* Vista de Staff - Formulario de Registro */}
-      {isStaff && (
+      {/* Vista de Staff/Docente - Formulario de Registro */}
+      {canManage && (
         <>
           {!gradeLoadingEnabled && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
@@ -199,6 +247,14 @@ export const Grades: React.FC = () => {
               <p className="text-yellow-700">
                 La carga de notas no está habilitada actualmente. Solo el administrador principal puede habilitar esta función.
               </p>
+              <div className="flex items-center gap-2 mt-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  isConnected ? 'bg-green-500' : 'bg-red-500'
+                }`}></div>
+                <span className="text-xs text-yellow-600">
+                  {isConnected ? 'Conectado en tiempo real' : 'Desconectado - Los cambios pueden no reflejarse inmediatamente'}
+                </span>
+              </div>
             </div>
           )}
 
@@ -220,13 +276,11 @@ export const Grades: React.FC = () => {
               className="w-full border rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Seleccionar curso...</option>
-              {Object.entries(UserCurses)
-                .filter(([key]) => !isNaN(Number(key)))
-                .map(([key, name]) => (
-                  <option key={key} value={key}>
-                    {name}
-                  </option>
-                ))}
+              {availableCourses.map((course) => (
+                <option key={course.id} value={course.id}>
+                  {course.name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -246,13 +300,11 @@ export const Grades: React.FC = () => {
               className="w-full border rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               <option value="">Seleccionar materia...</option>
-              {Object.entries(Assignments)
-                .filter(([key]) => !isNaN(Number(key)))
-                .map(([key, name]) => (
-                  <option key={key} value={key}>
-                    {name}
-                  </option>
-                ))}
+              {availableSubjects.map((subject) => (
+                <option key={subject.id} value={subject.id}>
+                  {subject.name}
+                </option>
+              ))}
             </select>
           </div>
 

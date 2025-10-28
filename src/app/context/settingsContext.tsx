@@ -1,15 +1,18 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { collection, doc, getDoc, onSnapshot, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../config';
 import { GradeSettings, ADMIN_EMAIL } from '../types/system';
 import { useAuthContext } from './authContext';
+import toast from 'react-hot-toast';
 
 interface SettingsContextProps {
   gradeLoadingEnabled: boolean;
   toggleGradeLoading: () => Promise<void>;
   isMainAdmin: boolean;
+  isConnected: boolean;
+  lastUpdated?: number;
 }
 
 const SettingsContext = createContext<SettingsContextProps | null>(null);
@@ -23,8 +26,15 @@ export const useSettings = () => {
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, uid } = useAuthContext();
   const [gradeLoadingEnabled, setGradeLoadingEnabled] = useState(false);
+  const [isConnected, setIsConnected] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<number>();
+  const previousValue = useRef<boolean>(false); // Para detectar cambios
+  const previousUpdated = useRef<number>(0); // Para detectar nuevas actualizaciones
 
-  const isMainAdmin = user?.role === 1; // Cualquier administrador puede cambiar el estado
+  const isMainAdmin = user?.role === 1;
+  
+  // Verificar si el usuario puede gestionar calificaciones
+  const canManageGrades = user?.role === 1 || user?.role === 2 || user?.role === 4;
 
   // Debug: verificar permisos
   useEffect(() => {
@@ -37,47 +47,137 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [user, isMainAdmin]);
 
   useEffect(() => {
+    console.log('🔄 Iniciando listener de configuración en tiempo real...');
     const docRef = doc(db, 'system', 'settings');
-    const unsub = onSnapshot(docRef, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data() as any;
-        const enabled = data.gradesLoadingEnabled ?? false;
-        console.log('📡 Estado actualizado desde Firebase:', enabled);
-        setGradeLoadingEnabled(enabled);
-      } else {
-        // Si el documento no existe, crear uno con valores por defecto
-        console.log('📝 Creando documento de configuración con valor por defecto');
-        setDoc(docRef, {
-          gradesLoadingEnabled: false,
-        }).catch(console.error);
+    
+    const unsub = onSnapshot(
+      docRef, 
+      (snap) => {
+        console.log('📡 Snapshot recibido:', snap.exists());
+        setIsConnected(true);
+        
+        if (snap.exists()) {
+          const data = snap.data() as any;
+          const enabled = data.gradesLoadingEnabled ?? false;
+          const updated = data.updatedAt ?? Date.now();
+          
+          console.log('📡 Estado actualizado desde Firebase:', {
+            enabled,
+            updatedAt: new Date(updated).toLocaleString(),
+            data: data,
+            previousValue: previousValue.current,
+            previousUpdated: previousUpdated.current,
+            hasValueChanged: enabled !== previousValue.current,
+            isNewUpdate: updated !== previousUpdated.current,
+            canManageGrades,
+            userUid: user?.uid
+          });
+          
+          // Detectar si cambió el valor (más simple y directo)
+          const hasValueChanged = enabled !== previousValue.current;
+          const isNewUpdate = updated !== previousUpdated.current;
+          
+          // Actualizar el estado SIEMPRE (esto es lo más importante)
+          setGradeLoadingEnabled(enabled);
+          setLastUpdated(updated);
+          
+          // Mostrar notificación solo si cambió el valor y es una actualización real
+          if (hasValueChanged && isNewUpdate && canManageGrades && user?.uid && previousUpdated.current > 0) {
+            console.log('🔔 Mostrando notificación por cambio de estado');
+            if (enabled) {
+              toast.success('¡La carga de notas está disponible!', {
+                duration: 5000,
+                icon: '📝',
+                style: {
+                  background: '#10b981',
+                  color: '#ffffff',
+                  fontSize: '16px',
+                },
+              });
+            } else {
+              toast.info('La carga de notas ha sido deshabilitada', {
+                duration: 5000,
+                icon: '⏸️',
+                style: {
+                  background: '#f59e0b',
+                  color: '#ffffff',
+                  fontSize: '16px',
+                },
+              });
+            }
+          }
+          
+          // Actualizar referencias para la próxima comparación
+          previousValue.current = enabled;
+          previousUpdated.current = updated;
+          
+        } else {
+          // Si el documento no existe, crear uno con valores por defecto
+          console.log('📝 Creando documento de configuración con valor por defecto');
+          setDoc(docRef, {
+            gradesLoadingEnabled: false,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          }).catch((error) => {
+            console.error('❌ Error al crear documento de configuración:', error);
+            setIsConnected(false);
+          });
+        }
+      },
+      (error) => {
+        console.error('❌ Error en listener de configuración:', error);
+        setIsConnected(false);
       }
-    });
-    return () => unsub();
-  }, []);
+    );
+    
+    return () => {
+      console.log('🛑 Desconectando listener de configuración');
+      unsub();
+    };
+  }, [canManageGrades, user?.uid]);
 
   const toggleGradeLoading = async () => {
     // Verificar que es administrador (role === 1)
     if (!uid || user?.role !== 1) {
       console.warn('No se tiene permiso para cambiar el estado:', { uid, role: user?.role });
+      toast.error('No tienes permisos para realizar esta acción');
       return;
     }
 
     try {
       const docRef = doc(db, 'system', 'settings');
       const newValue = !gradeLoadingEnabled;
+      const timestamp = Date.now(); // Timestamp único para forzar actualización
       
-      console.log('🔄 Cambiando estado de carga de notas a:', newValue);
+      console.log('🔄 Cambiando estado de carga de notas a:', newValue, 'con timestamp:', timestamp);
       
       await setDoc(docRef, {
         gradesLoadingEnabled: newValue,
         enabledBy: uid,
-        enabledAt: Date.now(),
-        updatedAt: Date.now(),
+        enabledAt: timestamp,
+        updatedAt: timestamp,
+        // Agregar un campo adicional para forzar la actualización
+        lastModified: timestamp,
       }, { merge: true });
 
-      console.log('✅ Estado actualizado correctamente en Firebase');
+      console.log('✅ Estado actualizado correctamente en Firebase con timestamp:', timestamp);
+      
+      // Mostrar notificación inmediata al administrador
+      if (newValue) {
+        toast.success('La carga de notas ha sido habilitada para todos', {
+          duration: 3000,
+          icon: '✅',
+        });
+      } else {
+        toast.info('La carga de notas ha sido deshabilitada para todos', {
+          duration: 3000,
+          icon: '⏸️',
+        });
+      }
     } catch (error) {
       console.error('❌ Error al actualizar el estado:', error);
+      setIsConnected(false);
+      toast.error('Error al actualizar el estado');
       throw error;
     }
   };
@@ -86,6 +186,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     gradeLoadingEnabled,
     toggleGradeLoading,
     isMainAdmin,
+    isConnected,
+    lastUpdated,
   };
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
