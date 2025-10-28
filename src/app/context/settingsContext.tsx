@@ -36,6 +36,26 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Verificar si el usuario puede gestionar calificaciones
   const canManageGrades = user?.role === 1 || user?.role === 2 || user?.role === 4;
 
+  // Función para probar la conexión a Firebase
+  const testFirebaseConnection = async () => {
+    try {
+      console.log('🔍 Probando conexión a Firebase...');
+      const docRef = doc(db, 'system', 'settings');
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        console.log('✅ Documento existe:', docSnap.data());
+        return true;
+      } else {
+        console.log('⚠️ Documento no existe');
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Error en prueba de conexión:', error);
+      return false;
+    }
+  };
+
   // Debug: verificar permisos
   useEffect(() => {
     console.log('👤 Usuario actual:', {
@@ -144,12 +164,23 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return;
     }
 
+    // Calcular el nuevo valor antes de intentar actualizar
+    const newValue = !gradeLoadingEnabled;
+    const timestamp = Date.now();
+    
+    console.log('🔄 Preparando cambio de estado:', {
+      currentValue: gradeLoadingEnabled,
+      newValue: newValue,
+      timestamp: timestamp,
+      uid: uid,
+      userRole: user?.role
+    });
+
     try {
       const docRef = doc(db, 'system', 'settings');
-      const newValue = !gradeLoadingEnabled;
-      const timestamp = Date.now(); // Timestamp único para forzar actualización
       
       console.log('🔄 Cambiando estado de carga de notas a:', newValue, 'con timestamp:', timestamp);
+      console.log('🔄 Usuario:', { uid, role: user?.role, email: user?.mail });
       
       await setDoc(docRef, {
         gradesLoadingEnabled: newValue,
@@ -162,23 +193,30 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       console.log('✅ Estado actualizado correctamente en Firebase con timestamp:', timestamp);
       
-      // Mostrar notificación inmediata al administrador
-      if (newValue) {
-        toast.success('La carga de notas ha sido habilitada para todos', {
-          duration: 3000,
-          icon: '✅',
-        });
-      } else {
-        toast.info('La carga de notas ha sido deshabilitada para todos', {
-          duration: 3000,
-          icon: '⏸️',
-        });
-      }
-    } catch (error) {
+      // No mostrar notificación aquí porque ya la mostrará el Snapshot
+      return;
+    } catch (error: any) {
       console.error('❌ Error al actualizar el estado:', error);
-      setIsConnected(false);
-      toast.error('Error al actualizar el estado');
-      throw error;
+      console.error('❌ Detalles del error:', {
+        message: error?.message,
+        code: error?.code,
+        stack: error?.stack,
+        uid: uid,
+        userRole: user?.role,
+        newValue: newValue
+      });
+      
+      // No cambiar el estado de conexión si falla la escritura
+      const errorMessage = error?.code === 'permission-denied' 
+        ? 'No tienes permisos para realizar esta acción'
+        : error?.code === 'unavailable'
+        ? 'Firebase no está disponible. Intenta de nuevo.'
+        : error?.code === 'failed-precondition'
+        ? 'Error de condición. Intenta de nuevo.'
+        : `Error: ${error?.message || 'Error desconocido'}`;
+        
+      toast.error(errorMessage);
+      // No re-lanzar el error para evitar que entre en el catch del componente
     }
   };
 

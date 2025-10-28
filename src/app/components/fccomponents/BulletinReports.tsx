@@ -10,6 +10,7 @@ import { HiDocumentText, HiPrinter } from 'react-icons/hi';
 import { HiCog } from 'react-icons/hi';
 import { useSettings } from '@/app/context/settingsContext';
 import Swal from 'sweetalert2';
+import toast from 'react-hot-toast';
 
 export const BulletinReports: React.FC = () => {
   const { grades, publishGrades } = useGrades();
@@ -43,23 +44,11 @@ export const BulletinReports: React.FC = () => {
     });
 
     if (result.isConfirmed) {
-      try {
-        await toggleGradeLoading();
-        await Swal.fire({
-          icon: 'success',
-          title: '¡Estado actualizado!',
-          text: `La carga de notas ha sido ${actionPast} exitosamente.`,
-          timer: 2000,
-          showConfirmButton: true,
-        });
-      } catch (error) {
+      // Llamar directamente sin try-catch porque toggleGradeLoading maneja sus propios errores
+      toggleGradeLoading().catch((error) => {
         console.error('Error al cambiar el estado:', error);
-        await Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'Hubo un problema al actualizar el estado. Por favor, intenta nuevamente.',
-        });
-      }
+        // El error ya se maneja dentro de toggleGradeLoading con toast
+      });
     }
   };
 
