@@ -64,6 +64,24 @@ export const Navbar: React.FC = () => {
                             </li>
                             <li>
                                 <button 
+                                    onClick={() => setMenu(4)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiChatBubbleOvalLeft className="w-5 h-5" />
+                                    <span>Mensajes</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button 
+                                    onClick={() => setMenu(7)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiDocumentText className="w-5 h-5" />
+                                    <span>Boletines</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button 
                                     onClick={() => setMenu(2)} 
                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
                                 >
@@ -96,11 +114,11 @@ export const Navbar: React.FC = () => {
                             </li>
                             <li>
                                 <button 
-                                    onClick={() => setMenu(2)} 
+                                    onClick={() => setMenu(7)} 
                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
                                 >
-                                    <HiCog className="w-5 h-5" />
-                                    <span>Ajustes</span>
+                                    <HiDocumentText className="w-5 h-5" />
+                                    <span>Boletines</span>
                                 </button>
                             </li>
                         </>
@@ -142,6 +160,15 @@ export const Navbar: React.FC = () => {
                                 >
                                     <HiChartBar className="w-5 h-5" />
                                     <span>Calificaciones</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button 
+                                    onClick={() => setMenu(4)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiChatBubbleOvalLeft className="w-5 h-5" />
+                                    <span>Mensajes</span>
                                 </button>
                             </li>
                             <li>
@@ -196,6 +223,15 @@ export const Navbar: React.FC = () => {
                             </li>
                             <li>
                                 <button 
+                                    onClick={() => setMenu(4)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiChatBubbleOvalLeft className="w-5 h-5" />
+                                    <span>Mensajes</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button 
                                     onClick={() => setMenu(2)} 
                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
                                 >
@@ -206,24 +242,8 @@ export const Navbar: React.FC = () => {
                         </>
                     )}
                     {/* Opciones comunes para todos */}
-                    <li>
-                        <button 
-                            onClick={() => setMenu(4)} 
-                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
-                        >
-                            <HiChatBubbleOvalLeft className="w-5 h-5" />
-                            <span>Mensajes</span>
-                        </button>
-                    </li>
-                    <li>
-                        <button 
-                            onClick={() => setMenu(7)} 
-                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
-                        >
-                            <HiDocumentText className="w-5 h-5" />
-                            <span>Boletines</span>
-                        </button>
-                    </li>
+                    
+                    
                 </ul>
             </div>
             <div className="p-4 border-t border-gray-200">

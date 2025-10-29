@@ -385,15 +385,14 @@ export const Home: React.FC = () => {
                                     <p className="text-3xl font-semibold text-gray-900 mb-1">{teachers.length}</p>
                                     <p className="text-xs text-gray-500">Activos</p>
                                 </div>
+                                <div className="p-5 bg-white border border-gray-200 rounded-lg">
+                                    <h3 className="text-sm font-medium text-gray-600 mb-2">Materias</h3>
+                                    <p className="text-3xl font-semibold text-gray-900 mb-1">15</p>
+                                    <p className="text-xs text-gray-500">Ofertadas este semestre</p>
+                                </div>
                             </>
                         )
                     }
-                    
-                    <div className="p-5 bg-white border border-gray-200 rounded-lg">
-                        <h3 className="text-sm font-medium text-gray-600 mb-2">Materias</h3>
-                        <p className="text-3xl font-semibold text-gray-900 mb-1">15</p>
-                        <p className="text-xs text-gray-500">Ofertadas este semestre</p>
-                    </div>
                 </div>
                 {/* Horarios semanal para estudiantes - Vista tipo cuadrícula */}
                 {user?.role === 3 && (
