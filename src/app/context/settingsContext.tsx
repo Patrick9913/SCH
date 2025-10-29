@@ -133,7 +133,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 },
               });
             } else {
-              toast.info('La carga de notas ha sido deshabilitada', {
+              toast('La carga de notas ha sido deshabilitada', {
                 duration: 5000,
                 icon: '⏸️',
                 style: {
