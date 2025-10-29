@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { User } from '@/app/types/user';
-import { Grade, Period } from '@/app/types/grade';
+import { Grade, Period, GradeValue } from '@/app/types/grade';
 import { Assignments, UserCurses } from '@/app/types/user';
 import { useAttendance } from '@/app/context/attendanceContext';
 import { useSubjects } from '@/app/context/subjectContext';
@@ -42,11 +42,11 @@ export const BulletinTemplate: React.FC<BulletinTemplateProps> = ({
   // Agrupar calificaciones por materia
   const gradesBySubject = studentGrades.reduce((acc, grade) => {
     if (!acc[grade.subjectId]) {
-      acc[grade.subjectId] = {};
+      acc[grade.subjectId] = {} as Partial<Record<Period, GradeValue>>;
     }
     acc[grade.subjectId][grade.period] = grade.grade;
     return acc;
-  }, {} as Record<number, Record<Period, string>>);
+  }, {} as Record<number, Partial<Record<Period, GradeValue>>>);
 
   // Obtener estadísticas de asistencia del estudiante
   const studentAttendance = records.filter(r => r.studentUid === student.uid);
@@ -84,7 +84,7 @@ export const BulletinTemplate: React.FC<BulletinTemplateProps> = ({
   };
 
   // Función para obtener la calificación de un período específico
-  const getGradeForPeriod = (subjectId: number, period: Period) => {
+  const getGradeForPeriod = (subjectId: number, period: Period): GradeValue | string => {
     return gradesBySubject[subjectId]?.[period] || '-';
   };
 
