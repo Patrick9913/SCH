@@ -44,9 +44,25 @@ const Login: React.FC = () => {
   };
 
   return (
-    <main className="min-h-screen h-screen w-screen p-2">
-      <div className="rounded bg-white flex items-center justify-center h-full">
-        <div className="p-10 rounded shadow-md w-full max-w-sm">
+    <main className="min-h-screen h-screen w-screen relative overflow-hidden">
+      {/* Video de fondo */}
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover z-0"
+      >
+        <source src="/fondo.mp4" type="video/mp4" />
+        Tu navegador no soporta videos HTML5.
+      </video>
+      
+      {/* Overlay oscuro para mejorar la legibilidad */}
+      <div className="absolute inset-0 bg-black/50 z-10"></div>
+      
+      {/* Contenido del formulario */}
+      <div className="relative z-20 flex items-center justify-center h-full p-2">
+        <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-lg shadow-xl w-full max-w-sm p-10">
           <h1 className="text-2xl text-center font-bold mb-6 text-gray-800">Iniciar Sesión</h1>
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>

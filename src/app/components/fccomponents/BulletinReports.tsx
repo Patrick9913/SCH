@@ -28,6 +28,9 @@ export const BulletinReports: React.FC = () => {
   // Estados para la vista de boletín individual
   const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
   const [showBulletinTemplate, setShowBulletinTemplate] = useState(false);
+  
+  // Estado para el curso seleccionado en la vista de administrador
+  const [selectedAdminCourse, setSelectedAdminCourse] = useState<number | null>(null);
 
   const isStaff = user?.role === 1 || user?.role === 4 || user?.role === 2;
   const isStudent = user?.role === 3;
@@ -131,6 +134,33 @@ export const BulletinReports: React.FC = () => {
     setShowBulletinTemplate(true);
   };
 
+  // Función para generar el boletín de un estudiante específico
+  const generateStudentBulletin = (student: User) => {
+    const studentGrades = grades.filter(g => g.studentUid === student.uid);
+
+    // Agrupar por materia
+    const groupedBySubject: Record<number, Record<Period, typeof studentGrades>> = {};
+    
+    studentGrades.forEach(grade => {
+      if (!groupedBySubject[grade.subjectId]) {
+        groupedBySubject[grade.subjectId] = {
+          primer_cuatrimestre: [],
+          segundo_cuatrimestre: [],
+          tercer_cuatrimestre: []
+        };
+      }
+      groupedBySubject[grade.subjectId][grade.period].push(grade);
+    });
+
+    const courseName = student.level ? Object.keys(UserCurses).find(key => UserCurses[key as keyof typeof UserCurses] === student.level) || 'Sin curso' : 'Sin curso';
+
+    return {
+      student,
+      groupedBySubject,
+      courseName
+    };
+  };
+
   // Función para cerrar vista de boletín
   const handleCloseBulletin = () => {
     setShowBulletinTemplate(false);
@@ -166,6 +196,29 @@ export const BulletinReports: React.FC = () => {
     });
     return grouped;
   }, [visibleGrades]);
+
+  // Estudiantes del curso seleccionado por el administrador
+  const studentsInSelectedCourse = useMemo(() => {
+    if (!selectedAdminCourse) return [];
+    return users.filter(u => u.role === 3 && u.level === selectedAdminCourse);
+  }, [users, selectedAdminCourse]);
+
+  // Calificaciones de estudiantes del curso seleccionado
+  const courseGradesByStudent = useMemo(() => {
+    if (!selectedAdminCourse) return {};
+    
+    const courseGrades = grades.filter(g => g.courseLevel === selectedAdminCourse);
+    const grouped: Record<string, typeof courseGrades> = {};
+    
+    courseGrades.forEach(grade => {
+      if (!grouped[grade.studentUid]) {
+        grouped[grade.studentUid] = [];
+      }
+      grouped[grade.studentUid].push(grade);
+    });
+    
+    return grouped;
+  }, [grades, selectedAdminCourse]);
 
   // Para estudiantes: mostrar solo su boletín
   const studentView = useMemo(() => {
@@ -318,40 +371,58 @@ export const BulletinReports: React.FC = () => {
     if (!isStaff) return null;
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-800">Boletines de Estudiantes</h2>
-          {isMainAdmin && (
-            <div className="text-sm text-gray-600">
-              Clic en cualquier estudiante para ver su boletín completo
-            </div>
-          )}
+          <div className="text-sm text-gray-600">
+            Selecciona un curso para ver los boletines de los estudiantes
+          </div>
         </div>
 
-        {Object.entries(gradesByStudent).map(([studentUid, studentGrades]) => {
-          const student = users.find(u => u.uid === studentUid);
-          if (!student) return null;
+        {/* Selector de Curso para Administrador */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Seleccionar Curso
+          </label>
+          <select
+            value={selectedAdminCourse || ''}
+            onChange={(e) => setSelectedAdminCourse(Number(e.target.value) || null)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Selecciona un curso</option>
+            {Object.entries(UserCurses)
+              .filter(([key, value]) => typeof value === 'number')
+              .map(([key, value]) => (
+                <option key={value} value={value}>
+                  {key}
+                </option>
+              ))}
+          </select>
+        </div>
 
-          const handlePrintStudent = () => {
-            handleShowBulletin(student);
-          };
+        {/* Lista de Estudiantes del Curso Seleccionado */}
+        {selectedAdminCourse && studentsInSelectedCourse.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-800">
+              Estudiantes de {Object.keys(UserCurses).find(key => UserCurses[key as keyof typeof UserCurses] === selectedAdminCourse)}
+            </h3>
+            
+            {studentsInSelectedCourse.map((student) => {
+              const studentGrades = courseGradesByStudent[student.uid] || [];
+              const publishedGrades = studentGrades.filter(g => g.published).length;
+              const totalGrades = studentGrades.length;
+              const isFullyPublished = totalGrades > 0 && publishedGrades === totalGrades;
 
-          return (
-            <div key={studentUid} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center gap-3">
-                  <div>
-                     <h3 className="font-semibold text-gray-800">{student.name}</h3>
-                     {student.level && (
-                       <p className="text-sm text-gray-600">{Object.keys(UserCurses).find(key => UserCurses[key as keyof typeof UserCurses] === student.level) || 'Sin curso'}</p>
-                     )}
-                  </div>
-                  {(() => {
-                    const publishedGrades = studentGrades.filter(g => g.published).length;
-                    const totalGrades = studentGrades.length;
-                    const isFullyPublished = totalGrades > 0 && publishedGrades === totalGrades;
-                    
-                    return (
+              return (
+                <div key={student.uid} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <h3 className="font-semibold text-gray-800">{student.name}</h3>
+                        {student.mail && (
+                          <p className="text-sm text-gray-500">{student.mail}</p>
+                        )}
+                      </div>
                       <div className={`px-2 py-1 rounded-full text-xs font-medium ${
                         isFullyPublished 
                           ? 'bg-green-100 text-green-800' 
@@ -361,61 +432,64 @@ export const BulletinReports: React.FC = () => {
                       }`}>
                         {isFullyPublished ? 'Completo' : `${publishedGrades}/${totalGrades}`}
                       </div>
-                    );
-                  })()}
-                </div>
-                {isMainAdmin && (
-                  <button
-                    onClick={() => {
-                      // Lógica para ver/editar boletín individual
-                      console.log('Ver boletín de:', student.name);
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                  >
-                    Ver Boletín
-                  </button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {Object.entries(PeriodLabels).map(([periodKey, periodLabel]) => {
-                  const periodGrades = studentGrades.filter(g => g.period === periodKey);
-                  return (
-                    <div key={periodKey} className="bg-white p-3 rounded border">
-                      <h4 className="font-medium text-sm text-gray-700 mb-2">{periodLabel}</h4>
-                      {periodGrades.length > 0 ? (
-                        <div className="space-y-1">
-                          {periodGrades.map((grade) => {
-                            const subjectName = Assignments[grade.subjectId as unknown as keyof typeof Assignments];
-                            return (
-                              <div key={grade.id} className="text-xs">
-                                <span className="font-medium">{subjectName}: </span>
-                                <span className={grade.published ? 'text-green-600 font-semibold' : 'text-orange-500'}>
-                                  {grade.grade} {grade.published ? '✓' : '(pendiente)'}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-gray-400">Sin calificaciones</p>
-                      )}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+                    <button
+                      onClick={() => handleShowBulletin(student)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm flex items-center gap-2"
+                    >
+                      <HiDocumentText className="w-4 h-4" />
+                      Ver Boletín
+                    </button>
+                  </div>
 
-        {Object.keys(gradesByStudent).length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500">No hay boletines disponibles</p>
+                  {/* Resumen de calificaciones por período */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {Object.entries(PeriodLabels).map(([periodKey, periodLabel]) => {
+                      const periodGrades = studentGrades.filter(g => g.period === periodKey);
+                      return (
+                        <div key={periodKey} className="bg-white p-3 rounded border">
+                          <h4 className="font-medium text-sm text-gray-700 mb-2">{periodLabel}</h4>
+                          {periodGrades.length > 0 ? (
+                            <div className="space-y-1">
+                              {periodGrades.map((grade) => {
+                                const subjectName = Assignments[grade.subjectId as unknown as keyof typeof Assignments];
+                                return (
+                                  <div key={grade.id} className="text-xs">
+                                    <span className="font-medium">{subjectName}: </span>
+                                    <span className={grade.published ? 'text-green-600 font-semibold' : 'text-orange-500'}>
+                                      {grade.grade} {grade.published ? '✓' : '(pendiente)'}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-gray-400">Sin calificaciones</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {selectedAdminCourse && studentsInSelectedCourse.length === 0 && (
+          <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+            <p className="text-gray-500">No hay estudiantes en este curso</p>
+          </div>
+        )}
+
+        {!selectedAdminCourse && (
+          <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+            <p className="text-gray-500">Selecciona un curso para ver los boletines de los estudiantes</p>
           </div>
         )}
       </div>
     );
-  }, [isStaff, gradesByStudent, users, isMainAdmin]);
+  }, [isStaff, selectedAdminCourse, studentsInSelectedCourse, courseGradesByStudent]);
 
   return (
     <section className="flex-1 p-5 overflow-y-scroll max-h-screen h-full bg-white rounded-md">
@@ -532,11 +606,13 @@ export const BulletinReports: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 <option value="">Selecciona un curso</option>
-                {Object.entries(UserCurses).map(([key, value]) => (
-                  <option key={value} value={value}>
-                    {key}
-                  </option>
-                ))}
+                {Object.entries(UserCurses)
+                  .filter(([key, value]) => typeof value === 'number')
+                  .map(([key, value]) => (
+                    <option key={value} value={value}>
+                      {key}
+                    </option>
+                  ))}
               </select>
             </div>
 
@@ -625,43 +701,140 @@ export const BulletinReports: React.FC = () => {
       {isStaff && adminView}
 
       {/* Modal/Vista de Boletín Individual */}
-      {showBulletinTemplate && selectedStudent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-800">
-                Boletín de {selectedStudent.name}
-              </h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={handlePrintBulletin}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <HiPrinter className="w-4 h-4" />
-                  Imprimir
-                </button>
-                <button
-                  onClick={handleCloseBulletin}
-                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-                >
-                  Cerrar
-                </button>
+      {showBulletinTemplate && selectedStudent && (() => {
+        const bulletinData = generateStudentBulletin(selectedStudent);
+        
+        return (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+                <h2 className="text-xl font-bold text-gray-800">
+                  Boletín de {selectedStudent.name}
+                </h2>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handlePrintBulletin}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <HiPrinter className="w-4 h-4" />
+                    Imprimir
+                  </button>
+                  <button
+                    onClick={handleCloseBulletin}
+                    className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+              <div className="p-6">
+                {/* Datos del Estudiante */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 print:border-black mb-6">
+                  <h2 className="text-2xl font-bold text-gray-800 mb-4">Datos del Estudiante</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                      <h3 className="text-sm font-medium text-gray-500 mb-1">Nombre Completo</h3>
+                      <p className="text-lg font-semibold text-gray-800">{selectedStudent.name}</p>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                      <h3 className="text-sm font-medium text-gray-500 mb-1">Curso</h3>
+                      <p className="text-lg font-semibold text-gray-800">{bulletinData.courseName}</p>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                      <h3 className="text-sm font-medium text-gray-500 mb-1">Año Escolar</h3>
+                      <p className="text-lg font-semibold text-gray-800">{new Date().getFullYear()}</p>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                      <h3 className="text-sm font-medium text-gray-500 mb-1">Fecha de Emisión</h3>
+                      <p className="text-lg font-semibold text-gray-800">{new Date().toLocaleDateString('es-ES')}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tabla de Calificaciones */}
+                {Object.keys(bulletinData.groupedBySubject).length > 0 && (
+                  <div className="grades-table bg-white rounded-lg border border-gray-200 overflow-hidden print:border-black">
+                    <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                      <h2 className="text-xl font-semibold text-gray-800">Boletín de Calificaciones</h2>
+                    </div>
+                    
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-r border-gray-200">
+                              Materia
+                            </th>
+                            {Object.entries(PeriodLabels).map(([periodKey, periodLabel]) => (
+                              <th key={periodKey} className="px-6 py-4 text-center text-sm font-semibold text-gray-700 border-r border-gray-200 last:border-r-0">
+                                {periodLabel}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {Object.entries(bulletinData.groupedBySubject).map(([subjectId, periods]) => {
+                            const subjectName = Assignments[subjectId as unknown as keyof typeof Assignments];
+                            return (
+                              <tr key={subjectId} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 text-sm font-medium text-gray-800 border-r border-gray-200">
+                                  {subjectName}
+                                </td>
+                                {Object.entries(PeriodLabels).map(([periodKey, periodLabel]) => {
+                                  const periodGrades = periods[periodKey as Period];
+                                  return (
+                                    <td key={periodKey} className="px-6 py-4 text-center border-r border-gray-200 last:border-r-0">
+                                      {periodGrades.length > 0 ? (
+                                        <div className="flex flex-col items-center gap-1">
+                                          {periodGrades.map((grade, idx) => (
+                                            <div key={idx} className="flex items-center gap-2">
+                                              <span className={`grade-badge ${
+                                                grade.grade === 'S' ? 's' :
+                                                grade.grade === 'AL' ? 'al' :
+                                                grade.grade === 'L' ? 'l' :
+                                                'ep'
+                                              }`}>
+                                                {grade.grade}
+                                              </span>
+                                            </div>
+                                          ))}
+                                          <span className="text-xs text-gray-500 mt-1">
+                                            {GradeLabels[periodGrades[0].grade]}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <div className="text-center">
+                                          <span className="text-sm text-gray-400">Sin calificaciones</span>
+                                        </div>
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {Object.keys(bulletinData.groupedBySubject).length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="max-w-md mx-auto">
+                      <HiDocumentText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-500 mb-2">No hay calificaciones registradas</h3>
+                      <p className="text-sm text-gray-400">
+                        Este estudiante no tiene calificaciones registradas aún.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-            <div className="p-4">
-              <BulletinTemplate
-                student={selectedStudent}
-                grades={grades}
-                period={selectedPeriod || 'primer_cuatrimestre'}
-                courseLevel={selectedStudent.level || 1}
-                teacherName="Profesor Asignado"
-                schoolYear={new Date().getFullYear().toString()}
-                date={new Date().toLocaleDateString('es-ES')}
-              />
-            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </section>
   );
 };
