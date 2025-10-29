@@ -275,11 +275,25 @@ export const AssignmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const teacherAssignmentsList = teacherAssignments.filter(a => a.teacherUid === teacherUid);
     if (teacherAssignmentsList.length === 0) return null;
     
+    const getSubjectName = (subjectId: number): string => {
+      const assignmentKey = Object.keys(Assignments).find(
+        key => Assignments[key as keyof typeof Assignments] === subjectId
+      ) as keyof typeof Assignments | undefined;
+      return assignmentKey || `Materia ${subjectId}`;
+    };
+
+    const getCourseName = (courseLevel: number): string => {
+      const courseKey = Object.keys(UserCurses).find(
+        key => UserCurses[key as keyof typeof UserCurses] === courseLevel
+      ) as keyof typeof UserCurses | undefined;
+      return courseKey || `Curso ${courseLevel}`;
+    };
+
     const assignedSubjects = teacherAssignmentsList.map(a => ({
       subjectId: a.subjectId,
       courseLevel: a.courseLevel,
-      subjectName: Assignments[a.subjectId as keyof typeof Assignments] as string,
-      courseName: UserCurses[a.courseLevel as keyof typeof UserCurses] as string,
+      subjectName: getSubjectName(a.subjectId),
+      courseName: getCourseName(a.courseLevel),
     }));
     
     return {
