@@ -1,6 +1,6 @@
 // Script para verificar la conexión a Firebase
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from './config.js';
+import { db } from '../config';
 
 export const testFirebaseConnection = async () => {
   try {
