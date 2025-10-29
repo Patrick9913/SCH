@@ -296,7 +296,7 @@ export const Settings: React.FC = () => {
 
     if (!isAdmin) {
         return (
-            <section className="flex-1 p-5 overflow-y-scroll max-h-screen h-full bg-white rounded-md">
+            <section className="flex-1 p-6 overflow-y-auto max-h-screen h-full bg-white">
                 <div className="text-center py-12">
                     <HiCog className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-500 mb-2">Acceso Restringido</h3>
@@ -309,20 +309,20 @@ export const Settings: React.FC = () => {
     }
 
     return (
-        <section className="flex-1 p-5 overflow-y-scroll max-h-screen h-full bg-white rounded-md">
-            <div className="mb-6">
-                <div className="text-2xl flex items-center gap-x-2 font-bold text-gray-800 mb-2">
-                    <HiCog className="w-10 h-10" />
-                    <span>Administración de Materias</span>
+        <section className="flex-1 p-6 overflow-y-auto max-h-screen h-full bg-white">
+            <div className="mb-8">
+                <div className="flex items-center gap-3 mb-3">
+                    <HiCog className="w-6 h-6 text-gray-700" />
+                    <h1 className="text-2xl font-semibold text-gray-900">Ajustes</h1>
                 </div>
-                <p className="text-gray-600">
+                <p className="text-sm text-gray-500">
                     Gestiona las materias, docentes y estudiantes asignados por curso.
                 </p>
             </div>
 
             {/* Panel de Control */}
-            <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
-                <h3 className="font-semibold text-gray-800 text-lg mb-4">Crear Nueva Materia</h3>
+            <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h2 className="text-lg font-medium text-gray-900 mb-4">Crear Nueva Materia</h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     {/* Selector de Curso */}
@@ -404,8 +404,8 @@ export const Settings: React.FC = () => {
             </div>
 
             {/* Lista de Materias */}
-            <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-800">Materias Existentes</h3>
+            <div className="mb-8">
+                <h2 className="text-lg font-medium text-gray-900 mb-4">Materias Existentes</h2>
                 {subjects.length === 0 ? (
                     <div className="text-center py-8">
                         <HiAcademicCap className="w-12 h-12 text-gray-300 mx-auto mb-2" />
@@ -418,7 +418,7 @@ export const Settings: React.FC = () => {
                             const assignedStudents = students.filter(s => subject.studentUids.includes(s.uid));
                             
                             return (
-                                <div key={subject.id} className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                                <div key={subject.id} className="p-4 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors mb-4">
                                     <div className="flex justify-between items-start mb-4">
                                         <div>
                                             <h4 className="font-semibold text-gray-800 text-lg">{subject.name}</h4>

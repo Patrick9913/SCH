@@ -405,10 +405,10 @@ export const BulletinReports: React.FC = () => {
 
         {/* Lista de Estudiantes del Curso Seleccionado */}
         {selectedAdminCourse && studentsInSelectedCourse.length > 0 && (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-800">
+          <div className="mb-8">
+            <h2 className="text-lg font-medium text-gray-900 mb-4">
               Estudiantes de {Object.keys(UserCurses).find(key => UserCurses[key as keyof typeof UserCurses] === selectedAdminCourse)}
-            </h3>
+            </h2>
             
             {studentsInSelectedCourse.map((student) => {
               const studentGrades = courseGradesByStudent[student.uid] || [];
@@ -417,7 +417,7 @@ export const BulletinReports: React.FC = () => {
               const isFullyPublished = totalGrades > 0 && publishedGrades === totalGrades;
 
               return (
-                <div key={student.uid} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <div key={student.uid} className="p-4 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors mb-4">
                   <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-3">
                       <div>
@@ -498,13 +498,13 @@ export const BulletinReports: React.FC = () => {
   }, [isStaff, selectedAdminCourse, studentsInSelectedCourse, courseGradesByStudent]);
 
   return (
-    <section className="flex-1 p-5 overflow-y-scroll max-h-screen h-full bg-white rounded-md">
+    <section className="flex-1 p-6 overflow-y-auto max-h-screen h-full bg-white">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-2xl flex items-center gap-x-2 font-bold text-gray-800">
-            <HiDocumentText className="w-10 h-10" />
-            <span>Boletines</span>
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <HiDocumentText className="w-6 h-6 text-gray-700" />
+            <h1 className="text-2xl font-semibold text-gray-900">Boletines</h1>
           </div>
           <RefreshButton 
             onRefresh={handleRefresh}
@@ -512,7 +512,7 @@ export const BulletinReports: React.FC = () => {
             size="md"
           />
         </div>
-        <p className="text-gray-600">
+        <p className="text-sm text-gray-500">
           {isStudent 
             ? 'Consulta tu boletín de calificaciones' 
             : isMainAdmin
@@ -523,7 +523,7 @@ export const BulletinReports: React.FC = () => {
 
       {/* Panel de Control para Administradores (role === 1) */}
       {user?.role === 1 && (
-        <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+        <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <HiCog className="w-8 h-8 text-blue-600" />
@@ -589,7 +589,7 @@ export const BulletinReports: React.FC = () => {
 
       {/* Panel de Publicación de Boletines para Administradores (role === 1) */}
       {user?.role === 1 && (
-        <div className="mb-6 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-6">
+        <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex items-center gap-3 mb-4">
             <HiDocumentText className="w-8 h-8 text-green-600" />
             <div>

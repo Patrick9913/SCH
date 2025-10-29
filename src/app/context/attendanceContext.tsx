@@ -64,16 +64,51 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const addMultipleAttendances = async (attendancesToAdd: Omit<AttendanceRecord, 'id' | 'createdAt' | 'createdByUid'>[]) => {
-    if (!uid) return;
-    // Firestore batch write
-    const batch = attendancesToAdd.map(attendance => 
-      addDoc(collection(db, 'attendance'), {
-        ...attendance,
-        createdByUid: uid,
-        createdAt: Date.now(),
-      })
-    );
-    await Promise.all(batch);
+    if (!uid) {
+      console.error('No hay usuario autenticado');
+      throw new Error('No hay usuario autenticado');
+    }
+    
+    if (attendancesToAdd.length === 0) {
+      console.warn('No hay asistencias para agregar');
+      return;
+    }
+
+    console.log('Guardando asistencias:', attendancesToAdd);
+
+    try {
+      // Crear un ID único basado en studentUid y date para evitar duplicados
+      // Usar setDoc con merge: true para actualizar si existe o crear si no existe
+      const promises = attendancesToAdd.map(async (attendance) => {
+        // Crear un ID único basado en studentUid y date para evitar duplicados
+        const attendanceId = `${attendance.studentUid}_${attendance.date}`;
+        const attendanceRef = doc(db, 'attendance', attendanceId);
+        
+        // Verificar que el estudiante tenga un uid válido
+        if (!attendance.studentUid || attendance.studentUid.trim() === '') {
+          console.error('UID de estudiante inválido:', attendance);
+          throw new Error(`UID de estudiante inválido para fecha ${attendance.date}`);
+        }
+
+        // Usar setDoc con merge: true para actualizar si existe o crear si no existe
+        await setDoc(attendanceRef, {
+          studentUid: attendance.studentUid,
+          date: attendance.date,
+          courseLevel: attendance.courseLevel,
+          status: attendance.status,
+          createdByUid: uid,
+          createdAt: Date.now(),
+        }, { merge: true });
+        
+        console.log(`Asistencia guardada para estudiante ${attendance.studentUid} en fecha ${attendance.date}`);
+      });
+
+      await Promise.all(promises);
+      console.log('Todas las asistencias se guardaron correctamente');
+    } catch (error) {
+      console.error('Error al guardar asistencias:', error);
+      throw error;
+    }
   };
 
   const getAttendanceForStudent = (studentUid: string, date: string): AttendanceRecord | undefined => {

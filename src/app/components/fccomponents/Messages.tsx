@@ -80,15 +80,26 @@ export const Messages: React.FC = () => {
   };
 
   return (
-    <section className="flex-1 overflow-hidden max-h-screen h-full bg-white rounded-md">
+    <section className="flex-1 overflow-hidden max-h-screen h-full bg-white">
       {/* Header */}
-      <div className="p-5 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Mensajes</h2>
-            <p className="text-gray-500 text-sm">Comunicación directa entre usuarios</p>
+      <div className="p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <h1 className="text-2xl font-semibold text-gray-900">Mensajes</h1>
           </div>
-          
+        </div>
+        <p className="text-sm text-gray-500 mb-0">
+          Comunicación directa entre usuarios
+        </p>
+      </div>
+
+      {/* Contenido principal */}
+      <div className="flex h-full">
+        {/* Header interno para tabs */}
+        <div className="w-full p-6 border-b border-gray-200">
           {/* Toggle entre chats y mensajes tradicionales */}
           <div className="flex bg-gray-100 rounded-lg p-1">
             <button
@@ -113,10 +124,7 @@ export const Messages: React.FC = () => {
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Contenido principal */}
-      <div className="flex h-full">
+      
         {viewMode === 'chats' ? (
           <>
             {/* Lista de chats */}
@@ -146,10 +154,10 @@ export const Messages: React.FC = () => {
           </>
         ) : (
           /* Vista de mensajes tradicionales */
-          <div className="flex-1 p-5 overflow-y-auto">
+          <div className="flex-1 p-6 overflow-y-auto">
             {/* Composer */}
             <form
-              className="mb-6 flex gap-2 flex-wrap items-center bg-gray-50 rounded-xl p-3 shadow-sm"
+              className="mb-6 flex gap-2 flex-wrap items-center bg-gray-50 rounded-lg p-4 border border-gray-200"
               onSubmit={async (e) => {
                 e.preventDefault();
                 const form = e.currentTarget as HTMLFormElement & {
@@ -196,9 +204,9 @@ export const Messages: React.FC = () => {
             </div>
 
             {/* Lista de mensajes */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               {(tab === 'received' ? received : sent).map((m) => (
-                <div key={m.id} className="rounded-xl bg-gray-50 p-4 shadow-sm hover:shadow transition-shadow">
+                <div key={m.id} className="p-4 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-sm text-gray-500">{new Date(m.createdAt).toLocaleString()}</p>
                     <span className="text-xs text-gray-500">{tab === 'received' ? 'De' : 'Para'} {getDisplayName(tab === 'received' ? m.fromUid : m.toUid)}</span>

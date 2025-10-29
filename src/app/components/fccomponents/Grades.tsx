@@ -289,13 +289,13 @@ export const Grades: React.FC = () => {
   }, [user, isStudent, users, grades]);
 
   return (
-    <section className="flex-1 p-5 overflow-y-scroll max-h-screen h-full bg-white rounded-md">
+    <section className="flex-1 p-6 overflow-y-auto max-h-screen h-full bg-white">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-2xl flex items-center gap-x-2 font-bold text-gray-800">
-            <HiChartBar className="w-10 h-10" />
-            <span>Calificaciones</span>
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <HiChartBar className="w-6 h-6 text-gray-700" />
+            <h1 className="text-2xl font-semibold text-gray-900">Calificaciones</h1>
           </div>
           <RefreshButton 
             onRefresh={handleRefresh}
@@ -303,15 +303,15 @@ export const Grades: React.FC = () => {
             size="md"
           />
         </div>
-        <p className="text-gray-600">
+        <p className="text-sm text-gray-500">
           {canManage 
             ? 'Registra calificaciones seleccionando curso, materia y período' 
             : 'Consulta tus calificaciones por materia y período'}
         </p>
         {isTeacherUser && user && (
-          <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-700">
-              <strong>Materias asignadas:</strong> {getAvailableSubjects(user).map(s => s.name).join(', ')}
+          <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+            <p className="text-xs text-gray-600">
+              <span className="font-medium">Materias asignadas:</span> {getAvailableSubjects(user).map(s => s.name).join(', ')}
             </p>
           </div>
         )}

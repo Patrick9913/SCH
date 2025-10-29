@@ -56,8 +56,9 @@ export const Attendance: React.FC = () => {
     if (!selectedCourse) return [];
     return users.filter(u => u.role === 3 && u.level === selectedCourse).map(u => ({
       ...u,
-      // Asegurar que uid sea igual a id
-      uid: u.uid || u.id,
+      // Asegurar que uid sea igual a id para compatibilidad
+      // Usar id como identificador principal ya que es el documentId de Firestore
+      uid: u.id || u.uid,
     }));
   }, [users, selectedCourse]);
 
@@ -72,13 +73,15 @@ export const Attendance: React.FC = () => {
 
     const initial: Record<string, AttendanceStatus> = {};
     studentsInCourse.forEach(student => {
+      // Usar id como identificador principal (documentId de Firestore)
+      const studentId = student.id || student.uid;
       // Buscar asistencia usando el uid del estudiante y fecha normalizada
       const existingAttendance = records.find(r => 
-        (r.studentUid === student.uid || r.studentUid === student.id) && 
+        (r.studentUid === student.id || r.studentUid === student.uid) && 
         r.date === normalizedDate
       );
       if (existingAttendance) {
-        initial[student.uid] = existingAttendance.status;
+        initial[studentId] = existingAttendance.status;
       }
     });
     return initial;
@@ -97,42 +100,83 @@ export const Attendance: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!selectedDate || !selectedCourse) return;
+    if (!selectedDate || !selectedCourse) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Faltan datos',
+        text: 'Por favor selecciona una fecha y un curso',
+        confirmButtonColor: '#2563eb',
+      });
+      return;
+    }
 
     // Normalizar la fecha a formato YYYY-MM-DD por si acaso
     const normalizedDate = selectedDate.split('T')[0];
+
+    console.log('Intentando guardar asistencias...');
+    console.log('Estudiantes en curso:', studentsInCourse);
+    console.log('Asistencias seleccionadas:', studentAttendances);
 
     const attendancesToSave = Object.entries(studentAttendances)
       .filter(([_, status]) => status) // Solo incluir si hay una asistencia registrada
       .map(([studentUid, status]) => {
         // Verificar que el uid del estudiante existe y es válido
-        const student = studentsInCourse.find(s => s.uid === studentUid || s.id === studentUid);
+        const student = studentsInCourse.find(s => {
+          // Buscar por id (documentId) primero, luego por uid
+          const matchById = s.id === studentUid;
+          const matchByUid = s.uid === studentUid;
+          return matchById || matchByUid;
+        });
+        
+        if (!student) {
+          console.warn(`Estudiante no encontrado con uid/id: ${studentUid}`);
+        }
+
         // Priorizar id sobre uid, ya que id es siempre el documentId de Firestore
         const finalStudentUid = student?.id || student?.uid || studentUid;
+        
+        if (!finalStudentUid || finalStudentUid.trim() === '') {
+          console.error(`No se pudo obtener un UID válido para el estudiante:`, student, studentUid);
+        }
+        
+        console.log(`Preparando asistencia para estudiante:`, {
+          originalUid: studentUid,
+          finalUid: finalStudentUid,
+          studentName: student?.name,
+          status
+        });
+        
         return {
           studentUid: finalStudentUid,
           date: normalizedDate,
           courseLevel: Number(selectedCourse),
           status: status as AttendanceStatus
         };
-      });
+      })
+      .filter(att => att.studentUid && att.studentUid.trim() !== ''); // Filtrar asistencias inválidas
 
     if (attendancesToSave.length === 0) {
       await Swal.fire({
         icon: 'info',
         title: 'Sin asistencias',
-        text: 'No hay asistencias para guardar',
+        text: 'No hay asistencias válidas para guardar. Verifica que hayas seleccionado el estado de asistencia para al menos un estudiante.',
         confirmButtonColor: '#2563eb',
       });
       return;
     }
 
+    console.log('Asistencias a guardar:', attendancesToSave);
+
     try {
       await addMultipleAttendances(attendancesToSave);
+      
+      // Refrescar las asistencias después de guardar
+      refreshAttendance();
+      
       await Swal.fire({
         icon: 'success',
         title: 'Asistencias guardadas',
-        text: 'Las asistencias se guardaron correctamente',
+        text: `${attendancesToSave.length} asistencia(s) guardada(s) correctamente`,
         confirmButtonColor: '#2563eb',
       });
       // Resetear el formulario
@@ -141,10 +185,11 @@ export const Attendance: React.FC = () => {
       setStudentAttendances({});
     } catch (error) {
       console.error('Error al guardar asistencias:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido al guardar las asistencias';
       await Swal.fire({
         icon: 'error',
-        title: 'Error',
-        text: 'Error al guardar las asistencias',
+        title: 'Error al guardar',
+        text: errorMessage,
         confirmButtonColor: '#dc2626',
       });
     }
@@ -472,34 +517,38 @@ export const Attendance: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {studentsInCourse.map((student) => (
-                    <div 
-                      key={student.uid} 
-                      className="bg-gray-50 rounded-lg p-4 border border-gray-200"
-                    >
-                      <div className="flex-1 mb-3">
-                        <p className="font-medium text-gray-800">{student.name}</p>
-                        {student.mail && (
-                          <p className="text-sm text-gray-500">{student.mail}</p>
-                        )}
+                  {studentsInCourse.map((student) => {
+                    // Usar id como identificador principal (documentId de Firestore)
+                    const studentId = student.id || student.uid;
+                    return (
+                      <div 
+                        key={studentId} 
+                        className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+                      >
+                        <div className="flex-1 mb-3">
+                          <p className="font-medium text-gray-800">{student.name}</p>
+                          {student.mail && (
+                            <p className="text-sm text-gray-500">{student.mail}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          {(['present', 'absent', 'late'] as AttendanceStatus[]).map((status) => (
+                            <button
+                              key={status}
+                              type="button"
+                              onClick={() => handleAttendanceChange(studentId, status)}
+                              className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
+                                getStatusColor(status, studentAttendances[studentId] === status)
+                              }`}
+                            >
+                              {getStatusIcon(status)}
+                              <span>{getStatusLabel(status)}</span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        {(['present', 'absent', 'late'] as AttendanceStatus[]).map((status) => (
-                          <button
-                            key={status}
-                            type="button"
-                            onClick={() => handleAttendanceChange(student.uid, status)}
-                            className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
-                              getStatusColor(status, studentAttendances[student.uid] === status)
-                            }`}
-                          >
-                            {getStatusIcon(status)}
-                            <span>{getStatusLabel(status)}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

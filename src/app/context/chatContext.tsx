@@ -63,10 +63,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!uid) return;
 
     const col = collection(db, 'chats');
+    // Temporalmente sin orderBy para evitar requerir índice compuesto
+    // Los chats se ordenarán en memoria por lastMessageAt
     const q = query(
       col,
-      where('participants', 'array-contains', uid),
-      orderBy('lastMessageAt', 'desc')
+      where('participants', 'array-contains', uid)
     );
 
     const unsub = onSnapshot(q, (snap) => {
@@ -82,6 +83,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           unreadCount: data.unreadCount || {}
         };
       });
+      // Ordenar en memoria por lastMessageAt descendente
+      chatList.sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
       setChats(chatList);
     });
 
