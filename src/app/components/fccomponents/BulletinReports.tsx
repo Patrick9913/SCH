@@ -296,7 +296,10 @@ export const BulletinReports: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {Object.entries(groupedBySubject).map(([subjectId, periods]) => {
-                    const subjectName = Assignments[subjectId as unknown as keyof typeof Assignments];
+                    const assignmentKey = Object.keys(Assignments).find(
+                      key => Assignments[key as keyof typeof Assignments] === Number(subjectId)
+                    ) as keyof typeof Assignments | undefined;
+                    const subjectName = assignmentKey || `Materia ${subjectId}`;
                     return (
                       <tr key={subjectId} className="hover:bg-gray-50">
                         <td className="px-6 py-4 text-sm font-medium text-gray-800 border-r border-gray-200">
@@ -452,7 +455,10 @@ export const BulletinReports: React.FC = () => {
                           {periodGrades.length > 0 ? (
                             <div className="space-y-1">
                               {periodGrades.map((grade) => {
-                                const subjectName = Assignments[grade.subjectId as unknown as keyof typeof Assignments];
+                                const assignmentKey = Object.keys(Assignments).find(
+                                  key => Assignments[key as keyof typeof Assignments] === grade.subjectId
+                                ) as keyof typeof Assignments | undefined;
+                                const subjectName = assignmentKey || `Materia ${grade.subjectId}`;
                                 return (
                                   <div key={grade.id} className="text-xs">
                                     <span className="font-medium">{subjectName}: </span>
@@ -774,7 +780,10 @@ export const BulletinReports: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-gray-200">
                           {Object.entries(bulletinData.groupedBySubject).map(([subjectId, periods]) => {
-                            const subjectName = Assignments[subjectId as unknown as keyof typeof Assignments];
+                            const assignmentKey = Object.keys(Assignments).find(
+                              key => Assignments[key as keyof typeof Assignments] === Number(subjectId)
+                            ) as keyof typeof Assignments | undefined;
+                            const subjectName = assignmentKey || `Materia ${subjectId}`;
                             return (
                               <tr key={subjectId} className="hover:bg-gray-50">
                                 <td className="px-6 py-4 text-sm font-medium text-gray-800 border-r border-gray-200">

@@ -38,7 +38,7 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           id: d.id,
           date: data.date,
           studentUid: data.studentUid,
-          subjectId: data.subjectId,
+          courseLevel: data.courseLevel ?? 0, // Default to 0 if not present (legacy data)
           status: data.status,
           createdByUid: data.createdByUid,
           createdAt,
@@ -89,11 +89,6 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }), [records]);
   return <AttendanceContext.Provider value={value}>{children}</AttendanceContext.Provider>;
 };
-
-
-
-
-
 
 
 

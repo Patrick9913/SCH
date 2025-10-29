@@ -141,12 +141,18 @@ export const canManageGrades = (user: User | null): boolean => {
  * Obtiene el nombre de la materia por ID
  */
 export const getSubjectName = (subjectId: number): string => {
-  return Assignments[subjectId as keyof typeof Assignments] || 'Materia desconocida';
+  const assignmentKey = Object.keys(Assignments).find(
+    key => Assignments[key as keyof typeof Assignments] === subjectId
+  ) as keyof typeof Assignments | undefined;
+  return assignmentKey || 'Materia desconocida';
 };
 
 /**
  * Obtiene el nombre del curso por ID
  */
 export const getCourseName = (courseId: number): string => {
-  return UserCurses[courseId as keyof typeof UserCurses] || 'Curso desconocido';
+  const courseKey = Object.keys(UserCurses).find(
+    key => UserCurses[key as keyof typeof UserCurses] === courseId
+  ) as keyof typeof UserCurses | undefined;
+  return courseKey || 'Curso desconocido';
 };

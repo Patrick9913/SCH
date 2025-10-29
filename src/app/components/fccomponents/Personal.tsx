@@ -290,7 +290,9 @@ export const Personal: React.FC = () => {
                                 key={u.id}
                                 name={u.name}
                                 role={UserRole[u.role]}
-                                level={u.level && UserCurses[u.level]}
+                                level={u.level ? (Object.keys(UserCurses).find(
+                                  key => UserCurses[key as keyof typeof UserCurses] === u.level
+                                ) as keyof typeof UserCurses | undefined) || String(u.level) : undefined}
                             />
                     ))}
                 </div>
