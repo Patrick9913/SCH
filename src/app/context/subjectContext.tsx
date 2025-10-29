@@ -60,13 +60,23 @@ export const SubjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
     
     const userRef = collection(db, 'users');
-    const unsub = onSnapshot(userRef, (snap) => {
-      const usersData: User[] = snap.docs.map((d) => ({
-        ...(d.data() as Omit<User, 'id'>),
-        id: d.id,
-      }));
-      setUsers(usersData);
-    });
+    const unsub = onSnapshot(
+      userRef,
+      (snap) => {
+        const usersData: User[] = snap.docs.map((d) => {
+          const data = d.data() as any;
+          return {
+            ...data,
+            id: d.id,
+          } as User;
+        });
+        setUsers(usersData);
+      },
+      (error) => {
+        console.error('Error en user listener en subjectContext:', error);
+        setUsers([]);
+      }
+    );
     return () => unsub();
   }, [uid]);
 
@@ -78,27 +88,39 @@ export const SubjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
     
     const col = collection(db, 'subjects');
-    const q = query(col, orderBy('createdAt', 'desc'));
-    const unsub = onSnapshot(q, (snap) => {
-      const items: Subject[] = snap.docs.map((d) => {
-        const data = d.data() as any;
-        const createdAt = typeof data.createdAt === 'number' ? data.createdAt : (data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : Date.now());
-        const updatedAt = data.updatedAt ? (typeof data.updatedAt === 'number' ? data.updatedAt : (data.updatedAt instanceof Timestamp ? data.updatedAt.toMillis() : Date.now())) : undefined;
-        
-        return {
-          id: d.id,
-          name: data.name,
-          subjectId: data.subjectId,
-          courseLevel: data.courseLevel,
-          teacherUid: data.teacherUid,
-          studentUids: data.studentUids || [],
-          createdAt,
-          createdByUid: data.createdByUid,
-          updatedAt,
-        } as Subject;
-      });
-      setSubjects(items);
-    });
+    // Usar query simple sin orderBy para evitar errores de índices, ordenar en memoria
+    const q = query(col);
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const items: Subject[] = snap.docs.map((d) => {
+          const data = d.data() as any;
+          const createdAt = typeof data.createdAt === 'number' ? data.createdAt : (data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : Date.now());
+          const updatedAt = data.updatedAt ? (typeof data.updatedAt === 'number' ? data.updatedAt : (data.updatedAt instanceof Timestamp ? data.updatedAt.toMillis() : Date.now())) : undefined;
+          
+          return {
+            id: d.id,
+            name: data.name || '',
+            subjectId: data.subjectId || 0,
+            courseLevel: data.courseLevel || 0,
+            teacherUid: data.teacherUid || '',
+            studentUids: Array.isArray(data.studentUids) ? data.studentUids : [],
+            catedrasHours: data.catedrasHours || 0,
+            plannedSchedules: Array.isArray(data.plannedSchedules) ? data.plannedSchedules : [],
+            createdAt,
+            createdByUid: data.createdByUid || '',
+            updatedAt,
+          } as Subject;
+        });
+        // Ordenar manualmente por fecha (más reciente primero)
+        items.sort((a, b) => b.createdAt - a.createdAt);
+        setSubjects(items);
+      },
+      (error) => {
+        console.error('Error en subjectContext listener:', error);
+        setSubjects([]);
+      }
+    );
     return () => unsub();
   }, [uid]);
 

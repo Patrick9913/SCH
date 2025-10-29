@@ -1,3 +1,10 @@
+export interface PlannedSchedule {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  classroom: string;
+}
+
 export interface Subject {
   id: string;
   name: string; // Nombre de la materia (ej: "Lengua", "Matemática")
@@ -5,6 +12,8 @@ export interface Subject {
   courseLevel: number; // Curso (1°, 2°, 3°, etc.)
   teacherUid: string; // UID del docente asignado
   studentUids: string[]; // Array de UIDs de estudiantes asignados
+  catedrasHours: number; // Horas cátedras semanales
+  plannedSchedules: PlannedSchedule[]; // Horarios planificados al crear la materia
   createdAt: number;
   createdByUid: string;
   updatedAt?: number;
@@ -16,6 +25,8 @@ export interface SubjectInput {
   courseLevel: number;
   teacherUid: string;
   studentUids?: string[];
+  catedrasHours: number;
+  plannedSchedules: PlannedSchedule[];
 }
 
 export interface SubjectUpdate {

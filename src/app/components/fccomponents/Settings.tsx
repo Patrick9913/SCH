@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { HiCog, HiUsers, HiBookOpen, HiPlus, HiTrash, HiCheck, HiAcademicCap, HiClock, HiX } from "react-icons/hi";
 import { useAuthContext } from '@/app/context/authContext';
 import { useTriskaContext } from '@/app/context/triskaContext';
@@ -26,7 +26,7 @@ export const Settings: React.FC = () => {
         assignMultipleStudentsToSubject,
         getSubjectSummary
     } = useSubjects();
-    const { addSchedule } = useSchedule();
+    const { addSchedule, getSchedulesBySubject } = useSchedule();
 
     const isAdmin = user?.role === UserRole.Administrador;
 
@@ -34,6 +34,7 @@ export const Settings: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'subjects' | 'assignments'>('subjects');
     const [selectedCourse, setSelectedCourse] = useState<number | ''>('');
     const [selectedSubject, setSelectedSubject] = useState<number | ''>('');
+    const [catedrasHours, setCatedrasHours] = useState<number | ''>('');
     const [isCreating, setIsCreating] = useState(false);
     const [isSelectingStudents, setIsSelectingStudents] = useState(false);
     const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
@@ -47,6 +48,11 @@ export const Settings: React.FC = () => {
         endTime: string;
         classroom: string;
     }>>([]);
+    
+    // Estado para el selector visual de horarios
+    const [selectedTimeSlots, setSelectedTimeSlots] = useState<Map<string, string>>(new Map()); // Map<"day-time", "aula">
+    const [selectionStart, setSelectionStart] = useState<{ day: number; time: string } | null>(null);
+    const [currentHover, setCurrentHover] = useState<{ day: number; time: string } | null>(null);
 
     // Filtrar usuarios por rol
     const students = useMemo(() => 
@@ -97,10 +103,37 @@ export const Settings: React.FC = () => {
     // Obtener resumen de materias
     const subjectSummary = useMemo(() => getSubjectSummary(), [getSubjectSummary]);
 
+    // Validar que los horarios estén completos
+    const areSchedulesValid = () => {
+        if (selectedTimeSlots.size === 0) return false;
+        if (subjectSchedules.length === 0) return false;
+        return subjectSchedules.every(schedule => 
+            schedule.dayOfWeek >= 0 && 
+            schedule.startTime && 
+            schedule.endTime && 
+            schedule.startTime < schedule.endTime
+        );
+    };
+
     // Función para crear una nueva materia
     const handleCreateSubject = async () => {
         if (!selectedCourse || !selectedSubject) {
             toast.error('Por favor selecciona un curso y una materia');
+            return;
+        }
+
+        if (selectedTimeSlots.size === 0) {
+            toast.error('Debes seleccionar al menos un bloque de horario');
+            return;
+        }
+
+        if (!areSchedulesValid()) {
+            toast.error('Por favor completa todos los horarios (día, hora inicio y hora fin)');
+            return;
+        }
+
+        if (!catedrasHours || Number(catedrasHours) <= 0) {
+            toast.error('Por favor ingresa las horas cátedras');
             return;
         }
 
@@ -112,6 +145,8 @@ export const Settings: React.FC = () => {
             html: `
                 <div style="text-align: left;">
                     <p style="margin-bottom: 8px;">¿Estás seguro de que deseas crear la materia <strong>${subjectName}</strong> para <strong>${courseName}</strong>?</p>
+                    <p style="margin-bottom: 8px;">Horas cátedras: <strong>${catedrasHours}</strong></p>
+                    <p style="margin-bottom: 8px;">Horarios: <strong>${subjectSchedules.length}</strong></p>
                     <p style="font-size: 0.875rem; color: #6b7280;">Después podrás asignar un docente y estudiantes a esta materia.</p>
                 </div>
             `,
@@ -132,18 +167,19 @@ export const Settings: React.FC = () => {
                     subjectId: selectedSubject,
                     courseLevel: selectedCourse,
                     teacherUid: '', // Se asignará después
-                    studentUids: []
+                    studentUids: [],
+                    catedrasHours: Number(catedrasHours),
+                    plannedSchedules: subjectSchedules
                 });
                 
                 toast.success(`Materia ${subjectName} creada para ${courseName}`);
-                // Limpiar formulario solo si no hay horarios guardados
-                if (subjectSchedules.length === 0) {
-                    setSelectedCourse('');
-                    setSelectedSubject('');
-                } else {
-                    // Si hay horarios, mantener selección pero limpiar solo la materia para permitir agregar más
-                    toast('Los horarios se crearán cuando asignes un docente a la materia', { icon: 'ℹ️' });
-                }
+                // Limpiar formulario completamente después de crear
+                setSelectedCourse('');
+                setSelectedSubject('');
+                setCatedrasHours('');
+                setSubjectSchedules([]);
+                setSelectedTimeSlots(new Map());
+                toast('Ahora puedes asignar un docente y estudiantes a esta materia', { icon: 'ℹ️' });
             } catch (error) {
                 console.error('Error al crear materia:', error);
                 toast.error('Error al crear materia');
@@ -153,46 +189,294 @@ export const Settings: React.FC = () => {
         }
     };
 
-    // Función para agregar un horario al array
-    const handleAddSchedule = () => {
-        if (!selectedCourse || !selectedSubject) {
-            toast.error('Por favor selecciona un curso y una materia primero');
+
+    // Limpiar selección de materia cuando cambia el curso
+    const handleCourseChange = (course: number | '') => {
+        setSelectedCourse(course);
+        if (course === '') {
+            setSelectedSubject('');
+            setSubjectSchedules([]);
+            setSelectedTimeSlots(new Map());
+            setCatedrasHours('');
+        }
+    };
+
+    // Limpiar horarios cuando cambia la materia
+    const handleSubjectChange = (subject: number | '') => {
+        setSelectedSubject(subject);
+        if (subject === '') {
+            setSubjectSchedules([]);
+            setSelectedTimeSlots(new Map());
+            setCatedrasHours('');
+        }
+    };
+
+    // Generar bloques de tiempo disponibles (7:45 a 16:30 en bloques de 40 minutos)
+    const timeSlots = useMemo(() => {
+        const slots: string[] = [];
+        // Empezar a las 7:45
+        slots.push('07:45');
+        
+        let currentHour = 7;
+        let currentMinute = 45;
+        
+        // Continuar hasta llegar a 16:30
+        while (true) {
+            // Agregar 40 minutos
+            currentMinute += 40;
+            if (currentMinute >= 60) {
+                currentMinute -= 60;
+                currentHour += 1;
+            }
+            
+            // Formatear la hora
+            const hourStr = currentHour.toString().padStart(2, '0');
+            const minuteStr = currentMinute.toString().padStart(2, '0');
+            const timeStr = `${hourStr}:${minuteStr}`;
+            
+            // Verificar si no hemos pasado las 16:30
+            if (currentHour > 16 || (currentHour === 16 && currentMinute > 30)) {
+                break;
+            }
+            
+            slots.push(timeStr);
+        }
+        
+        return slots;
+    }, []);
+
+    // Días de la semana (Lunes a Viernes)
+    const weekDays = useMemo(() => [
+        { value: 0, label: 'Lunes', short: 'Lun' },
+        { value: 1, label: 'Martes', short: 'Mar' },
+        { value: 2, label: 'Miércoles', short: 'Mié' },
+        { value: 3, label: 'Jueves', short: 'Jue' },
+        { value: 4, label: 'Viernes', short: 'Vie' }
+    ], []);
+
+    // Función auxiliar para agregar 40 minutos a una hora
+    const add40Minutes = (time: string): string => {
+        const [hours, minutes] = time.split(':').map(Number);
+        let newHours = hours;
+        let newMinutes = minutes + 40;
+        
+        if (newMinutes >= 60) {
+            newMinutes -= 60;
+            newHours += 1;
+        }
+        
+        return `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}`;
+    };
+
+    // Función para actualizar subjectSchedules desde la selección visual
+    const updateSchedulesFromVisualSelection = useCallback((timeSlotsMap: Map<string, string>) => {
+        const schedules: Array<{
+            dayOfWeek: number;
+            startTime: string;
+            endTime: string;
+            classroom: string;
+        }> = [];
+
+        // Agrupar bloques consecutivos por día
+        weekDays.forEach(day => {
+            const daySlots: Array<{ time: string; classroom: string }> = [];
+            timeSlots.forEach(time => {
+                const key = `${day.value}-${time}`;
+                if (timeSlotsMap.has(key)) {
+                    daySlots.push({
+                        time,
+                        classroom: timeSlotsMap.get(key) || ''
+                    });
+                }
+            });
+
+            // Agrupar bloques consecutivos
+            if (daySlots.length > 0) {
+                let currentStart = daySlots[0].time;
+                let currentEnd = daySlots[0].time; // El último bloque del grupo
+                let currentClassroom = daySlots[0].classroom;
+
+                for (let i = 1; i < daySlots.length; i++) {
+                    const prevTime = daySlots[i - 1].time;
+                    const currentTime = daySlots[i].time;
+                    
+                    // Verificar si son consecutivos (diferencia de 40 minutos)
+                    const [prevHours, prevMinutes] = prevTime.split(':').map(Number);
+                    const [currentHours, currentMinutes] = currentTime.split(':').map(Number);
+                    
+                    const prevTotalMinutes = prevHours * 60 + prevMinutes;
+                    const currentTotalMinutes = currentHours * 60 + currentMinutes;
+                    const timeDiff = currentTotalMinutes - prevTotalMinutes;
+                    
+                    if (timeDiff === 40) {
+                        // Son consecutivos (40 minutos), extender el bloque actual
+                        // Actualizamos currentEnd al último bloque del grupo consecutivo
+                        currentEnd = currentTime;
+                        // Si el nuevo bloque tiene aula y el actual no, actualizar
+                        if (daySlots[i].classroom && !currentClassroom) {
+                            currentClassroom = daySlots[i].classroom;
+                        }
+                    } else {
+                        // No son consecutivos, guardar el bloque actual y empezar uno nuevo
+                        // El horario es desde currentStart hasta el final del último bloque (currentEnd + 40 min)
+                        schedules.push({
+                            dayOfWeek: day.value,
+                            startTime: currentStart,
+                            endTime: add40Minutes(currentEnd),
+                            classroom: currentClassroom || ''
+                        });
+                        currentStart = currentTime;
+                        currentEnd = currentTime;
+                        currentClassroom = daySlots[i].classroom || '';
+                    }
+                }
+                
+                // Agregar el último grupo de bloques consecutivos
+                // Cuando hay bloques consecutivos, el horario es desde el inicio del primer bloque
+                // hasta el inicio del último bloque (el último punto seleccionado)
+                // Ejemplo: 15:05, 15:45, 16:25 -> horario de 15:05 a 16:25
+                if (currentStart && currentEnd) {
+                    // Si solo hay un bloque, el horario es ese bloque completo (inicio + 40 min)
+                    if (daySlots.length === 1) {
+                        schedules.push({
+                            dayOfWeek: day.value,
+                            startTime: currentStart,
+                            endTime: add40Minutes(currentStart),
+                            classroom: currentClassroom || ''
+                        });
+                    } else {
+                        // Si hay múltiples bloques consecutivos, el horario es desde el primero
+                        // hasta el inicio del último (currentEnd es el último punto seleccionado)
+                        schedules.push({
+                            dayOfWeek: day.value,
+                            startTime: currentStart, // Inicio del primer bloque
+                            endTime: currentEnd, // Inicio del último bloque (es el final del horario)
+                            classroom: currentClassroom || ''
+                        });
+                    }
+                }
+            }
+        });
+
+        setSubjectSchedules(schedules);
+    }, [weekDays, timeSlots]);
+
+    // Función para completar la selección de rango
+    const completeSelection = useCallback((endDay: number, endTime: string, start?: { day: number; time: string }) => {
+        const startPoint = start || selectionStart;
+        if (!startPoint) return;
+
+        // Solo permitir selección en el mismo día
+        if (startPoint.day !== endDay) {
+            setSelectionStart(null);
+            setCurrentHover(null);
             return;
         }
-        setSubjectSchedules([...subjectSchedules, {
-            dayOfWeek: 0,
-            startTime: '08:00',
-            endTime: '09:00',
-            classroom: ''
-        }]);
+
+        const startIndex = timeSlots.indexOf(startPoint.time);
+        const endIndex = timeSlots.indexOf(endTime);
+        
+        if (startIndex === -1 || endIndex === -1) {
+            setSelectionStart(null);
+            setCurrentHover(null);
+            return;
+        }
+
+        // Determinar el rango (puede ser de inicio a fin o de fin a inicio)
+        const minIndex = Math.min(startIndex, endIndex);
+        const maxIndex = Math.max(startIndex, endIndex);
+        
+        // Seleccionar todos los bloques en el rango
+        setSelectedTimeSlots(prev => {
+            const newMap = new Map(prev);
+            const currentClassroom = prev.get(`${startPoint.day}-${startPoint.time}`) || '';
+            
+            for (let i = minIndex; i <= maxIndex; i++) {
+                const timeSlot = timeSlots[i];
+                const key = `${startPoint.day}-${timeSlot}`;
+                newMap.set(key, currentClassroom);
+            }
+            
+            updateSchedulesFromVisualSelection(newMap);
+            return newMap;
+        });
+        
+        setSelectionStart(null);
+        setCurrentHover(null);
+    }, [selectionStart, timeSlots, updateSchedulesFromVisualSelection]);
+
+    // Función para manejar el inicio de selección de rango
+    const handleTimeSlotMouseDown = (dayOfWeek: number, time: string) => {
+        const key = `${dayOfWeek}-${time}`;
+        // Si el slot ya está seleccionado, limpiar todo el día
+        if (selectedTimeSlots.has(key)) {
+            const newMap = new Map(selectedTimeSlots);
+            timeSlots.forEach(t => {
+                const k = `${dayOfWeek}-${t}`;
+                newMap.delete(k);
+            });
+            setSelectedTimeSlots(newMap);
+            updateSchedulesFromVisualSelection(newMap);
+        } else {
+            setSelectionStart({ day: dayOfWeek, time });
+            setCurrentHover({ day: dayOfWeek, time });
+        }
     };
 
-    // Función para remover un horario
-    const handleRemoveSchedule = (index: number) => {
-        setSubjectSchedules(subjectSchedules.filter((_, i) => i !== index));
+    // Función para manejar el fin de selección de rango
+    const handleTimeSlotMouseUp = (dayOfWeek: number, time: string) => {
+        if (selectionStart) {
+            completeSelection(dayOfWeek, time);
+        }
     };
 
-    // Función para actualizar un horario
-    const handleUpdateSchedule = (index: number, field: string, value: string | number) => {
-        const updated = [...subjectSchedules];
-        updated[index] = { ...updated[index], [field]: value };
-        setSubjectSchedules(updated);
+    // Función para manejar hover mientras se arrastra (para mostrar preview)
+    const handleTimeSlotMouseEnter = (dayOfWeek: number, time: string) => {
+        if (selectionStart && selectionStart.day === dayOfWeek) {
+            setCurrentHover({ day: dayOfWeek, time });
+        }
     };
 
-    // Función para asignar docente a una materia y crear horarios si existen
+    // Agregar listener global para mouseup (por si el usuario arrastra fuera de la cuadrícula)
+    useEffect(() => {
+        if (!selectionStart) return;
+
+        const handleGlobalMouseUp = () => {
+            if (currentHover && currentHover.day === selectionStart.day) {
+                completeSelection(currentHover.day, currentHover.time, selectionStart);
+            } else if (selectionStart) {
+                // Si solo hay inicio sin hover, seleccionar solo ese bloque
+                completeSelection(selectionStart.day, selectionStart.time, selectionStart);
+            }
+        };
+
+        window.addEventListener('mouseup', handleGlobalMouseUp);
+        return () => {
+            window.removeEventListener('mouseup', handleGlobalMouseUp);
+        };
+    }, [selectionStart, currentHover, completeSelection]);
+
+    // Función para actualizar aula de un bloque
+    const updateClassroomForSlot = (dayOfWeek: number, time: string, classroom: string) => {
+        const key = `${dayOfWeek}-${time}`;
+        const newMap = new Map(selectedTimeSlots);
+        newMap.set(key, classroom);
+        setSelectedTimeSlots(newMap);
+        updateSchedulesFromVisualSelection(newMap);
+    };
+
+
+    // Función para asignar docente a una materia y crear horarios planificados
     const handleAssignTeacher = async (subjectId: string, teacherUid: string) => {
         try {
             await assignTeacherToSubject(subjectId, teacherUid);
             const teacher = teachers.find(t => t.uid === teacherUid);
             const subject = subjects.find(s => s.id === subjectId);
             
-            // Crear horarios si hay algunos configurados para esta materia específica
-            // Verificar si la materia actualmente seleccionada coincide con la materia a la que se asigna el docente
-            if (subject && subjectSchedules.length > 0 && 
-                selectedCourse === subject.courseLevel && 
-                selectedSubject === subject.subjectId) {
+            // Crear horarios desde los horarios planificados guardados en la materia
+            if (subject && subject.plannedSchedules && subject.plannedSchedules.length > 0) {
                 let createdCount = 0;
-                for (const schedule of subjectSchedules) {
+                for (const schedule of subject.plannedSchedules) {
                     try {
                         await addSchedule({
                             courseLevel: subject.courseLevel,
@@ -201,16 +485,14 @@ export const Settings: React.FC = () => {
                             dayOfWeek: schedule.dayOfWeek,
                             startTime: schedule.startTime,
                             endTime: schedule.endTime,
-                            classroom: schedule.classroom
+                            classroom: schedule.classroom || ''
                         });
                         createdCount++;
                     } catch (error) {
                         console.error('Error al crear horario:', error);
                     }
                 }
-                // Limpiar horarios después de crearlos solo para esta materia
                 if (createdCount > 0) {
-                    setSubjectSchedules([]);
                     toast.success(`${teacher?.name} asignado y ${createdCount} horario(s) creado(s)`);
                 } else {
                     toast.success(`${teacher?.name} asignado a la materia`);
@@ -411,7 +693,7 @@ export const Settings: React.FC = () => {
                         </label>
                         <select
                             value={selectedCourse}
-                            onChange={(e) => setSelectedCourse(Number(e.target.value) || '')}
+                            onChange={(e) => handleCourseChange(Number(e.target.value) || '')}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                             <option value="">Selecciona un curso</option>
@@ -430,8 +712,11 @@ export const Settings: React.FC = () => {
                         </label>
                         <select
                             value={selectedSubject}
-                            onChange={(e) => setSelectedSubject(Number(e.target.value) || '')}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            onChange={(e) => handleSubjectChange(Number(e.target.value) || '')}
+                            disabled={!selectedCourse}
+                            className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                !selectedCourse ? 'bg-gray-100 cursor-not-allowed' : ''
+                            }`}
                         >
                             <option value="">Selecciona una materia</option>
                             {getSubjectOptions().map((option) => (
@@ -446,9 +731,23 @@ export const Settings: React.FC = () => {
                     <div className="flex items-end">
                         <button
                             onClick={handleCreateSubject}
-                            disabled={!selectedCourse || !selectedSubject || isCreating}
+                            disabled={
+                                !selectedCourse || 
+                                !selectedSubject || 
+                                selectedTimeSlots.size === 0 ||
+                                !areSchedulesValid() ||
+                                !catedrasHours || 
+                                Number(catedrasHours) <= 0 ||
+                                isCreating
+                            }
                             className={`w-full px-4 py-2 rounded-md font-semibold transition-all ${
-                                selectedCourse && selectedSubject && !isCreating
+                                selectedCourse && 
+                                selectedSubject && 
+                                selectedTimeSlots.size > 0 &&
+                                areSchedulesValid() &&
+                                catedrasHours && 
+                                Number(catedrasHours) > 0 &&
+                                !isCreating
                                     ? 'bg-blue-600 text-white hover:bg-blue-700'
                                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                             }`}
@@ -458,98 +757,165 @@ export const Settings: React.FC = () => {
                     </div>
                 </div>
                 
-                {/* Sección de Horarios (Opcional) */}
+                {/* Sección de Horarios (Requerido) - Selector Visual */}
                 {selectedCourse && selectedSubject && (
                     <div className="mt-4 pt-4 border-t border-gray-300">
-                        <div className="flex items-center justify-between mb-3">
-                            <div>
-                                <h3 className="text-sm font-medium text-gray-700">Horarios de Clase (Opcional)</h3>
-                                <p className="text-xs text-gray-500">Puedes agregar horarios que se crearán cuando asignes un docente</p>
-                            </div>
-                            <button
-                                onClick={handleAddSchedule}
-                                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
-                            >
-                                <HiPlus className="w-4 h-4" />
-                                Agregar Horario
-                            </button>
+                        <div className="mb-4">
+                            <h3 className="text-sm font-medium text-gray-700 mb-1">
+                                Selecciona los Horarios de Clase <span className="text-red-500">*</span>
+                            </h3>
+                            <p className="text-xs text-gray-500">
+                                Haz clic y arrastra para seleccionar un rango de horarios (ej: de 08:00 a 09:30). 
+                                También puedes hacer clic en un horario ya seleccionado para limpiarlo. 
+                                Los bloques son de 40 minutos cada uno.
+                            </p>
                         </div>
                         
-                        {subjectSchedules.length > 0 && (
-                            <div className="space-y-3">
-                                {subjectSchedules.map((schedule, index) => (
-                                    <div key={index} className="p-3 bg-white border border-gray-200 rounded-lg">
-                                        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">Día</label>
-                                                <select
-                                                    value={schedule.dayOfWeek}
-                                                    onChange={(e) => handleUpdateSchedule(index, 'dayOfWeek', Number(e.target.value))}
-                                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                >
-                                                    {Object.entries(DayLabels).slice(0, 5).map(([key, label]) => (
-                                                        <option key={key} value={key}>{label}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">Hora Inicio</label>
-                                                <input
-                                                    type="time"
-                                                    min="08:00"
-                                                    max="16:30"
-                                                    value={schedule.startTime}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value;
-                                                        if (value >= '08:00' && value <= '16:30') {
-                                                            handleUpdateSchedule(index, 'startTime', value);
-                                                        }
-                                                    }}
-                                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">Hora Fin</label>
-                                                <input
-                                                    type="time"
-                                                    min={schedule.startTime || '08:00'}
-                                                    max="16:30"
-                                                    value={schedule.endTime}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value;
-                                                        if (value > schedule.startTime && value <= '16:30') {
-                                                            handleUpdateSchedule(index, 'endTime', value);
-                                                        }
-                                                    }}
-                                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">Aula</label>
-                                                <input
-                                                    type="text"
-                                                    value={schedule.classroom}
-                                                    onChange={(e) => handleUpdateSchedule(index, 'classroom', e.target.value)}
-                                                    placeholder="Ej: Aula 101"
-                                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                />
-                                            </div>
-                                            <div className="flex items-end">
-                                                <button
-                                                    onClick={() => handleRemoveSchedule(index)}
-                                                    className="w-full px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors flex items-center justify-center gap-1"
-                                                >
-                                                    <HiX className="w-4 h-4" />
-                                                    Eliminar
-                                                </button>
-                                            </div>
+                        {/* Cuadrícula de Horarios */}
+                        <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto">
+                            <div className="min-w-full">
+                                {/* Encabezado con horas */}
+                                <div className="flex border-b border-gray-200 bg-gray-50">
+                                    <div className="w-24 flex-shrink-0 p-2 text-xs font-medium text-gray-700 border-r border-gray-200"></div>
+                                    {timeSlots.map((time, idx) => (
+                                        <div 
+                                            key={time} 
+                                            className={`flex-1 min-w-[60px] p-2 text-center text-xs font-medium text-gray-700 border-r border-gray-200 last:border-r-0 ${
+                                                idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'
+                                            }`}
+                                        >
+                                            {time}
                                         </div>
+                                    ))}
+                                </div>
+                                
+                                {/* Filas para cada día */}
+                                {weekDays.map((day) => (
+                                    <div key={day.value} className="flex border-b border-gray-200 last:border-b-0 hover:bg-gray-50">
+                                        <div className="w-24 flex-shrink-0 p-2 text-xs font-medium text-gray-700 border-r border-gray-200 bg-gray-50">
+                                            {day.short}
+                                        </div>
+                                        {timeSlots.map((time, timeIndex) => {
+                                            const key = `${day.value}-${time}`;
+                                            const isSelected = selectedTimeSlots.has(key);
+                                            
+                                            // Determinar si este bloque está en el rango de selección actual (preview)
+                                            let isInSelectionRange = false;
+                                            if (selectionStart && selectionStart.day === day.value) {
+                                                const previewTime = currentHover && currentHover.day === day.value 
+                                                    ? currentHover.time 
+                                                    : selectionStart.time;
+                                                    
+                                                const startIdx = timeSlots.indexOf(selectionStart.time);
+                                                const endIdx = timeSlots.indexOf(previewTime);
+                                                
+                                                if (startIdx !== -1 && endIdx !== -1) {
+                                                    const minIdx = Math.min(startIdx, endIdx);
+                                                    const maxIdx = Math.max(startIdx, endIdx);
+                                                    isInSelectionRange = timeIndex >= minIdx && timeIndex <= maxIdx;
+                                                }
+                                            }
+                                            
+                                            return (
+                                                <button
+                                                    key={key}
+                                                    type="button"
+                                                    onMouseDown={() => handleTimeSlotMouseDown(day.value, time)}
+                                                    onMouseUp={() => handleTimeSlotMouseUp(day.value, time)}
+                                                    onMouseEnter={() => handleTimeSlotMouseEnter(day.value, time)}
+                                                    className={`flex-1 min-w-[60px] h-12 border-r border-gray-200 last:border-r-0 transition-all relative ${
+                                                        isSelected || isInSelectionRange
+                                                            ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                                                            : 'bg-white hover:bg-blue-50'
+                                                    }`}
+                                                    title={`${day.label} ${time}`}
+                                                >
+                                                    {(isSelected || isInSelectionRange) && (
+                                                        <span className="absolute inset-0 flex items-center justify-center text-xs font-medium">
+                                                            ✓
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 ))}
                             </div>
+                        </div>
+                        
+                        {/* Resumen de horarios seleccionados */}
+                        {subjectSchedules.length > 0 && (
+                            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <p className="text-sm font-medium text-blue-800 mb-2">
+                                    Horarios seleccionados ({subjectSchedules.length}):
+                                </p>
+                                <div className="space-y-1">
+                                    {subjectSchedules.map((schedule, idx) => (
+                                        <div key={idx} className="text-xs text-blue-700 flex items-center gap-2">
+                                            <span className="font-medium">
+                                                {DayLabels[schedule.dayOfWeek as keyof typeof DayLabels]}: 
+                                            </span>
+                                            <span>
+                                                {schedule.startTime} - {schedule.endTime}
+                                            </span>
+                                            {schedule.classroom && (
+                                                <span className="text-blue-600">
+                                                    (Aula: {schedule.classroom})
+                                                </span>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         )}
-                        {subjectSchedules.length === 0 && (
-                            <p className="text-xs text-gray-400 text-center py-2">No hay horarios configurados. Haz clic en "Agregar Horario" para comenzar.</p>
+                        
+                        {/* Campo para configurar aula global (opcional) */}
+                        {selectedTimeSlots.size > 0 && (
+                            <div className="mt-4">
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                    Aula (opcional - se aplicará a todos los bloques seleccionados)
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="Ej: Aula 101"
+                                    onChange={(e) => {
+                                        const classroom = e.target.value;
+                                        const newMap = new Map(selectedTimeSlots);
+                                        selectedTimeSlots.forEach((_, key) => {
+                                            newMap.set(key, classroom);
+                                        });
+                                        setSelectedTimeSlots(newMap);
+                                        updateSchedulesFromVisualSelection(newMap);
+                                    }}
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                        )}
+                        
+                        {selectedTimeSlots.size === 0 && (
+                            <p className="text-xs text-gray-400 text-center py-4">
+                                Haz clic y arrastra en los bloques de tiempo de la cuadrícula para seleccionar un rango de horarios
+                            </p>
+                        )}
+                        
+                        {/* Campo de Horas Cátedras */}
+                        {selectedTimeSlots.size > 0 && areSchedulesValid() && (
+                            <div className="mt-4 pt-4 border-t border-gray-300">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Horas Cátedras <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={catedrasHours}
+                                        onChange={(e) => setCatedrasHours(e.target.value ? Number(e.target.value) : '')}
+                                        placeholder="Ej: 4"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Ingresa la cantidad de horas cátedras semanales</p>
+                                </div>
+                            </div>
                         )}
                     </div>
                 )}
@@ -573,6 +939,21 @@ export const Settings: React.FC = () => {
                                     subjects.some(s => s.courseLevel === selectedCourse && s.subjectId === selectedSubject) ? 'Sí' : 'No'
                                 }
                             </div>
+                            {selectedTimeSlots.size > 0 && (
+                                <div>
+                                    <span className="font-medium">Bloques seleccionados:</span> {selectedTimeSlots.size}
+                                </div>
+                            )}
+                            {subjectSchedules.length > 0 && (
+                                <div>
+                                    <span className="font-medium">Horarios configurados:</span> {subjectSchedules.length}
+                                </div>
+                            )}
+                            {catedrasHours && (
+                                <div>
+                                    <span className="font-medium">Horas cátedras:</span> {catedrasHours}
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -598,6 +979,11 @@ export const Settings: React.FC = () => {
                                         <div>
                                             <h4 className="font-semibold text-gray-800 text-lg">{subject.name}</h4>
                                             <p className="text-sm text-gray-600">{getCourseName(subject.courseLevel)}</p>
+                                            {subject.catedrasHours > 0 && (
+                                                <p className="text-xs text-gray-500 mt-1">
+                                                    Horas cátedras: <span className="font-medium">{subject.catedrasHours}</span>
+                                                </p>
+                                            )}
                                         </div>
                                         <button
                                             onClick={() => handleDeleteSubject(subject.id)}
@@ -644,6 +1030,75 @@ export const Settings: React.FC = () => {
                                                 </div>
                                             </div>
                                         )}
+                                    </div>
+
+                                    {/* Horarios de la Materia */}
+                                    <div className="mb-4">
+                                        <h5 className="font-medium text-gray-700 mb-2 flex items-center gap-2">
+                                            <HiClock className="w-4 h-4" />
+                                            Horarios de Clase
+                                        </h5>
+                                        {(() => {
+                                            const actualSchedules = getSchedulesBySubject(subject.subjectId, subject.courseLevel);
+                                            
+                                            // Si hay horarios planificados pero no creados (sin docente asignado)
+                                            if (actualSchedules.length === 0 && subject.plannedSchedules && subject.plannedSchedules.length > 0) {
+                                                return (
+                                                    <div>
+                                                        <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-2">
+                                                            <p className="text-sm text-blue-700 mb-2">
+                                                                Horarios planificados (se crearán al asignar un docente):
+                                                            </p>
+                                                            <div className="space-y-2">
+                                                                {subject.plannedSchedules.map((schedule, idx) => (
+                                                                    <div key={idx} className="bg-white rounded p-2 border border-blue-100">
+                                                                        <div className="flex items-center gap-3">
+                                                                            <span className="font-medium text-gray-800 text-sm">{DayLabels[schedule.dayOfWeek as keyof typeof DayLabels]}</span>
+                                                                            <span className="text-sm text-gray-600">
+                                                                                {schedule.startTime} - {schedule.endTime}
+                                                                            </span>
+                                                                            {schedule.classroom && (
+                                                                                <span className="text-xs text-gray-500">Aula: {schedule.classroom}</span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+                                            
+                                            if (actualSchedules.length === 0 && (!subject.plannedSchedules || subject.plannedSchedules.length === 0)) {
+                                                return (
+                                                    <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                                                        <p className="text-sm text-yellow-700">No hay horarios configurados para esta materia</p>
+                                                    </div>
+                                                );
+                                            }
+                                            
+                                            return (
+                                                <div className="space-y-2">
+                                                    {actualSchedules.map((schedule) => (
+                                                        <div key={schedule.id} className="bg-white rounded p-3 border border-gray-200">
+                                                            <div className="flex items-center justify-between">
+                                                                <div className="flex-1">
+                                                                    <div className="flex items-center gap-3 mb-1">
+                                                                        <span className="font-medium text-gray-800">{DayLabels[schedule.dayOfWeek as keyof typeof DayLabels]}</span>
+                                                                        <span className="text-sm text-gray-600">
+                                                                            {schedule.startTime} - {schedule.endTime}
+                                                                        </span>
+                                                                    </div>
+                                                                    {schedule.classroom && (
+                                                                        <p className="text-sm text-gray-500">Aula: {schedule.classroom}</p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
 
                                     {/* Estudiantes Asignados */}

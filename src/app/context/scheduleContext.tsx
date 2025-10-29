@@ -11,6 +11,7 @@ interface ScheduleContextProps {
   addSchedule: (schedule: Omit<Schedule, 'id' | 'createdAt' | 'createdByUid'>) => Promise<void>;
   getSchedulesByCourse: (courseLevel: number) => Schedule[];
   getSchedulesByDay: (dayOfWeek: number) => Schedule[];
+  getSchedulesBySubject: (subjectId: number, courseLevel: number) => Schedule[];
 }
 
 const ScheduleContext = createContext<ScheduleContextProps | null>(null);
@@ -27,27 +28,52 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   useEffect(() => {
     const col = collection(db, 'schedules');
-    const q = query(col, orderBy('dayOfWeek', 'asc'), orderBy('startTime', 'asc'));
-    const unsub = onSnapshot(q, (snap) => {
-      const items: Schedule[] = snap.docs.map((d) => {
-        const data = d.data() as any;
-        const createdAt = typeof data.createdAt === 'number' ? data.createdAt : (data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : Date.now());
-        return {
-          id: d.id,
-          courseLevel: data.courseLevel,
-          subjectId: data.subjectId,
-          teacherUid: data.teacherUid,
-          dayOfWeek: data.dayOfWeek,
-          startTime: data.startTime,
-          endTime: data.endTime,
-          classroom: data.classroom,
-          createdAt,
-          createdByUid: data.createdByUid,
-        } as Schedule;
-      });
-      setSchedules(items);
-    });
-    return () => unsub();
+    // Usar query simple sin orderBy para evitar errores de índices, ordenar en memoria
+    const q = query(col);
+    let cleanup: (() => void) | null = null;
+    
+    const setupListener = () => {
+      const unsub = onSnapshot(
+        q,
+        (snap) => {
+          const items: Schedule[] = snap.docs.map((d) => {
+            const data = d.data() as any;
+            const createdAt = typeof data.createdAt === 'number' ? data.createdAt : (data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : Date.now());
+            return {
+              id: d.id,
+              courseLevel: data.courseLevel || 0,
+              subjectId: data.subjectId || 0,
+              teacherUid: data.teacherUid || '',
+              dayOfWeek: data.dayOfWeek ?? 0,
+              startTime: data.startTime || '',
+              endTime: data.endTime || '',
+              classroom: data.classroom || '',
+              createdAt,
+              createdByUid: data.createdByUid || '',
+            } as Schedule;
+          });
+          // Ordenar manualmente por día y hora
+          items.sort((a, b) => {
+            if (a.dayOfWeek !== b.dayOfWeek) {
+              return a.dayOfWeek - b.dayOfWeek;
+            }
+            return a.startTime.localeCompare(b.startTime);
+          });
+          setSchedules(items);
+        },
+        (error) => {
+          console.error('Error en scheduleContext listener:', error);
+          setSchedules([]);
+        }
+      );
+      return unsub;
+    };
+    
+    cleanup = setupListener();
+    
+    return () => {
+      if (cleanup) cleanup();
+    };
   }, []);
 
   const addSchedule = async (scheduleData: Omit<Schedule, 'id' | 'createdAt' | 'createdByUid'>) => {
@@ -67,11 +93,23 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return schedules.filter(s => s.dayOfWeek === dayOfWeek);
   };
 
+  const getSchedulesBySubject = (subjectId: number, courseLevel: number): Schedule[] => {
+    return schedules.filter(s => s.subjectId === subjectId && s.courseLevel === courseLevel)
+      .sort((a, b) => {
+        // Ordenar por día de la semana, luego por hora de inicio
+        if (a.dayOfWeek !== b.dayOfWeek) {
+          return a.dayOfWeek - b.dayOfWeek;
+        }
+        return a.startTime.localeCompare(b.startTime);
+      });
+  };
+
   const value = useMemo(() => ({ 
     schedules, 
     addSchedule, 
     getSchedulesByCourse,
-    getSchedulesByDay 
+    getSchedulesByDay,
+    getSchedulesBySubject 
   }), [schedules]);
 
   return <ScheduleContext.Provider value={value}>{children}</ScheduleContext.Provider>;
