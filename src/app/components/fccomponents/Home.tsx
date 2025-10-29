@@ -1,8 +1,10 @@
 import { useAuthContext } from "@/app/context/authContext";
 import { useTriskaContext } from "@/app/context/triskaContext";
 import { useAnnouncements } from "@/app/context/announcementsContext";
+import { useSchedule } from "@/app/context/scheduleContext";
 import { Assignments, UserCurses} from "@/app/types/user";
-import { HiHome } from "react-icons/hi";
+import { DayLabels, DayLabelsShort } from "@/app/types/schedule";
+import { HiHome, HiClock, HiUser, HiBookOpen } from "react-icons/hi";
 
 import React from "react";
 
@@ -11,6 +13,7 @@ export const Home: React.FC = () => {
     const { user} = useAuthContext()
     const { users} = useTriskaContext()
     const { announcements, createAnnouncement, deleteAnnouncement } = useAnnouncements()
+    const { schedules, getSchedulesByCourse } = useSchedule()
 
     const students = users.filter( s => s.role === 3)
     const teachers = users.filter( t => t.role === 4)
@@ -57,6 +60,28 @@ export const Home: React.FC = () => {
         ) as keyof typeof UserCurses | undefined;
         return courseKey || 'Sin curso';
     };
+
+    // Horarios semanal para estudiantes
+    const studentWeeklySchedule = React.useMemo(() => {
+        if (!user || user.role !== 3 || !user.level) return null;
+        
+        const courseSchedules = getSchedulesByCourse(user.level);
+        // Organizar por día
+        const scheduleByDay: Record<number, typeof courseSchedules> = {};
+        courseSchedules.forEach(schedule => {
+            if (!scheduleByDay[schedule.dayOfWeek]) {
+                scheduleByDay[schedule.dayOfWeek] = [];
+            }
+            scheduleByDay[schedule.dayOfWeek].push(schedule);
+        });
+        
+        // Ordenar cada día por hora de inicio
+        Object.keys(scheduleByDay).forEach(day => {
+            scheduleByDay[Number(day)].sort((a, b) => a.startTime.localeCompare(b.startTime));
+        });
+        
+        return scheduleByDay;
+    }, [user, user?.level, schedules, getSchedulesByCourse]);
 
     return (
             <section className="flex-1 p-6 overflow-y-auto max-h-screen h-full bg-white">
@@ -175,6 +200,61 @@ export const Home: React.FC = () => {
                         <p className="text-xs text-gray-500">Ofertadas este semestre</p>
                     </div>
                 </div>
+                {/* Horarios semanal para estudiantes */}
+                {user?.role === 3 && (
+                    <div className="mb-8">
+                        <h2 className="text-lg font-medium text-gray-900 mb-4">Mi Horario Semanal</h2>
+                        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                            <div className="grid grid-cols-5 gap-px bg-gray-200">
+                                {[0, 1, 2, 3, 4].map(day => (
+                                    <div key={day} className="bg-white">
+                                        <div className="bg-gray-50 p-3 border-b border-gray-200">
+                                            <h3 className="text-sm font-semibold text-gray-900 text-center">
+                                                {DayLabelsShort[day as keyof typeof DayLabelsShort]}
+                                            </h3>
+                                        </div>
+                                        <div className="p-2 space-y-2 min-h-[300px]">
+                                            {studentWeeklySchedule && studentWeeklySchedule[day]?.map((schedule) => {
+                                                const teacher = users.find(u => u.uid === schedule.teacherUid);
+                                                return (
+                                                    <div
+                                                        key={schedule.id}
+                                                        className="p-3 bg-blue-50 border border-blue-200 rounded-lg hover:border-blue-300 transition-colors"
+                                                    >
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <HiClock className="w-4 h-4 text-blue-600" />
+                                                            <span className="text-xs font-medium text-blue-900">
+                                                                {schedule.startTime} - {schedule.endTime}
+                                                            </span>
+                                                        </div>
+                                                        <h4 className="text-sm font-semibold text-gray-900 mb-1">
+                                                            {getSubjectName(schedule.subjectId)}
+                                                        </h4>
+                                                        <div className="space-y-1 text-xs text-gray-600">
+                                                            <div className="flex items-center gap-1">
+                                                                <HiUser className="w-3 h-3" />
+                                                                <span>{teacher?.name || 'Sin profesor'}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                <HiBookOpen className="w-3 h-3" />
+                                                                <span>{schedule.classroom}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                            {(!studentWeeklySchedule || !studentWeeklySchedule[day] || studentWeeklySchedule[day].length === 0) && (
+                                                <div className="text-center py-8 text-gray-400 text-xs">
+                                                    Sin clases
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
                     {
                         user?.role == 1 && (
                             <>

@@ -10,7 +10,6 @@ import { Messages } from "../fccomponents/Messages";
 import { Attendance } from "../fccomponents/Attendance";
 import { Grades } from "../fccomponents/Grades";
 import { BulletinReports } from "../fccomponents/BulletinReports";
-import { Schedule } from "../fccomponents/Schedule";
 
 export const Main: React.FC = () => {
 
@@ -56,11 +55,6 @@ export const Main: React.FC = () => {
                 {
                     menu == 7 && (
                         <BulletinReports />
-                    )
-                }
-                {
-                    menu == 8 && (
-                        <Schedule />
                     )
                 }
             </div>

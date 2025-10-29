@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState, useMemo } from "react";
-import { HiCog, HiUsers, HiBookOpen, HiPlus, HiTrash, HiCheck, HiAcademicCap } from "react-icons/hi";
+import { HiCog, HiUsers, HiBookOpen, HiPlus, HiTrash, HiCheck, HiAcademicCap, HiClock, HiX } from "react-icons/hi";
 import { useAuthContext } from '@/app/context/authContext';
 import { useTriskaContext } from '@/app/context/triskaContext';
 import { useSubjects } from '@/app/context/subjectContext';
+import { useSchedule } from '@/app/context/scheduleContext';
 import { Assignments, UserCurses, UserRole } from '@/app/types/user';
 import { SubjectInput } from '@/app/types/subject';
+import { DayLabels } from '@/app/types/schedule';
 import Swal from 'sweetalert2';
 import toast from 'react-hot-toast';
 
@@ -24,6 +26,7 @@ export const Settings: React.FC = () => {
         assignMultipleStudentsToSubject,
         getSubjectSummary
     } = useSubjects();
+    const { addSchedule } = useSchedule();
 
     const isAdmin = user?.role === UserRole.Administrador;
 
@@ -36,6 +39,14 @@ export const Settings: React.FC = () => {
     const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
     const [selectedStudentUids, setSelectedStudentUids] = useState<Set<string>>(new Set());
     const [filterCourse, setFilterCourse] = useState<number | ''>('');
+    
+    // Estados para horarios al crear materia
+    const [subjectSchedules, setSubjectSchedules] = useState<Array<{
+        dayOfWeek: number;
+        startTime: string;
+        endTime: string;
+        classroom: string;
+    }>>([]);
 
     // Filtrar usuarios por rol
     const students = useMemo(() => 
@@ -123,7 +134,16 @@ export const Settings: React.FC = () => {
                     teacherUid: '', // Se asignará después
                     studentUids: []
                 });
+                
                 toast.success(`Materia ${subjectName} creada para ${courseName}`);
+                // Limpiar formulario solo si no hay horarios guardados
+                if (subjectSchedules.length === 0) {
+                    setSelectedCourse('');
+                    setSelectedSubject('');
+                } else {
+                    // Si hay horarios, mantener selección pero limpiar solo la materia para permitir agregar más
+                    toast('Los horarios se crearán cuando asignes un docente a la materia', { icon: 'ℹ️' });
+                }
             } catch (error) {
                 console.error('Error al crear materia:', error);
                 toast.error('Error al crear materia');
@@ -133,12 +153,71 @@ export const Settings: React.FC = () => {
         }
     };
 
-    // Función para asignar docente a una materia
+    // Función para agregar un horario al array
+    const handleAddSchedule = () => {
+        if (!selectedCourse || !selectedSubject) {
+            toast.error('Por favor selecciona un curso y una materia primero');
+            return;
+        }
+        setSubjectSchedules([...subjectSchedules, {
+            dayOfWeek: 0,
+            startTime: '08:00',
+            endTime: '09:00',
+            classroom: ''
+        }]);
+    };
+
+    // Función para remover un horario
+    const handleRemoveSchedule = (index: number) => {
+        setSubjectSchedules(subjectSchedules.filter((_, i) => i !== index));
+    };
+
+    // Función para actualizar un horario
+    const handleUpdateSchedule = (index: number, field: string, value: string | number) => {
+        const updated = [...subjectSchedules];
+        updated[index] = { ...updated[index], [field]: value };
+        setSubjectSchedules(updated);
+    };
+
+    // Función para asignar docente a una materia y crear horarios si existen
     const handleAssignTeacher = async (subjectId: string, teacherUid: string) => {
         try {
             await assignTeacherToSubject(subjectId, teacherUid);
             const teacher = teachers.find(t => t.uid === teacherUid);
-            toast.success(`${teacher?.name} asignado a la materia`);
+            const subject = subjects.find(s => s.id === subjectId);
+            
+            // Crear horarios si hay algunos configurados para esta materia específica
+            // Verificar si la materia actualmente seleccionada coincide con la materia a la que se asigna el docente
+            if (subject && subjectSchedules.length > 0 && 
+                selectedCourse === subject.courseLevel && 
+                selectedSubject === subject.subjectId) {
+                let createdCount = 0;
+                for (const schedule of subjectSchedules) {
+                    try {
+                        await addSchedule({
+                            courseLevel: subject.courseLevel,
+                            subjectId: subject.subjectId,
+                            teacherUid: teacherUid,
+                            dayOfWeek: schedule.dayOfWeek,
+                            startTime: schedule.startTime,
+                            endTime: schedule.endTime,
+                            classroom: schedule.classroom
+                        });
+                        createdCount++;
+                    } catch (error) {
+                        console.error('Error al crear horario:', error);
+                    }
+                }
+                // Limpiar horarios después de crearlos solo para esta materia
+                if (createdCount > 0) {
+                    setSubjectSchedules([]);
+                    toast.success(`${teacher?.name} asignado y ${createdCount} horario(s) creado(s)`);
+                } else {
+                    toast.success(`${teacher?.name} asignado a la materia`);
+                }
+            } else {
+                toast.success(`${teacher?.name} asignado a la materia`);
+            }
         } catch (error) {
             console.error('Error al asignar docente:', error);
             toast.error('Error al asignar docente');
@@ -378,6 +457,102 @@ export const Settings: React.FC = () => {
                         </button>
                     </div>
                 </div>
+                
+                {/* Sección de Horarios (Opcional) */}
+                {selectedCourse && selectedSubject && (
+                    <div className="mt-4 pt-4 border-t border-gray-300">
+                        <div className="flex items-center justify-between mb-3">
+                            <div>
+                                <h3 className="text-sm font-medium text-gray-700">Horarios de Clase (Opcional)</h3>
+                                <p className="text-xs text-gray-500">Puedes agregar horarios que se crearán cuando asignes un docente</p>
+                            </div>
+                            <button
+                                onClick={handleAddSchedule}
+                                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                            >
+                                <HiPlus className="w-4 h-4" />
+                                Agregar Horario
+                            </button>
+                        </div>
+                        
+                        {subjectSchedules.length > 0 && (
+                            <div className="space-y-3">
+                                {subjectSchedules.map((schedule, index) => (
+                                    <div key={index} className="p-3 bg-white border border-gray-200 rounded-lg">
+                                        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Día</label>
+                                                <select
+                                                    value={schedule.dayOfWeek}
+                                                    onChange={(e) => handleUpdateSchedule(index, 'dayOfWeek', Number(e.target.value))}
+                                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                >
+                                                    {Object.entries(DayLabels).slice(0, 5).map(([key, label]) => (
+                                                        <option key={key} value={key}>{label}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Hora Inicio</label>
+                                                <input
+                                                    type="time"
+                                                    min="08:00"
+                                                    max="16:30"
+                                                    value={schedule.startTime}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value;
+                                                        if (value >= '08:00' && value <= '16:30') {
+                                                            handleUpdateSchedule(index, 'startTime', value);
+                                                        }
+                                                    }}
+                                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Hora Fin</label>
+                                                <input
+                                                    type="time"
+                                                    min={schedule.startTime || '08:00'}
+                                                    max="16:30"
+                                                    value={schedule.endTime}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value;
+                                                        if (value > schedule.startTime && value <= '16:30') {
+                                                            handleUpdateSchedule(index, 'endTime', value);
+                                                        }
+                                                    }}
+                                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Aula</label>
+                                                <input
+                                                    type="text"
+                                                    value={schedule.classroom}
+                                                    onChange={(e) => handleUpdateSchedule(index, 'classroom', e.target.value)}
+                                                    placeholder="Ej: Aula 101"
+                                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                />
+                                            </div>
+                                            <div className="flex items-end">
+                                                <button
+                                                    onClick={() => handleRemoveSchedule(index)}
+                                                    className="w-full px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors flex items-center justify-center gap-1"
+                                                >
+                                                    <HiX className="w-4 h-4" />
+                                                    Eliminar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {subjectSchedules.length === 0 && (
+                            <p className="text-xs text-gray-400 text-center py-2">No hay horarios configurados. Haz clic en "Agregar Horario" para comenzar.</p>
+                        )}
+                    </div>
+                )}
 
                 {/* Información del curso/materia seleccionado */}
                 {selectedCourse && selectedSubject && (
