@@ -7,6 +7,7 @@ import { useAuthContext } from '@/app/context/authContext';
 import { UserCurses } from '@/app/types/user';
 import { AttendanceStatus, AttendanceRecord } from '@/app/types/attendance';
 import { HiUserGroup, HiCheck, HiXCircle, HiClock } from 'react-icons/hi';
+import { RefreshButton } from '../reusable/RefreshButton';
 import { 
   isAdmin, 
   isStaff, 
@@ -17,7 +18,7 @@ import {
 } from '@/app/utils/permissions';
 
 export const Attendance: React.FC = () => {
-  const { records, addMultipleAttendances, getAttendanceForStudent } = useAttendance();
+  const { records, addMultipleAttendances, getAttendanceForStudent, refreshAttendance } = useAttendance();
   const { users } = useTriskaContext();
   const { user } = useAuthContext();
 
@@ -117,6 +118,11 @@ export const Attendance: React.FC = () => {
     setSelectedDate('');
     setSelectedCourse('');
     setStudentAttendances({});
+  };
+
+  // Función para refrescar datos
+  const handleRefresh = () => {
+    refreshAttendance();
   };
 
   const getStatusIcon = (status: AttendanceStatus) => {
@@ -329,15 +335,22 @@ export const Attendance: React.FC = () => {
             <HiUserGroup className="w-10 h-10" />
             <span>Asistencias</span>
           </div>
-          {isStudent && (
-            <div className={`text-xl font-bold px-4 py-2 rounded-lg ${
-              remainingAbsences >= 20 ? 'bg-green-100 text-green-800' :
-              remainingAbsences >= 10 ? 'bg-yellow-100 text-yellow-800' :
-              'bg-red-100 text-red-800'
-            }`}>
-              Faltas restantes: {remainingAbsences} / 30
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            {isStudent && (
+              <div className={`text-xl font-bold px-4 py-2 rounded-lg ${
+                remainingAbsences >= 20 ? 'bg-green-100 text-green-800' :
+                remainingAbsences >= 10 ? 'bg-yellow-100 text-yellow-800' :
+                'bg-red-100 text-red-800'
+              }`}>
+                Faltas restantes: {remainingAbsences} / 30
+              </div>
+            )}
+            <RefreshButton 
+              onRefresh={handleRefresh}
+              tooltip="Actualizar asistencias"
+              size="md"
+            />
+          </div>
         </div>
         <p className="text-gray-600">
           {canManage 
@@ -469,7 +482,7 @@ export const Attendance: React.FC = () => {
       )}
 
       {/* Vista de registros anteriores (solo para staff) */}
-      {isStaff && records.length > 0 && (
+      {isStaffUser && records.length > 0 && (
         <div className="mt-8 border-t pt-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">Registros Recientes</h3>
           <div className="space-y-2">

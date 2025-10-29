@@ -4,9 +4,10 @@ import { useTriskaContext } from "@/app/context/triskaContext";
 import { UserCurses, UserRole, Assignments } from "@/app/types/user";
 import { IoPeople } from "react-icons/io5";
 import { HiPlus } from "react-icons/hi";
+import { RefreshButton } from "../reusable/RefreshButton";
 
 export const Personal: React.FC = () => {
-    const { users, firstName, dni, mail, role, nUser, setNUser, setFirstName, setDni, setMail, setRole, newUser, password, setPassword } = useTriskaContext();
+    const { users, firstName, dni, mail, role, nUser, setNUser, setFirstName, setDni, setMail, setRole, newUser, password, setPassword, refreshUsers } = useTriskaContext();
 
     // Estados adicionales para campos específicos
     const [asignatura, setAsignatura] = useState<number | ''>('');
@@ -64,6 +65,11 @@ export const Personal: React.FC = () => {
         }
     }
 
+    // Función para refrescar datos
+    const handleRefresh = () => {
+        refreshUsers();
+    };
+
     const resetForm = () => {
         setFirstName('');
         setMail('');
@@ -78,9 +84,16 @@ export const Personal: React.FC = () => {
     return (
         <section className="relative flex-1 flex flex-col p-5 overflow-y-scroll max-h-screen h-full bg-white rounded-md">
             <div>
-                <div className="text-2xl flex items-center gap-x-2 font-bold text-gray-800 mb-2">
-                    <IoPeople className="w-10 h-10" />
-                    <span>Personal</span>
+                <div className="flex items-center justify-between mb-2">
+                    <div className="text-2xl flex items-center gap-x-2 font-bold text-gray-800">
+                        <IoPeople className="w-10 h-10" />
+                        <span>Personal</span>
+                    </div>
+                    <RefreshButton 
+                        onRefresh={handleRefresh}
+                        tooltip="Actualizar personal"
+                        size="md"
+                    />
                 </div>
                 <p className="mb-6 text-gray-600">
                 Desde este panel puedes gestionar la información del personal, supervisar tareas, 

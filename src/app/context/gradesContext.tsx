@@ -16,6 +16,7 @@ interface GradesContextProps {
   publishGrades: (courseLevel: number, period: Period) => Promise<void>;
   publishBulletins: (courseLevel: number, period: Period) => Promise<{ success: boolean; message: string; publishedCount: number }>;
   getBulletinStatus: (courseLevel: number, period: Period) => { totalStudents: number; gradedStudents: number; publishedStudents: number; isComplete: boolean };
+  refreshGrades: () => void;
 }
 
 const GradesContext = createContext<GradesContextProps | null>(null);
@@ -29,6 +30,7 @@ export const useGrades = () => {
 export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { uid } = useAuthContext();
   const [grades, setGrades] = useState<Grade[]>([]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     const col = collection(db, 'grades');
@@ -52,7 +54,12 @@ export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setGrades(items);
     });
     return () => unsub();
-  }, []);
+  }, [refreshTrigger]);
+
+  // Función para refrescar calificaciones manualmente
+  const refreshGrades = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
 
   const addGrade = async (data: Omit<Grade, 'id' | 'createdAt' | 'createdByUid'>) => {
     if (!uid) return;
@@ -191,7 +198,8 @@ export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     getGradeForStudent,
     publishGrades,
     publishBulletins,
-    getBulletinStatus
+    getBulletinStatus,
+    refreshGrades
   }), [grades]);
 
   return <GradesContext.Provider value={value}>{children}</GradesContext.Provider>;

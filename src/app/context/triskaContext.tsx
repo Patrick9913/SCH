@@ -26,6 +26,7 @@ interface TriskaContextProps {
     setPassword: Dispatch<SetStateAction<string>>
     setDni: Dispatch<SetStateAction<string>>;
     newUser: (data: NewUserData) => Promise<void>;
+    refreshUsers: () => void;
 }
 
 type CreateUserResponse = {
@@ -46,6 +47,7 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const userRef = collection(db, "users");
     const [users, setUsers] = useState<User[]>([]);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
     const { user } = useAuthContext();
     const { getStudentsByTeacher } = useSubjects();
     const [menu, setMenu] = useState<number>(1);
@@ -141,7 +143,12 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
     };
 
-    // useEffect para cargar los usuarios cuando cambia 'user'
+    // Función para refrescar usuarios manualmente
+    const refreshUsers = () => {
+        setRefreshTrigger(prev => prev + 1);
+    };
+
+    // useEffect para cargar los usuarios cuando cambia 'user' o 'refreshTrigger'
     useEffect(() => {
         if (!user || !user.uid || user.role === undefined) {
             // Usuario no está logueado, limpiar usuarios
@@ -150,7 +157,7 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
 
         fetchUsers();
-    }, [user]);
+    }, [user, refreshTrigger]);
 
     // useEffect para mostrar el log cuando 'users' cambie
     useEffect(() => {
@@ -202,7 +209,8 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setDni,
         password,
         setPassword,
-        newUser
+        newUser,
+        refreshUsers
     };
 
     return (

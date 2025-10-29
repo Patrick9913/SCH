@@ -9,6 +9,7 @@ import { GradeLabels, PeriodLabels, GradeValue, Period } from '@/app/types/grade
 import { HiChartBar, HiCheck } from 'react-icons/hi';
 import { useSettings } from '@/app/context/settingsContext';
 import { useSubjects } from '@/app/context/subjectContext';
+import { RefreshButton } from '../reusable/RefreshButton';
 import { 
   isAdmin, 
   isStaff, 
@@ -21,7 +22,7 @@ import {
 } from '@/app/utils/permissions';
 
 export const Grades: React.FC = () => {
-  const { grades, addMultipleGrades, getGradeForStudent } = useGrades();
+  const { grades, addMultipleGrades, getGradeForStudent, refreshGrades } = useGrades();
   const { users } = useTriskaContext();
   const { user } = useAuthContext();
   const { gradeLoadingEnabled, isMainAdmin, isConnected } = useSettings();
@@ -223,6 +224,11 @@ export const Grades: React.FC = () => {
     setStudentGrades({});
   };
 
+  // Función para refrescar datos
+  const handleRefresh = () => {
+    refreshGrades();
+  };
+
   // Vista para estudiantes
   const studentView = useMemo(() => {
     if (!user?.uid || !isStudent) return null;
@@ -298,9 +304,16 @@ export const Grades: React.FC = () => {
     <section className="flex-1 p-5 overflow-y-scroll max-h-screen h-full bg-white rounded-md">
       {/* Header */}
       <div className="mb-6">
-        <div className="text-2xl flex items-center gap-x-2 font-bold text-gray-800 mb-2">
-          <HiChartBar className="w-10 h-10" />
-          <span>Calificaciones</span>
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-2xl flex items-center gap-x-2 font-bold text-gray-800">
+            <HiChartBar className="w-10 h-10" />
+            <span>Calificaciones</span>
+          </div>
+          <RefreshButton 
+            onRefresh={handleRefresh}
+            tooltip="Actualizar calificaciones"
+            size="md"
+          />
         </div>
         <p className="text-gray-600">
           {canManage 

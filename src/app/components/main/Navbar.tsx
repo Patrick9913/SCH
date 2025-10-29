@@ -80,12 +80,6 @@ export const Navbar: React.FC = () => {
                                 </button>
                             </li>
                             <li>
-                                <button onClick={() => setMenu(6)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiChartBar className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Calificaciones</span>
-                                </button>
-                            </li>
-                            <li>
                                 <button onClick={() => setMenu(2)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
                                     <HiCog className="group-hover:text-orange-500 w-5 h-5" />
                                     <span className="group-hover:text-orange-800">Ajustes</span>

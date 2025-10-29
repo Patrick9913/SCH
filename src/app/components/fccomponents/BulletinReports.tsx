@@ -4,16 +4,18 @@ import React, { useMemo, useState } from 'react';
 import { useGrades } from '@/app/context/gradesContext';
 import { useTriskaContext } from '@/app/context/triskaContext';
 import { useAuthContext } from '@/app/context/authContext';
-import { Assignments, UserCurses } from '@/app/types/user';
+import { Assignments, UserCurses, User } from '@/app/types/user';
 import { GradeLabels, PeriodLabels, Period } from '@/app/types/grade';
 import { HiDocumentText, HiPrinter } from 'react-icons/hi';
 import { HiCog } from 'react-icons/hi';
+import { RefreshButton } from '../reusable/RefreshButton';
+import { BulletinTemplate } from '../reusable/BulletinTemplate';
 import { useSettings } from '@/app/context/settingsContext';
 import Swal from 'sweetalert2';
 import toast from 'react-hot-toast';
 
 export const BulletinReports: React.FC = () => {
-  const { grades, publishGrades, publishBulletins, getBulletinStatus } = useGrades();
+  const { grades, publishGrades, publishBulletins, getBulletinStatus, refreshGrades } = useGrades();
   const { users } = useTriskaContext();
   const { user } = useAuthContext();
   const { isMainAdmin, gradeLoadingEnabled, toggleGradeLoading, isConnected, lastUpdated } = useSettings();
@@ -22,6 +24,10 @@ export const BulletinReports: React.FC = () => {
   const [selectedCourse, setSelectedCourse] = useState<number | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<Period | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+  
+  // Estados para la vista de boletín individual
+  const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
+  const [showBulletinTemplate, setShowBulletinTemplate] = useState(false);
 
   const isStaff = user?.role === 1 || user?.role === 4 || user?.role === 2;
   const isStudent = user?.role === 3;
@@ -114,6 +120,28 @@ export const BulletinReports: React.FC = () => {
     }
   };
 
+  // Función para refrescar datos
+  const handleRefresh = () => {
+    refreshGrades();
+  };
+
+  // Función para mostrar boletín individual
+  const handleShowBulletin = (student: User) => {
+    setSelectedStudent(student);
+    setShowBulletinTemplate(true);
+  };
+
+  // Función para cerrar vista de boletín
+  const handleCloseBulletin = () => {
+    setShowBulletinTemplate(false);
+    setSelectedStudent(null);
+  };
+
+  // Función para imprimir boletín
+  const handlePrintBulletin = () => {
+    window.print();
+  };
+
   // Filtrar calificaciones según el usuario
   const visibleGrades = useMemo(() => {
     if (isStudent && user?.uid) {
@@ -163,45 +191,102 @@ export const BulletinReports: React.FC = () => {
       window.print();
     };
 
+    // Obtener datos del estudiante
+    const studentData = users.find(u => u.uid === user.uid);
+    const courseName = studentData?.level ? Object.keys(UserCurses).find(key => UserCurses[key as keyof typeof UserCurses] === studentData.level) || 'Sin curso' : 'Sin curso';
+
     return (
       <div className="space-y-6">
-         {Object.entries(groupedBySubject).map(([subjectId, periods]) => {
-           const subjectName = Assignments[subjectId as unknown as keyof typeof Assignments];
-           return (
-             <div key={subjectId} className="bg-white rounded-lg border border-gray-200 p-4 print:border-black">
-               <h3 className="text-xl font-semibold text-gray-800 mb-4">{subjectName}</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {Object.entries(PeriodLabels).map(([periodKey, periodLabel]) => {
-                  const periodGrades = periods[periodKey as Period];
-                  return (
-                    <div key={periodKey} className="border rounded p-3 print:border-black">
-                      <h4 className="font-medium text-gray-700 mb-2">{periodLabel}</h4>
-                      {periodGrades.length > 0 ? (
-                        <div className="space-y-1">
-                          {periodGrades.map((grade, idx) => (
-                            <div key={idx} className="flex items-center gap-2">
-                              <span className={`px-2 py-1 rounded text-sm font-semibold ${
-                                grade.grade === 'S' ? 'bg-green-100 text-green-800' :
-                                grade.grade === 'AL' ? 'bg-blue-100 text-blue-800' :
-                                grade.grade === 'L' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-orange-100 text-orange-800'
-                              }`}>
-                                {grade.grade}
-                              </span>
-                              <span className="text-sm text-gray-600">{GradeLabels[grade.grade]}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-400">Sin calificaciones</p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+        {/* Datos del Estudiante */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 print:border-black">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Datos del Estudiante</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <h3 className="text-sm font-medium text-gray-500 mb-1">Nombre Completo</h3>
+              <p className="text-lg font-semibold text-gray-800">{studentData?.name || 'No disponible'}</p>
             </div>
-          );
-        })}
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <h3 className="text-sm font-medium text-gray-500 mb-1">Curso</h3>
+              <p className="text-lg font-semibold text-gray-800">{courseName}</p>
+            </div>
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <h3 className="text-sm font-medium text-gray-500 mb-1">Año Escolar</h3>
+              <p className="text-lg font-semibold text-gray-800">{new Date().getFullYear()}</p>
+            </div>
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <h3 className="text-sm font-medium text-gray-500 mb-1">Fecha de Emisión</h3>
+              <p className="text-lg font-semibold text-gray-800">{new Date().toLocaleDateString('es-ES')}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabla de Calificaciones */}
+        {Object.keys(groupedBySubject).length > 0 && (
+          <div className="grades-table bg-white rounded-lg border border-gray-200 overflow-hidden print:border-black">
+            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-800">Boletín de Calificaciones</h2>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-r border-gray-200">
+                      Materia
+                    </th>
+                    {Object.entries(PeriodLabels).map(([periodKey, periodLabel]) => (
+                      <th key={periodKey} className="px-6 py-4 text-center text-sm font-semibold text-gray-700 border-r border-gray-200 last:border-r-0">
+                        {periodLabel}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {Object.entries(groupedBySubject).map(([subjectId, periods]) => {
+                    const subjectName = Assignments[subjectId as unknown as keyof typeof Assignments];
+                    return (
+                      <tr key={subjectId} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm font-medium text-gray-800 border-r border-gray-200">
+                          {subjectName}
+                        </td>
+                        {Object.entries(PeriodLabels).map(([periodKey, periodLabel]) => {
+                          const periodGrades = periods[periodKey as Period];
+                          return (
+                            <td key={periodKey} className="px-6 py-4 text-center border-r border-gray-200 last:border-r-0">
+                              {periodGrades.length > 0 ? (
+                                <div className="flex flex-col items-center gap-1">
+                                  {periodGrades.map((grade, idx) => (
+                                    <div key={idx} className="flex items-center gap-2">
+                                      <span className={`grade-badge ${
+                                        grade.grade === 'S' ? 's' :
+                                        grade.grade === 'AL' ? 'al' :
+                                        grade.grade === 'L' ? 'l' :
+                                        'ep'
+                                      }`}>
+                                        {grade.grade}
+                                      </span>
+                                    </div>
+                                  ))}
+                                  <span className="text-xs text-gray-500 mt-1">
+                                    {GradeLabels[periodGrades[0].grade]}
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="text-center">
+                                  <span className="text-sm text-gray-400">Sin calificaciones</span>
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
         
         {Object.keys(groupedBySubject).length === 0 && (
           <div className="text-center py-12">
@@ -226,7 +311,7 @@ export const BulletinReports: React.FC = () => {
         )}
       </div>
     );
-  }, [user, isStudent, visibleGrades]);
+  }, [user, isStudent, visibleGrades, users]);
 
   // Para admin/staff: ver todos los boletines
   const adminView = useMemo(() => {
@@ -248,8 +333,7 @@ export const BulletinReports: React.FC = () => {
           if (!student) return null;
 
           const handlePrintStudent = () => {
-            // Crear vista de impresión para el estudiante específico
-            // Por ahora, simplemente mostrar
+            handleShowBulletin(student);
           };
 
           return (
@@ -337,9 +421,16 @@ export const BulletinReports: React.FC = () => {
     <section className="flex-1 p-5 overflow-y-scroll max-h-screen h-full bg-white rounded-md">
       {/* Header */}
       <div className="mb-6">
-        <div className="text-2xl flex items-center gap-x-2 font-bold text-gray-800 mb-2">
-          <HiDocumentText className="w-10 h-10" />
-          <span>Boletines</span>
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-2xl flex items-center gap-x-2 font-bold text-gray-800">
+            <HiDocumentText className="w-10 h-10" />
+            <span>Boletines</span>
+          </div>
+          <RefreshButton 
+            onRefresh={handleRefresh}
+            tooltip="Actualizar boletines"
+            size="md"
+          />
         </div>
         <p className="text-gray-600">
           {isStudent 
@@ -532,6 +623,45 @@ export const BulletinReports: React.FC = () => {
       {/* Vista según rol */}
       {isStudent && studentView}
       {isStaff && adminView}
+
+      {/* Modal/Vista de Boletín Individual */}
+      {showBulletinTemplate && selectedStudent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-800">
+                Boletín de {selectedStudent.name}
+              </h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={handlePrintBulletin}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <HiPrinter className="w-4 h-4" />
+                  Imprimir
+                </button>
+                <button
+                  onClick={handleCloseBulletin}
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+            <div className="p-4">
+              <BulletinTemplate
+                student={selectedStudent}
+                grades={grades}
+                period={selectedPeriod || 'primer_cuatrimestre'}
+                courseLevel={selectedStudent.level || 1}
+                teacherName="Profesor Asignado"
+                schoolYear={new Date().getFullYear().toString()}
+                date={new Date().toLocaleDateString('es-ES')}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };

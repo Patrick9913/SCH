@@ -11,6 +11,7 @@ interface AttendanceContextProps {
   markAttendance: (data: Omit<AttendanceRecord, 'id' | 'createdAt' | 'createdByUid'>) => Promise<void>;
   addMultipleAttendances: (attendances: Omit<AttendanceRecord, 'id' | 'createdAt' | 'createdByUid'>[]) => Promise<void>;
   getAttendanceForStudent: (studentUid: string, date: string) => AttendanceRecord | undefined;
+  refreshAttendance: () => void;
 }
 
 const AttendanceContext = createContext<AttendanceContextProps | null>(null);
@@ -24,6 +25,7 @@ export const useAttendance = () => {
 export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { uid } = useAuthContext();
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     const col = collection(db, 'attendance');
@@ -45,7 +47,12 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setRecords(items);
     });
     return () => unsub();
-  }, []);
+  }, [refreshTrigger]);
+
+  // Función para refrescar asistencias manualmente
+  const refreshAttendance = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
 
   const markAttendance = async (data: Omit<AttendanceRecord, 'id' | 'createdAt' | 'createdByUid'>) => {
     if (!uid) return;
@@ -77,7 +84,8 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     records, 
     markAttendance, 
     addMultipleAttendances,
-    getAttendanceForStudent
+    getAttendanceForStudent,
+    refreshAttendance
   }), [records]);
   return <AttendanceContext.Provider value={value}>{children}</AttendanceContext.Provider>;
 };
