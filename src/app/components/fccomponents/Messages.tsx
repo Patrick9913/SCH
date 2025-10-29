@@ -17,11 +17,6 @@ export const Messages: React.FC = () => {
   const { uid } = useAuthContext();
   const [tab, setTab] = useState<'received' | 'sent' | 'chats'>('chats');
   const [viewMode, setViewMode] = useState<'chats' | 'messages'>('chats');
-  console.log('Current chat:', currentChat);
-  console.log('Current chat ID:', currentChat?.id);
-  console.log('View mode:', viewMode);
-  console.log('Should show ChatWindow:', !!currentChat);
-  console.log(directMessages);
   const uidToName = useMemo(() => {
     const map = new Map<string, string>();
     users.forEach((u) => map.set(u.uid, u.name));
@@ -72,12 +67,8 @@ export const Messages: React.FC = () => {
 
   // Manejar selección de chat
   const handleChatSelect = (chat: any) => {
-    console.log('Seleccionando chat:', chat);
-    console.log('Chat ID:', chat?.id);
-    console.log('Chat participantes:', chat?.participants);
     setCurrentChat(chat);
     setViewMode('chats');
-    console.log('Chat establecido, viewMode cambiado a chats');
   };
 
   // Manejar cambio de vista

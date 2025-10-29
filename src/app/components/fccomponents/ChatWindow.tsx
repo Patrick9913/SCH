@@ -11,14 +11,12 @@ interface ChatWindowProps {
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({ chat }) => {
-  const { currentChatMessages, sendMessage, setTyping } = useChat();
+  const { currentChatMessages, sendMessage } = useChat();
   const { users } = useTriskaContext();
   const { uid } = useAuthContext();
   const [messageText, setMessageText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [otherUserTyping, setOtherUserTyping] = useState(false);
+  const otherUserTyping = false; // TODO: Implementar sistema de typing indicator
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Mapeo de usuarios para obtener nombres
   const uidToName = useMemo(() => {
@@ -47,7 +45,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat }) => {
 
     await sendMessage(chat.id, messageText);
     setMessageText('');
-    setIsTyping(false);
   };
 
   // Manejar cambios en el input de mensaje

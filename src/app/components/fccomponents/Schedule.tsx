@@ -5,7 +5,7 @@ import { useSchedule } from '@/app/context/scheduleContext';
 import { useTriskaContext } from '@/app/context/triskaContext';
 import { useAuthContext } from '@/app/context/authContext';
 import { Assignments, UserCurses } from '@/app/types/user';
-import { DayLabels, DayLabelsShort } from '@/app/types/schedule';
+import { DayLabels } from '@/app/types/schedule';
 import { HiCalendar, HiPlus, HiX, HiClock, HiHome, HiUser, HiBookOpen } from 'react-icons/hi';
 import { HiCheck } from 'react-icons/hi2';
 
@@ -50,7 +50,18 @@ export const Schedule: React.FC = () => {
 
   // Obtener nombre de la materia
   const getSubjectName = (subjectId: number) => {
-    return Assignments[subjectId as keyof typeof Assignments] || 'Sin materia';
+    const assignmentKey = Object.keys(Assignments).find(
+      key => Assignments[key as keyof typeof Assignments] === subjectId
+    ) as keyof typeof Assignments | undefined;
+    return assignmentKey || 'Sin materia';
+  };
+
+  // Obtener nombre del curso
+  const getCourseName = (courseLevel: number) => {
+    const courseKey = Object.keys(UserCurses).find(
+      key => UserCurses[key as keyof typeof UserCurses] === courseLevel
+    ) as keyof typeof UserCurses | undefined;
+    return courseKey || 'Sin curso';
   };
 
   // Manejar agregar horario
@@ -299,7 +310,7 @@ export const Schedule: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <HiBookOpen className="w-4 h-4" />
-                      <span>{UserCurses[schedule.courseLevel as keyof typeof UserCurses]}</span>
+                      <span>{getCourseName(schedule.courseLevel)}</span>
                     </div>
                   </div>
                 </div>

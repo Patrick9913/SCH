@@ -15,6 +15,22 @@ export const Home: React.FC = () => {
     const students = users.filter( s => s.role === 3)
     const teachers = users.filter( t => t.role === 4)
 
+    // Obtener nombre de la materia
+    const getSubjectName = (subjectId: number) => {
+        const assignmentKey = Object.keys(Assignments).find(
+            key => Assignments[key as keyof typeof Assignments] === subjectId
+        ) as keyof typeof Assignments | undefined;
+        return assignmentKey || 'Sin materia';
+    };
+
+    // Obtener nombre del curso
+    const getCourseName = (courseLevel: number) => {
+        const courseKey = Object.keys(UserCurses).find(
+            key => UserCurses[key as keyof typeof UserCurses] === courseLevel
+        ) as keyof typeof UserCurses | undefined;
+        return courseKey || 'Sin curso';
+    };
+
     return (
             <section className=" flex-1 p-5 overflow-y-scroll max-h-screen h-full bg-white rounded-md">
                 <div>
@@ -124,7 +140,7 @@ export const Home: React.FC = () => {
                                                     <span className=" text-sm font-semibold">{s.name}</span>|
                                                     <a className=" hover:underline text-sm" href={`mailto:${s.mail}`}>{s.mail}</a>|
                                                     <span>{s.dni}</span>|
-                                                    <span>{s.asig && Assignments[s.asig]}</span>
+                                                    <span>{s.asig ? getSubjectName(s.asig) : 'Sin materia'}</span>
                                                 </div>
                                             ))
                                         }
@@ -140,7 +156,7 @@ export const Home: React.FC = () => {
                                                     <span className=" text-sm font-semibold">{s.name}</span>|
                                                     <a className=" hover:underline text-sm" href={`mailto:${s.mail}`}>{s.mail}</a>|
                                                     <span className=" text-sm">{s.dni}</span>|
-                                                    <span className="font-extrabold w-fit text-sm">{s.level && UserCurses[s.level]}</span>
+                                                    <span className="font-extrabold w-fit text-sm">{s.level ? getCourseName(s.level) : 'Sin curso'}</span>
                                                 </div>
                                             ))
                                         }
