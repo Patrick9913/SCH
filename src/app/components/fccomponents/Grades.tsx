@@ -55,13 +55,17 @@ export const Grades: React.FC = () => {
     } else if (isTeacherUser && user) {
       // Docente solo ve sus materias asignadas usando el nuevo sistema
       const teacherSubjects = getSubjectsByTeacher(user.uid);
-      return teacherSubjects.map(subject => ({
+      // Filtrar por curso seleccionado si hay uno seleccionado
+      const filtered = selectedCourse 
+        ? teacherSubjects.filter(s => s.courseLevel === selectedCourse)
+        : teacherSubjects;
+      return filtered.map(subject => ({
         id: subject.subjectId,
         name: subject.name
       }));
     }
     return [];
-  }, [isAdminUser, isStaffUser, isTeacherUser, user, getSubjectsByTeacher]);
+  }, [isAdminUser, isStaffUser, isTeacherUser, user, selectedCourse, getSubjectsByTeacher]);
 
   const availableCourses = useMemo(() => {
     if (isAdminUser || isStaffUser) {
@@ -107,40 +111,36 @@ export const Grades: React.FC = () => {
       return allStudents;
     } else if (isTeacherUser && user) {
       // Docente solo ve estudiantes asignados a la materia específica usando el nuevo sistema
-      const subject = getSubjectByCourseAndSubject(selectedCourse, selectedSubject);
-      console.log('Teacher - Subject found:', subject);
-      console.log('Teacher - All subjects:', subjects);
-      console.log('Teacher - Looking for course:', selectedCourse, 'subject:', selectedSubject);
+      const subject = getSubjectByCourseAndSubject(Number(selectedCourse), Number(selectedSubject));
       
       if (!subject) {
-        console.log('Teacher - No subject found for course:', selectedCourse, 'subject:', selectedSubject);
-        console.log('Teacher - Available subjects:', subjects.map(s => ({ 
-          id: s.id, 
-          name: s.name, 
-          courseLevel: s.courseLevel, 
-          subjectId: s.subjectId,
-          teacherUid: s.teacherUid 
-        })));
+        console.warn('Teacher - No subject found for course:', selectedCourse, 'subject:', selectedSubject);
         return [];
       }
       
-      const assignedStudentUids = subject.studentUids;
-      console.log('Teacher - Assigned student UIDs:', assignedStudentUids);
+      // Verificar que el docente esté asignado a esta materia
+      if (subject.teacherUid !== user.uid) {
+        console.warn('Teacher - User is not assigned to this subject. Expected:', subject.teacherUid, 'Got:', user.uid);
+        return [];
+      }
       
-      // Debug: mostrar todos los estudiantes del curso
-      const allStudentsInCourse = users.filter(u => u.role === 3 && u.level === selectedCourse);
-      console.log('Teacher - All students in course:', allStudentsInCourse.map(s => ({ name: s.name, uid: s.uid })));
+      const assignedStudentUids = subject.studentUids || [];
+      
+      if (assignedStudentUids.length === 0) {
+        console.warn('Teacher - Subject has no assigned students. Subject:', subject.id, subject.name);
+        return [];
+      }
       
       const filteredStudents = users.filter(u => 
         u.role === 3 && 
-        u.level === selectedCourse && 
+        u.level === Number(selectedCourse) && 
         assignedStudentUids.includes(u.uid)
       );
-      console.log('Teacher - Filtered students:', filteredStudents);
+      
       return filteredStudents;
     }
     return [];
-  }, [users, selectedCourse, selectedSubject, isAdminUser, isStaffUser, isTeacherUser, user, getSubjectByCourseAndSubject]);
+  }, [users, selectedCourse, selectedSubject, isAdminUser, isStaffUser, isTeacherUser, user, subjects, getSubjectByCourseAndSubject]);
 
   // Validar que el docente esté asignado a la materia seleccionada
   const canManageSelectedSubject = useMemo(() => {
@@ -154,7 +154,7 @@ export const Grades: React.FC = () => {
     }
     
     return false;
-  }, [selectedSubject, selectedCourse, user, isAdminUser, isStaffUser, isTeacherUser, getSubjectByCourseAndSubject]);
+  }, [selectedSubject, selectedCourse, user, isAdminUser, isStaffUser, isTeacherUser, subjects, getSubjectByCourseAndSubject]);
   React.useEffect(() => {
     if (!selectedCourse || !selectedSubject || !selectedPeriod) {
       setStudentGrades({});
@@ -408,8 +408,8 @@ export const Grades: React.FC = () => {
               className="w-full border rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               <option value="">Seleccionar materia...</option>
-              {availableSubjects.map((subject) => (
-                <option key={subject.id} value={subject.id}>
+              {availableSubjects.map((subject, index) => (
+                <option key={`${subject.id}-${selectedCourse}-${index}`} value={subject.id}>
                   {subject.name}
                 </option>
               ))}
@@ -445,9 +445,17 @@ export const Grades: React.FC = () => {
                 4. Asigna Calificaciones a cada Estudiante
               </label>
               
-              {studentsInCourse.length === 0 ? (
+              {!canManageSelectedSubject && isTeacherUser ? (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-red-800">No estás asignado a esta materia. Contacta al administrador.</p>
+                </div>
+              ) : studentsInCourse.length === 0 ? (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <p className="text-yellow-800">No hay estudiantes en este curso</p>
+                  <p className="text-yellow-800">
+                    {isTeacherUser 
+                      ? 'No hay estudiantes asignados a esta materia en este curso. El administrador debe asignar estudiantes primero.'
+                      : 'No hay estudiantes en este curso'}
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3">

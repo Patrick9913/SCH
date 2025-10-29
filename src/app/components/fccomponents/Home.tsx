@@ -15,6 +15,33 @@ export const Home: React.FC = () => {
     const students = users.filter( s => s.role === 3)
     const teachers = users.filter( t => t.role === 4)
 
+    // Filtrar avisos por audiencia
+    const filteredAnnouncements = React.useMemo(() => {
+        if (!user) return [];
+        
+        return announcements.filter(a => {
+            // Si el aviso es para todos, todos lo ven
+            if (a.audience === 'all') return true;
+            
+            // Si el usuario es admin, ve todos los avisos
+            if (user.role === 1) return true;
+            
+            // Filtrar según el rol del usuario
+            switch (a.audience) {
+                case 'students':
+                    return user.role === 3; // Estudiante
+                case 'teachers':
+                    return user.role === 4; // Docente
+                case 'staff':
+                    return user.role === 2; // Staff
+                case 'families':
+                    return user.role === 5; // Familia
+                default:
+                    return true;
+            }
+        });
+    }, [announcements, user]);
+
     // Obtener nombre de la materia
     const getSubjectName = (subjectId: number) => {
         const assignmentKey = Object.keys(Assignments).find(
@@ -80,7 +107,7 @@ export const Home: React.FC = () => {
                         </form>
                     )}
                     <ul className="space-y-2">
-                        {announcements.map((a) => (
+                        {filteredAnnouncements.map((a) => (
                             <li key={a.id} className="bg-white border rounded p-3 flex justify-between items-start">
                                 <div>
                                     <p className="font-semibold text-gray-800">{a.title}</p>
@@ -97,7 +124,7 @@ export const Home: React.FC = () => {
                                 )}
                             </li>
                         ))}
-                        {announcements.length === 0 && (
+                        {filteredAnnouncements.length === 0 && (
                             <li className="text-gray-500">Sin avisos por ahora.</li>
                         )}
                     </ul>

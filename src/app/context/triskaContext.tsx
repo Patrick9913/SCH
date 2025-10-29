@@ -89,9 +89,16 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
             return unsubscribe;
         } else if (user?.role === 4) {
-            // Docente: no usar suscripción, solo obtener datos una vez
-            // La actualización se manejará con el useEffect adicional
-            return () => {}; // No hay suscripción que limpiar
+            // Docente: obtener todos los usuarios estudiantes para poder filtrarlos después
+            const unsubscribe = onSnapshot(userRef, (snapshot) => {
+                const usersData = snapshot.docs.map((doc) => ({
+                    ...(doc.data() as Omit<User, 'id'>),
+                    id: doc.id,
+                }));
+                setUsers(usersData);
+            });
+
+            return unsubscribe;
         }
     } catch (error) {
         console.error("Error fetching users: ", error);
@@ -164,34 +171,6 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         console.log("Usuarios cargados:", users);
     }, [users]);
 
-    // useEffect adicional para docentes: actualizar usuarios cuando cambien los subjects
-    useEffect(() => {
-        if (user?.role === 4 && user.uid) {
-            const updateTeacherStudents = () => {
-                try {
-                    const teacherStudents = getStudentsByTeacher(user.uid);
-                    setUsers(teacherStudents);
-                    
-                    console.log('Docente - Estudiantes actualizados:', {
-                        teacherUid: user.uid,
-                        studentsCount: teacherStudents.length,
-                        studentNames: teacherStudents.map(s => s.name)
-                    });
-                } catch (error) {
-                    console.error('Error al obtener estudiantes del docente:', error);
-                    setUsers([]);
-                }
-            };
-            
-            // Ejecutar inmediatamente
-            updateTeacherStudents();
-            
-            // También ejecutar después de un pequeño delay para asegurar que los datos estén disponibles
-            const timeoutId = setTimeout(updateTeacherStudents, 500);
-            
-            return () => clearTimeout(timeoutId);
-        }
-    }, [user?.uid, user?.role]);
 
     const triskaValues = {
         menu,
