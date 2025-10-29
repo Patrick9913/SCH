@@ -40,152 +40,115 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Función para probar la conexión a Firebase
   const testFirebaseConnection = async () => {
     try {
-      console.log('🔍 Probando conexión a Firebase...');
       const docRef = doc(db, 'system', 'settings');
       const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        console.log('✅ Documento existe:', docSnap.data());
-        return true;
-      } else {
-        console.log('⚠️ Documento no existe');
-        return false;
-      }
+      return docSnap.exists();
     } catch (error) {
       console.error('❌ Error en prueba de conexión:', error);
       return false;
     }
   };
 
-  // Debug: verificar permisos
   useEffect(() => {
-    console.log('👤 Usuario actual:', {
-      email: user?.mail,
-      role: user?.role,
-      roleLabel: user?.role === 1 ? 'Administrador' : user?.role,
-      isMainAdmin: isMainAdmin
-    });
-  }, [user, isMainAdmin]);
-
-  useEffect(() => {
-    console.log('🔄 Iniciando listener de configuración en tiempo real...');
+    // Solo suscribirse si el usuario tiene permisos o si no hay usuario aún (para cargar estado inicial)
     const docRef = doc(db, 'system', 'settings');
     
-    const unsub = onSnapshot(
-      docRef, 
-      (snap) => {
-        console.log('📡 Snapshot recibido:', snap.exists());
-        setIsConnected(true);
-        
-        if (snap.exists()) {
-          const data = snap.data() as any;
-          const enabled = data.gradesLoadingEnabled ?? false;
-          const updated = data.updatedAt ?? Date.now();
+    let unsub: (() => void) | undefined;
+    
+    try {
+      unsub = onSnapshot(
+        docRef, 
+        (snap) => {
+          setIsConnected(true);
           
-          console.log('📡 Estado actualizado desde Firebase:', {
-            enabled,
-            updatedAt: new Date(updated).toLocaleString(),
-            data: data,
-            previousValue: previousValue.current,
-            previousUpdated: previousUpdated.current,
-            hasValueChanged: enabled !== previousValue.current,
-            isNewUpdate: updated !== previousUpdated.current,
-            canManageGrades,
-            userUid: user?.uid
-          });
-          
-          // Detectar si cambió el valor
-          const hasValueChanged = previousValue.current !== null && enabled !== previousValue.current;
-          const isNewUpdate = updated !== previousUpdated.current;
-          
-          console.log('🔍 Análisis de cambio:', {
-            enabled,
-            previousValue: previousValue.current,
-            hasValueChanged,
-            isNewUpdate,
-            isInitialized: isInitialized.current,
-            previousUpdated: previousUpdated.current,
-            currentUpdated: updated,
-            canManageGrades,
-            userUid: user?.uid
-          });
-          
-          // Actualizar el estado SIEMPRE (esto es lo más importante)
-          setGradeLoadingEnabled(enabled);
-          setLastUpdated(updated);
-          
-          // Mostrar notificación solo si:
-          // 1. Ya se inicializó (no es la primera carga)
-          // 2. El valor cambió
-          // 3. Es una actualización nueva
-          // 4. El usuario puede gestionar calificaciones
-          if (isInitialized.current && hasValueChanged && isNewUpdate && canManageGrades && user?.uid) {
-            console.log('🔔 Mostrando notificación por cambio de estado');
+          if (snap.exists()) {
+            const data = snap.data() as any;
+            const enabled = data.gradesLoadingEnabled ?? false;
+            const updated = data.updatedAt ?? Date.now();
             
-            if (enabled) {
-              toast.success('¡La carga de notas está disponible!', {
-                duration: 5000,
-                icon: '📝',
-                style: {
-                  background: '#10b981',
-                  color: '#ffffff',
-                  fontSize: '16px',
-                },
-              });
-            } else {
-              toast('La carga de notas ha sido deshabilitada', {
-                duration: 5000,
-                icon: '⏸️',
-                style: {
-                  background: '#f59e0b',
-                  color: '#ffffff',
-                  fontSize: '16px',
-                },
+            // Detectar si cambió el valor
+            const hasValueChanged = previousValue.current !== null && enabled !== previousValue.current;
+            const isNewUpdate = updated !== previousUpdated.current;
+            
+            // Actualizar el estado SIEMPRE
+            setGradeLoadingEnabled(enabled);
+            setLastUpdated(updated);
+            
+            // Mostrar notificación solo si:
+            // 1. Ya se inicializó (no es la primera carga)
+            // 2. El valor cambió
+            // 3. Es una actualización nueva
+            // 4. El usuario puede gestionar calificaciones
+            if (isInitialized.current && hasValueChanged && isNewUpdate && canManageGrades && user?.uid) {
+              if (enabled) {
+                toast.success('¡La carga de notas está disponible!', {
+                  duration: 5000,
+                  icon: '📝',
+                  style: {
+                    background: '#10b981',
+                    color: '#ffffff',
+                    fontSize: '16px',
+                  },
+                });
+              } else {
+                toast('La carga de notas ha sido deshabilitada', {
+                  duration: 5000,
+                  icon: '⏸️',
+                  style: {
+                    background: '#f59e0b',
+                    color: '#ffffff',
+                    fontSize: '16px',
+                  },
+                });
+              }
+            }
+            
+            // Actualizar referencias para la próxima comparación
+            previousValue.current = enabled;
+            previousUpdated.current = updated;
+            isInitialized.current = true;
+            
+          } else {
+            // Si el documento no existe, establecer valores por defecto localmente
+            setGradeLoadingEnabled(false);
+            setLastUpdated(Date.now());
+            isInitialized.current = true;
+            
+            // Solo intentar crear si el usuario es admin
+            if (canManageGrades && user?.role === 1 && user?.uid) {
+              setDoc(docRef, {
+                gradesLoadingEnabled: false,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+              }).catch((error) => {
+                // Error silencioso - no es crítico si no se puede crear
+                console.warn('No se pudo crear documento de configuración:', error);
               });
             }
-          } else {
-            console.log('🔕 No se muestra notificación:', {
-              isInitialized: isInitialized.current,
-              hasValueChanged,
-              isNewUpdate,
-              canManageGrades,
-              userUid: user?.uid,
-              enabled,
-              previousValue: previousValue.current,
-              previousUpdated: previousUpdated.current,
-              currentUpdated: updated
-            });
           }
-          
-          // Actualizar referencias para la próxima comparación
-          previousValue.current = enabled;
-          previousUpdated.current = updated;
-          isInitialized.current = true; // Marcar como inicializado después del primer snapshot
-          
-        } else {
-          // Si el documento no existe, crear uno con valores por defecto
-          console.log('📝 Creando documento de configuración con valor por defecto');
-          setDoc(docRef, {
-            gradesLoadingEnabled: false,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          }).catch((error) => {
-            console.error('❌ Error al crear documento de configuración:', error);
-            setIsConnected(false);
-          });
+        },
+        (error) => {
+          // Solo loguear errores no relacionados con permisos
+          if (error.code !== 'permission-denied') {
+            console.error('❌ Error en listener de configuración:', error);
+          }
+          setIsConnected(false);
+          // Establecer valores por defecto en caso de error
+          setGradeLoadingEnabled(false);
+          setLastUpdated(Date.now());
         }
-      },
-      (error) => {
-        console.error('❌ Error en listener de configuración:', error);
-        setIsConnected(false);
-      }
-    );
+      );
+    } catch (error) {
+      console.error('❌ Error al crear listener:', error);
+      setIsConnected(false);
+    }
     
     return () => {
-      console.log('🛑 Desconectando listener de configuración');
-      unsub();
+      if (unsub) {
+        unsub();
+      }
     };
-  }, [canManageGrades, user?.uid]);
+  }, [canManageGrades, user?.uid, user?.role]);
 
   const toggleGradeLoading = async () => {
     // Verificar que es administrador (role === 1)
@@ -215,11 +178,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       
       await setDoc(docRef, {
         gradesLoadingEnabled: newValue,
-        enabledBy: uid,
-        enabledAt: timestamp,
         updatedAt: timestamp,
-        // Agregar un campo adicional para forzar la actualización
-        lastModified: timestamp,
+        ...(gradeLoadingEnabled === undefined && { createdAt: timestamp }), // Solo agregar createdAt si no existe
       }, { merge: true });
 
       console.log('✅ Estado actualizado correctamente en Firebase con timestamp:', timestamp);

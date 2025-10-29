@@ -20,40 +20,55 @@ export const Navbar: React.FC = () => {
     const { setMenu} = useTriskaContext();
     
     return (
-        <aside className=" w-full flex-1 max-w-2xs bg-white rounded-md flex flex-col justify-between">
-            <div className="p-5">
-                <ul className="space-y-3">
+        <aside className="w-full flex-1 max-w-xs bg-white border-r border-gray-200 flex flex-col justify-between">
+            <div className="p-4">
+                <ul className="space-y-1">
                     {/* Opciones para ADMIN (role === 1) */}
                     {user?.role === 1 && (
                         <>
                             <li>
-                                <button onClick={() => setMenu(1)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiHome className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Inicio</span>
+                                <button 
+                                    onClick={() => setMenu(1)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiHome className="w-5 h-5" />
+                                    <span>Inicio</span>
                                 </button>
                             </li>
                             <li>
-                                <button onClick={() => setMenu(3)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <IoPeople className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Personal</span>
+                                <button 
+                                    onClick={() => setMenu(3)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <IoPeople className="w-5 h-5" />
+                                    <span>Personal</span>
                                 </button>
                             </li>
                             <li>
-                                <button onClick={() => setMenu(5)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiDocumentCheck className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Asistencias</span>
+                                <button 
+                                    onClick={() => setMenu(5)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiDocumentCheck className="w-5 h-5" />
+                                    <span>Asistencias</span>
                                 </button>
                             </li>
                             <li>
-                                <button onClick={() => setMenu(6)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiChartBar className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Calificaciones</span>
+                                <button 
+                                    onClick={() => setMenu(6)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiChartBar className="w-5 h-5" />
+                                    <span>Calificaciones</span>
                                 </button>
                             </li>
                             <li>
-                                <button onClick={() => setMenu(2)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiCog className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Ajustes</span>
+                                <button 
+                                    onClick={() => setMenu(2)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiCog className="w-5 h-5" />
+                                    <span>Ajustes</span>
                                 </button>
                             </li>
                         </>
@@ -62,27 +77,39 @@ export const Navbar: React.FC = () => {
                     {user?.role === 3 && (
                         <>
                             <li>
-                                <button onClick={() => setMenu(1)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiHome className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Inicio</span>
+                                <button 
+                                    onClick={() => setMenu(1)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiHome className="w-5 h-5" />
+                                    <span>Inicio</span>
                                 </button>
                             </li>
                             <li>
-                                <button onClick={() => setMenu(8)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <IoCalendarClear className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Mis horarios</span>
+                                <button 
+                                    onClick={() => setMenu(8)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <IoCalendarClear className="w-5 h-5" />
+                                    <span>Mis horarios</span>
                                 </button>
                             </li>
                             <li>
-                                <button onClick={() => setMenu(5)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiDocumentCheck className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Asistencias</span>
+                                <button 
+                                    onClick={() => setMenu(5)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiDocumentCheck className="w-5 h-5" />
+                                    <span>Asistencias</span>
                                 </button>
                             </li>
                             <li>
-                                <button onClick={() => setMenu(2)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiCog className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Ajustes</span>
+                                <button 
+                                    onClick={() => setMenu(2)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiCog className="w-5 h-5" />
+                                    <span>Ajustes</span>
                                 </button>
                             </li>
                         </>
@@ -91,33 +118,48 @@ export const Navbar: React.FC = () => {
                     {user?.role === 4 && (
                         <>
                             <li>
-                                <button onClick={() => setMenu(1)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiHome className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Inicio</span>
+                                <button 
+                                    onClick={() => setMenu(1)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiHome className="w-5 h-5" />
+                                    <span>Inicio</span>
                                 </button>
                             </li>
                             <li>
-                                <button onClick={() => setMenu(5)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiDocumentCheck className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Asistencias</span>
+                                <button 
+                                    onClick={() => setMenu(5)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiDocumentCheck className="w-5 h-5" />
+                                    <span>Asistencias</span>
                                 </button>
                             </li>
                             <li>
-                                <button onClick={() => setMenu(8)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <IoCalendarClear className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Horarios</span>
+                                <button 
+                                    onClick={() => setMenu(8)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <IoCalendarClear className="w-5 h-5" />
+                                    <span>Horarios</span>
                                 </button>
                             </li>
                             <li>
-                                <button onClick={() => setMenu(6)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiChartBar className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Calificaciones</span>
+                                <button 
+                                    onClick={() => setMenu(6)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiChartBar className="w-5 h-5" />
+                                    <span>Calificaciones</span>
                                 </button>
                             </li>
                             <li>
-                                <button onClick={() => setMenu(2)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiCog className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Ajustes</span>
+                                <button 
+                                    onClick={() => setMenu(2)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiCog className="w-5 h-5" />
+                                    <span>Ajustes</span>
                                 </button>
                             </li>
                         </>
@@ -126,63 +168,88 @@ export const Navbar: React.FC = () => {
                     {user?.role === 2 && (
                         <>
                             <li>
-                                <button onClick={() => setMenu(1)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiHome className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Inicio</span>
+                                <button 
+                                    onClick={() => setMenu(1)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiHome className="w-5 h-5" />
+                                    <span>Inicio</span>
                                 </button>
                             </li>
                             <li>
-                                <button onClick={() => setMenu(5)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiDocumentCheck className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Asistencias</span>
+                                <button 
+                                    onClick={() => setMenu(5)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiDocumentCheck className="w-5 h-5" />
+                                    <span>Asistencias</span>
                                 </button>
                             </li>
                             <li>
-                                <button onClick={() => setMenu(8)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <IoCalendarClear className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Horarios</span>
+                                <button 
+                                    onClick={() => setMenu(8)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <IoCalendarClear className="w-5 h-5" />
+                                    <span>Horarios</span>
                                 </button>
                             </li>
                             <li>
-                                <button onClick={() => setMenu(6)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiChartBar className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Calificaciones</span>
+                                <button 
+                                    onClick={() => setMenu(6)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiChartBar className="w-5 h-5" />
+                                    <span>Calificaciones</span>
                                 </button>
                             </li>
                             <li>
-                                <button onClick={() => setMenu(2)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                                    <HiCog className="group-hover:text-orange-500 w-5 h-5" />
-                                    <span className="group-hover:text-orange-800">Ajustes</span>
+                                <button 
+                                    onClick={() => setMenu(2)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiCog className="w-5 h-5" />
+                                    <span>Ajustes</span>
                                 </button>
                             </li>
                         </>
                     )}
                     {/* Opciones comunes para todos */}
                     <li>
-                        <button onClick={() => setMenu(4)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
+                        <button 
+                            onClick={() => setMenu(4)} 
+                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                        >
                             <HiChatBubbleOvalLeft className="w-5 h-5" />
                             <span>Mensajes</span>
                         </button>
                     </li>
                     <li>
-                        <button onClick={() => setMenu(7)} className="text-gray-800 group hover:text-blue-500 flex items-center gap-x-2 *:text-sm">
-                            <HiDocumentText className="group-hover:text-orange-500 w-5 h-5" />
-                            <span className="group-hover:text-orange-800">Boletines</span>
+                        <button 
+                            onClick={() => setMenu(7)} 
+                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                        >
+                            <HiDocumentText className="w-5 h-5" />
+                            <span>Boletines</span>
                         </button>
                     </li>
                 </ul>
             </div>
-            <div className="*:text-sm flex flex-col gap-y-2 p-5 items-start">
-                {
-                    user?.name && user.role && (
-                        <div className="">
-                            <span>{user?.name}</span> - <span className=" text-blue-600">{UserRole[user?.role]}</span>
-                        </div>
-                    )
-                }
-                <button className=" hover:underline hover:underline-offset-2" onClick={logout}>Cerrar Sesión</button>
-                <p className="text-gray-500 ">
-                    © 2025 Your Company. All rights reserved.
+            <div className="p-4 border-t border-gray-200">
+                {user?.name && user.role && (
+                    <div className="mb-3">
+                        <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                        <p className="text-xs text-gray-500">{UserRole[user.role]}</p>
+                    </div>
+                )}
+                <button 
+                    className="text-sm text-gray-600 hover:text-gray-900 mb-2" 
+                    onClick={logout}
+                >
+                    Cerrar Sesión
+                </button>
+                <p className="text-xs text-gray-400">
+                    © 2025
                 </p>
             </div>
         </aside>

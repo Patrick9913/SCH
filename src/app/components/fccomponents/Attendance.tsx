@@ -8,6 +8,7 @@ import { UserCurses } from '@/app/types/user';
 import { AttendanceStatus, AttendanceRecord } from '@/app/types/attendance';
 import { HiUserGroup, HiCheck, HiXCircle, HiClock } from 'react-icons/hi';
 import { RefreshButton } from '../reusable/RefreshButton';
+import Swal from 'sweetalert2';
 import { 
   isAdmin, 
   isStaff, 
@@ -53,7 +54,11 @@ export const Attendance: React.FC = () => {
   // Estudiantes filtrados por curso seleccionado
   const studentsInCourse = useMemo(() => {
     if (!selectedCourse) return [];
-    return users.filter(u => u.role === 3 && u.level === selectedCourse);
+    return users.filter(u => u.role === 3 && u.level === selectedCourse).map(u => ({
+      ...u,
+      // Asegurar que uid sea igual a id
+      uid: u.uid || u.id,
+    }));
   }, [users, selectedCourse]);
 
   // Cargar asistencias existentes cuando se selecciona fecha y curso
@@ -62,9 +67,16 @@ export const Attendance: React.FC = () => {
       return {};
     }
 
+    // Normalizar la fecha para comparación
+    const normalizedDate = selectedDate.split('T')[0];
+
     const initial: Record<string, AttendanceStatus> = {};
     studentsInCourse.forEach(student => {
-      const existingAttendance = records.find(r => r.studentUid === student.uid && r.date === selectedDate);
+      // Buscar asistencia usando el uid del estudiante y fecha normalizada
+      const existingAttendance = records.find(r => 
+        (r.studentUid === student.uid || r.studentUid === student.id) && 
+        r.date === normalizedDate
+      );
       if (existingAttendance) {
         initial[student.uid] = existingAttendance.status;
       }
@@ -87,30 +99,54 @@ export const Attendance: React.FC = () => {
   const handleSave = async () => {
     if (!selectedDate || !selectedCourse) return;
 
+    // Normalizar la fecha a formato YYYY-MM-DD por si acaso
+    const normalizedDate = selectedDate.split('T')[0];
+
     const attendancesToSave = Object.entries(studentAttendances)
       .filter(([_, status]) => status) // Solo incluir si hay una asistencia registrada
-      .map(([studentUid, status]) => ({
-        studentUid,
-        date: selectedDate,
-        courseLevel: Number(selectedCourse),
-        status: status as AttendanceStatus
-      }));
+      .map(([studentUid, status]) => {
+        // Verificar que el uid del estudiante existe y es válido
+        const student = studentsInCourse.find(s => s.uid === studentUid || s.id === studentUid);
+        // Priorizar id sobre uid, ya que id es siempre el documentId de Firestore
+        const finalStudentUid = student?.id || student?.uid || studentUid;
+        return {
+          studentUid: finalStudentUid,
+          date: normalizedDate,
+          courseLevel: Number(selectedCourse),
+          status: status as AttendanceStatus
+        };
+      });
 
     if (attendancesToSave.length === 0) {
-      alert('No hay asistencias para guardar');
+      await Swal.fire({
+        icon: 'info',
+        title: 'Sin asistencias',
+        text: 'No hay asistencias para guardar',
+        confirmButtonColor: '#2563eb',
+      });
       return;
     }
 
     try {
       await addMultipleAttendances(attendancesToSave);
-      alert('Asistencias guardadas correctamente');
+      await Swal.fire({
+        icon: 'success',
+        title: 'Asistencias guardadas',
+        text: 'Las asistencias se guardaron correctamente',
+        confirmButtonColor: '#2563eb',
+      });
       // Resetear el formulario
       setSelectedDate('');
       setSelectedCourse('');
       setStudentAttendances({});
     } catch (error) {
       console.error('Error al guardar asistencias:', error);
-      alert('Error al guardar las asistencias');
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al guardar las asistencias',
+        confirmButtonColor: '#dc2626',
+      });
     }
   };
 
@@ -169,16 +205,18 @@ export const Attendance: React.FC = () => {
 
   // Calcular faltas restantes para estudiantes
   const remainingAbsences = useMemo(() => {
-    if (!user?.uid || !isStudent) return 30;
-    const studentRecords = records.filter(r => r.studentUid === user.uid);
+    if (!user || !isStudent) return 30;
+    // Usar tanto uid como id para compatibilidad, priorizando id
+    const studentRecords = records.filter(r => r.studentUid === user.id || r.studentUid === user.uid);
     const absentCount = studentRecords.filter(r => r.status === 'absent').length;
     return Math.max(0, 30 - absentCount);
   }, [user, isStudent, records]);
 
   // Generar lista de meses disponibles
   const availableMonths = useMemo(() => {
-    if (!user?.uid || !isStudent) return [];
-    const studentRecords = records.filter(r => r.studentUid === user.uid);
+    if (!user || !isStudent) return [];
+    // Usar tanto uid como id para compatibilidad, priorizando id
+    const studentRecords = records.filter(r => r.studentUid === user.id || r.studentUid === user.uid);
     const monthsSet = new Set<string>();
     
     studentRecords.forEach(record => {
@@ -192,8 +230,9 @@ export const Attendance: React.FC = () => {
 
   // Obtener registros del mes seleccionado
   const monthlyRecords = useMemo(() => {
-    if (!user?.uid || !isStudent || !selectedMonth) return [];
-    const studentRecords = records.filter(r => r.studentUid === user.uid);
+    if (!user || !isStudent || !selectedMonth) return [];
+    // Usar tanto uid como id para compatibilidad, priorizando id
+    const studentRecords = records.filter(r => r.studentUid === user.id || r.studentUid === user.uid);
     
     return studentRecords.filter(record => {
       const date = new Date(record.date);
@@ -204,9 +243,17 @@ export const Attendance: React.FC = () => {
 
   // Vista para estudiantes
   const studentView = useMemo(() => {
-    if (!user?.uid || !isStudent) return null;
+    if (!user || !isStudent) return null;
 
-    if (records.length === 0) {
+    // Filtrar registros del estudiante usando tanto uid como id para compatibilidad
+    // Priorizar id sobre uid ya que id es siempre el documentId de Firestore
+    const studentRecords = records.filter(r => {
+      const matchById = r.studentUid === user.id;
+      const matchByUid = r.studentUid === user.uid;
+      return matchById || matchByUid;
+    });
+
+    if (studentRecords.length === 0) {
       return (
         <div className="text-center py-12">
           <p className="text-gray-500">No tienes registros de asistencia</p>
@@ -327,22 +374,22 @@ export const Attendance: React.FC = () => {
   }, [user, isStudent, records, selectedMonth, availableMonths, monthlyRecords]);
 
   return (
-    <section className="flex-1 p-5 overflow-y-scroll max-h-screen h-full bg-white rounded-md">
+    <section className="flex-1 p-6 overflow-y-auto max-h-screen h-full bg-white">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-2xl flex items-center gap-x-2 font-bold text-gray-800">
-            <HiUserGroup className="w-10 h-10" />
-            <span>Asistencias</span>
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <HiUserGroup className="w-6 h-6 text-gray-700" />
+            <h1 className="text-2xl font-semibold text-gray-900">Asistencias</h1>
           </div>
           <div className="flex items-center gap-3">
             {isStudent && (
-              <div className={`text-xl font-bold px-4 py-2 rounded-lg ${
-                remainingAbsences >= 20 ? 'bg-green-100 text-green-800' :
-                remainingAbsences >= 10 ? 'bg-yellow-100 text-yellow-800' :
-                'bg-red-100 text-red-800'
+              <div className={`text-sm font-semibold px-3 py-1.5 rounded-lg ${
+                remainingAbsences >= 20 ? 'bg-green-50 text-green-700 border border-green-200' :
+                remainingAbsences >= 10 ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
+                'bg-red-50 text-red-700 border border-red-200'
               }`}>
-                Faltas restantes: {remainingAbsences} / 30
+                Faltas: {remainingAbsences} / 30
               </div>
             )}
             <RefreshButton 
@@ -352,15 +399,15 @@ export const Attendance: React.FC = () => {
             />
           </div>
         </div>
-        <p className="text-gray-600">
+        <p className="text-sm text-gray-500">
           {canManage 
             ? 'Registra asistencias seleccionando el día y curso' 
             : 'Consulta tus registros de asistencia por mes'}
         </p>
         {isTeacherUser && user && (
-          <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-700">
-              <strong>Cursos asignados:</strong> {getAvailableCourses(user).map(c => c.name).join(', ')}
+          <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+            <p className="text-xs text-gray-600">
+              <span className="font-medium">Cursos asignados:</span> {getAvailableCourses(user).map(c => c.name).join(', ')}
             </p>
           </div>
         )}

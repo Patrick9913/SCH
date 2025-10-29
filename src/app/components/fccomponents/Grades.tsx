@@ -10,6 +10,7 @@ import { HiChartBar, HiCheck } from 'react-icons/hi';
 import { useSettings } from '@/app/context/settingsContext';
 import { useSubjects } from '@/app/context/subjectContext';
 import { RefreshButton } from '../reusable/RefreshButton';
+import Swal from 'sweetalert2';
 import { 
   isAdmin, 
   isStaff, 
@@ -89,55 +90,27 @@ export const Grades: React.FC = () => {
   const studentsInCourse = useMemo(() => {
     if (!selectedCourse || !selectedSubject) return [];
     
-    // Debug info
-    console.log('Debug Grades:', {
-      selectedCourse,
-      selectedSubject,
-      selectedCourseType: typeof selectedCourse,
-      selectedSubjectType: typeof selectedSubject,
-      isAdminUser,
-      isStaffUser,
-      isTeacherUser,
-      totalUsers: users.length,
-      studentsInSystem: users.filter(u => u.role === 3).length,
-      studentsInCourse: users.filter(u => u.role === 3 && u.level === selectedCourse).length
-    });
-    
     if (isAdminUser || isStaffUser) {
       // Admin y Staff ven todos los estudiantes del curso
-      const allStudents = users.filter(u => u.role === 3 && u.level === selectedCourse);
-      console.log('Admin/Staff - All students:', allStudents);
-      console.log('Admin/Staff - User levels:', users.filter(u => u.role === 3).map(u => ({ name: u.name, level: u.level, levelType: typeof u.level })));
-      return allStudents;
+      return users.filter(u => u.role === 3 && u.level === selectedCourse);
     } else if (isTeacherUser && user) {
       // Docente solo ve estudiantes asignados a la materia específica usando el nuevo sistema
       const subject = getSubjectByCourseAndSubject(Number(selectedCourse), Number(selectedSubject));
       
-      if (!subject) {
-        console.warn('Teacher - No subject found for course:', selectedCourse, 'subject:', selectedSubject);
-        return [];
-      }
-      
-      // Verificar que el docente esté asignado a esta materia
-      if (subject.teacherUid !== user.uid) {
-        console.warn('Teacher - User is not assigned to this subject. Expected:', subject.teacherUid, 'Got:', user.uid);
+      if (!subject || subject.teacherUid !== user.uid) {
         return [];
       }
       
       const assignedStudentUids = subject.studentUids || [];
-      
       if (assignedStudentUids.length === 0) {
-        console.warn('Teacher - Subject has no assigned students. Subject:', subject.id, subject.name);
         return [];
       }
       
-      const filteredStudents = users.filter(u => 
+      return users.filter(u => 
         u.role === 3 && 
         u.level === Number(selectedCourse) && 
         assignedStudentUids.includes(u.uid)
       );
-      
-      return filteredStudents;
     }
     return [];
   }, [users, selectedCourse, selectedSubject, isAdminUser, isStaffUser, isTeacherUser, user, subjects, getSubjectByCourseAndSubject]);
@@ -198,13 +171,23 @@ export const Grades: React.FC = () => {
       }));
 
     if (gradesToSave.length === 0) {
-      alert('No hay calificaciones para guardar');
+      await Swal.fire({
+        icon: 'info',
+        title: 'Sin calificaciones',
+        text: 'No hay calificaciones para guardar',
+        confirmButtonColor: '#2563eb',
+      });
       return;
     }
 
     try {
       await addMultipleGrades(gradesToSave);
-      alert('Calificaciones guardadas correctamente');
+      await Swal.fire({
+        icon: 'success',
+        title: 'Calificaciones guardadas',
+        text: 'Las calificaciones se guardaron correctamente',
+        confirmButtonColor: '#2563eb',
+      });
       // Resetear el formulario
       setSelectedCourse('');
       setSelectedSubject('');
@@ -212,7 +195,12 @@ export const Grades: React.FC = () => {
       setStudentGrades({});
     } catch (error) {
       console.error('Error al guardar calificaciones:', error);
-      alert('Error al guardar las calificaciones');
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al guardar las calificaciones',
+        confirmButtonColor: '#dc2626',
+      });
     }
   };
 

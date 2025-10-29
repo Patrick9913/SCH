@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { db, auth } from '../config';
+import { db } from '../config';
 import { 
   addDoc, 
   collection, 
@@ -136,9 +136,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unreadCount: { [uid]: 0, [participantUid]: 0 }
     };
 
-    console.log('Creando chat en Firestore con datos:', chatData);
     const docRef = await addDoc(collection(db, 'chats'), chatData);
-    console.log('Chat creado en Firestore con ID:', docRef.id);
     
     // Crear un objeto chat temporal para seleccionarlo inmediatamente
     const tempChat: Chat = {
@@ -150,7 +148,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unreadCount: { [uid]: 0, [participantUid]: 0 }
     };
     
-    console.log('Estableciendo chat actual:', tempChat);
     setCurrentChat(tempChat);
     
     // Agregar el chat temporal a la lista local para evitar el problema de sincronización
@@ -245,17 +242,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }));
   };
 
-  // Función para forzar actualización de chats (debugging)
+  // Función para forzar actualización de chats
   const refreshChats = async () => {
-    console.log('Forzando actualización de chats...');
     try {
       const col = collection(db, 'chats');
       const q = query(col, where('participants', 'array-contains', uid));
-      const snap = await getDocs(q);
-      console.log('Chats encontrados al forzar actualización:', snap.size);
-      snap.docs.forEach(doc => {
-        console.log('Chat encontrado:', doc.id, doc.data());
-      });
+      await getDocs(q);
     } catch (error) {
       console.error('Error al forzar actualización:', error);
     }

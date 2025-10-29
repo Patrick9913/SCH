@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { auth, db } from '../config';
+import { db } from '../config';
 import { addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { Announcement } from '../types/announcement';
 import { useAuthContext } from './authContext';
@@ -53,7 +53,7 @@ export const AnnouncementsProvider: React.FC<{ children: React.ReactNode }> = ({
       body: data.body?.trim() ?? '',
       audience: data.audience,
       createdAt: Date.now(),
-      createdByUid: user?.uid ?? auth.currentUser?.uid ?? 'unknown',
+      createdByUid: user?.id ?? 'unknown',
       createdByName: user?.name ?? 'Sistema',
     });
   };

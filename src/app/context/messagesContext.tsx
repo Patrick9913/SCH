@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { db, auth } from '../config';
+import { db } from '../config';
 import { addDoc, collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { DirectMessage } from '../types/messages';
 import { useAuthContext } from './authContext';
@@ -24,9 +24,7 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [ directMessages, setDirectMessages ] = useState<DirectMessage[]>([]);
 
   useEffect(() => {
-    if (!uid) return; // ⚡ No crear suscripción hasta que uid exista
-
-    console.log('Suscribiendo con uid:', uid);
+    if (!uid) return;
 
     const col = collection(db, 'direct_messages');
     const q = query(
@@ -36,7 +34,6 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     );
 
     const unsub = onSnapshot(q, (snap) => {
-      console.log('snapshot size', snap.size);
       const items: DirectMessage[] = snap.docs.map((d) => {
         const data = d.data();
         return {
@@ -57,14 +54,13 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
 
   const sendDirectMessage = async (toUid: string, body: string) => {
-    const fromUid = uid ?? auth.currentUser?.uid;
-    if (!fromUid) return;
+    if (!uid) return;
     await addDoc(collection(db, 'direct_messages'), {
-      fromUid,
+      fromUid: uid,
       toUid,
       body: body.trim(),
       createdAt: Date.now(),
-      participants: [fromUid, toUid],
+      participants: [uid, toUid],
     });
   };
 

@@ -1,77 +1,250 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Reglas para usuarios
+    
+    // ==========================================
+    // FUNCIONES AUXILIARES
+    // ==========================================
+    
+    // Verificar que un userId existe y obtener su rol
+    function getUserRole(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.role;
+    }
+    
+    // Verificar si es administrador (role == 1)
+    function isAdmin(userId) {
+      return userId != null && getUserRole(userId) == 1;
+    }
+    
+    // Verificar si es staff (role == 1 o 4)
+    function isStaff(userId) {
+      return userId != null && getUserRole(userId) in [1, 2, 4];
+    }
+    
+    // Verificar si es estudiante (role == 3)
+    function isStudent(userId) {
+      return userId != null && getUserRole(userId) == 3;
+    }
+    
+    // Verificar si es docente (role == 4)
+    function isTeacher(userId) {
+      return userId != null && getUserRole(userId) == 4;
+    }
+    
+    // Extraer userId del request (asumiendo que se pasa como campo en el documento)
+    function getRequestUserId() {
+      // Intenta obtener el userId desde diferentes campos comunes
+      return request.resource.data.createdByUid != null ? 
+             request.resource.data.createdByUid : 
+             (request.resource.data.userId != null ? 
+              request.resource.data.userId : null);
+    }
+    
+    // ==========================================
+    // COLECCIÓN DE USUARIOS
+    // ==========================================
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Permitir lectura: todos los usuarios autenticados pueden leer
+      // (Nota: sin auth, validamos estructura de datos)
+      allow read: if true; // Temporalmente permisivo, se validará en el cliente
+      
+      // Permitir crear usuarios nuevos (el uid debe coincidir con el documentId desde el inicio)
+      allow create: if request.resource.data.keys().hasAll(['name', 'role', 'mail', 'password', 'uid']) &&
+                       request.resource.data.role is int &&
+                       request.resource.data.name is string &&
+                       request.resource.data.mail is string &&
+                       request.resource.data.password is string &&
+                       request.resource.data.uid is string &&
+                       request.resource.data.uid == userId;
+      
+      // Permitir actualización si:
+      // - El uid siempre debe coincidir con userId (protección de integridad)
+      // - Los campos actualizados son válidos
+      // Nota: La validación de permisos (solo admin puede actualizar) se hace en el cliente
+      // Los campos son opcionales en updates, pero si están presentes deben tener el tipo correcto
+      allow update: if (!('uid' in request.resource.data) || request.resource.data.uid == userId) &&
+                       (!('uid' in request.resource.data) || request.resource.data.uid is string) &&
+                       (!('role' in request.resource.data) || request.resource.data.role is int) &&
+                       (!('name' in request.resource.data) || request.resource.data.name is string) &&
+                       (!('mail' in request.resource.data) || request.resource.data.mail is string) &&
+                       (!('password' in request.resource.data) || request.resource.data.password is string) &&
+                       (!('dni' in request.resource.data) || request.resource.data.dni is int) &&
+                       (!('asig' in request.resource.data) || request.resource.data.asig is int) &&
+                       (!('level' in request.resource.data) || request.resource.data.level is int) &&
+                       (!('status' in request.resource.data) || request.resource.data.status in ['pending', 'active', 'suspended']);
+      
+      // Permitir eliminación (validación de permisos en el cliente)
+      allow delete: if true;
     }
     
-    // Reglas para mensajes directos (sistema existente)
+    // ==========================================
+    // MENSAJES DIRECTOS
+    // ==========================================
     match /direct_messages/{messageId} {
-      allow read, write: if request.auth != null && 
-        (request.auth.uid in resource.data.participants || 
-         request.auth.uid in request.resource.data.participants);
+      allow read: if true; // Validación en cliente basada en participants
+      
+      allow create: if request.resource.data.keys().hasAll(['fromUid', 'toUid', 'body', 'createdAt', 'participants']) &&
+                       request.resource.data.fromUid is string &&
+                       request.resource.data.toUid is string &&
+                       request.resource.data.participants is list &&
+                       request.resource.data.fromUid in request.resource.data.participants &&
+                       request.resource.data.toUid in request.resource.data.participants;
+      
+      allow update, delete: if false; // Los mensajes no se editan ni eliminan
     }
     
-    // Reglas para chats
+    // ==========================================
+    // CHATS Y MENSAJES
+    // ==========================================
     match /chats/{chatId} {
-      allow read, write: if request.auth != null && 
-        request.auth.uid in resource.data.participants;
+      allow read: if true; // Validación en cliente basada en participants
       
-      // Reglas para mensajes dentro de chats
+      allow create: if request.resource.data.keys().hasAll(['participants', 'createdAt']) &&
+                       request.resource.data.participants is list &&
+                       request.resource.data.participants.size() == 2;
+      
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'lastMessageAt', 'unreadCount', 'isActive']);
+      
+      allow delete: if false;
+      
+      // Mensajes dentro de chats
       match /messages/{messageId} {
-        allow read, write: if request.auth != null && 
-          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow read: if true;
+        
+        allow create: if request.resource.data.keys().hasAll(['fromUid', 'body', 'createdAt']) &&
+                         request.resource.data.fromUid is string &&
+                         request.resource.data.body is string;
+        
+        allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']);
+        
+        allow delete: if false;
       }
     }
     
-    // Reglas para anuncios
+    // ==========================================
+    // ANUNCIOS
+    // ==========================================
     match /announcements/{announcementId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow read: if true; // Todos pueden leer (el filtrado se hace en el cliente)
+      
+      allow create: if request.resource.data.keys().hasAll(['title', 'audience', 'createdAt', 'createdByUid']) &&
+                       request.resource.data.title is string &&
+                       request.resource.data.audience is string &&
+                       request.resource.data.createdByUid is string;
+      
+      allow update, delete: if false; // Los anuncios no se editan, solo se eliminan desde el cliente
     }
     
-    // Reglas para configuración del sistema
+    // ==========================================
+    // CONFIGURACIÓN DEL SISTEMA
+    // ==========================================
     match /system/settings {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 1;
+      allow read: if true;
+      
+      allow create: if request.resource.data.keys().hasAll(['gradesLoadingEnabled', 'updatedAt', 'createdAt']) &&
+                       request.resource.data.gradesLoadingEnabled is bool &&
+                       request.resource.data.updatedAt is number &&
+                       request.resource.data.createdAt is number;
+      
+      allow update: if request.resource.data.keys().hasAll(['gradesLoadingEnabled', 'updatedAt']) &&
+                       request.resource.data.gradesLoadingEnabled is bool &&
+                       request.resource.data.updatedAt is number;
+      // Nota: La validación de que solo admin puede modificar se hace en el cliente
     }
     
-    // Reglas para asistencia
+    // ==========================================
+    // ASISTENCIA
+    // ==========================================
     match /attendance/{attendanceId} {
-      allow read, write: if request.auth != null;
+      allow read: if true;
+      
+      allow create: if request.resource.data.keys().hasAll(['date', 'studentUid', 'courseLevel', 'status', 'createdByUid', 'createdAt']) &&
+                       request.resource.data.date is string &&
+                       request.resource.data.studentUid is string &&
+                       request.resource.data.courseLevel is int &&
+                       request.resource.data.status is string &&
+                       request.resource.data.createdByUid is string;
+      
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
+      
+      allow delete: if false;
     }
     
-    // Reglas para calificaciones
+    // ==========================================
+    // CALIFICACIONES
+    // ==========================================
     match /grades/{gradeId} {
-      function isStaff() {
-        return request.auth != null && 
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in [1, 4];
-      }
+      // Lectura: Todos pueden leer, el filtrado se hace en el cliente
+      allow read: if true;
       
-      function isMainAdmin() {
-        return request.auth != null && 
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 1;
-      }
+      // Crear: Validación de estructura de datos
+      allow create: if request.resource.data.keys().hasAll(['studentUid', 'subjectId', 'courseLevel', 'period', 'grade', 'createdByUid', 'createdAt']) &&
+                       request.resource.data.studentUid is string &&
+                       request.resource.data.subjectId is int &&
+                       request.resource.data.courseLevel is int &&
+                       request.resource.data.period is string &&
+                       request.resource.data.grade is string &&
+                       request.resource.data.createdByUid is string &&
+                       request.resource.data.published is bool;
       
-      // Los estudiantes solo pueden leer sus propias calificaciones publicadas
-      // El staff puede leer todas las calificaciones
-      allow read: if request.auth != null && (
-        (request.auth.uid == resource.data.studentUid && resource.data.published == true) ||
-        isStaff()
-      );
+      // Actualizar: Solo se puede cambiar published
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['published']);
       
-      // Solo staff puede crear calificaciones
-      allow create: if request.auth != null && isStaff();
+      // Eliminar: Deshabilitado
+      allow delete: if false;
+    }
+    
+    // ==========================================
+    // MATERIAS (SUBJECTS)
+    // ==========================================
+    match /subjects/{subjectId} {
+      allow read: if true;
       
-      // Solo quien creó la calificación o el admin puede actualizar/eliminar
-      allow update, delete: if request.auth != null && (
-        request.auth.uid == resource.data.createdByUid ||
-        isMainAdmin()
-      );
+      allow create: if request.resource.data.keys().hasAll(['name', 'subjectId', 'courseLevel', 'teacherUid', 'createdByUid']) &&
+                       request.resource.data.name is string &&
+                       request.resource.data.subjectId is int &&
+                       request.resource.data.courseLevel is int &&
+                       request.resource.data.teacherUid is string &&
+                       request.resource.data.createdByUid is string &&
+                       request.resource.data.studentUids is list;
+      
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasAny(['teacherUid', 'studentUids', 'updatedAt']) ||
+                       // Permitir actualización completa si los campos requeridos están presentes
+                       (request.resource.data.keys().hasAll(['name', 'subjectId', 'courseLevel', 'teacherUid']));
+      
+      allow delete: if false;
+    }
+    
+    // ==========================================
+    // HORARIOS (SCHEDULES)
+    // ==========================================
+    match /schedules/{scheduleId} {
+      allow read: if true;
+      
+      allow create: if request.resource.data.keys().hasAll(['dayOfWeek', 'startTime', 'endTime', 'subjectId', 'courseLevel', 'createdByUid']) &&
+                       request.resource.data.dayOfWeek is int &&
+                       request.resource.data.startTime is string &&
+                       request.resource.data.endTime is string &&
+                       request.resource.data.subjectId is int &&
+                       request.resource.data.courseLevel is int &&
+                       request.resource.data.createdByUid is string;
+      
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasAny(['dayOfWeek', 'startTime', 'endTime', 'subjectId', 'courseLevel', 'updatedAt']);
+      
+      allow delete: if false;
+    }
+    
+    // ==========================================
+    // ASIGNACIONES DE DOCENTES (legacy, si se usa)
+    // ==========================================
+    match /subjectAssignments/{assignmentId} {
+      allow read: if true;
+      allow write: if request.resource.data.keys().hasAll(['subjectId', 'courseLevel', 'teacherUid', 'createdByUid']);
+    }
+    
+    match /teacherAssignments/{assignmentId} {
+      allow read: if true;
+      allow write: if request.resource.data.keys().hasAll(['subjectId', 'courseLevel', 'teacherUid', 'createdByUid']);
     }
   }
 }
-

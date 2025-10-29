@@ -32,6 +32,10 @@ export const Settings: React.FC = () => {
     const [selectedCourse, setSelectedCourse] = useState<number | ''>('');
     const [selectedSubject, setSelectedSubject] = useState<number | ''>('');
     const [isCreating, setIsCreating] = useState(false);
+    const [isSelectingStudents, setIsSelectingStudents] = useState(false);
+    const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
+    const [selectedStudentUids, setSelectedStudentUids] = useState<Set<string>>(new Set());
+    const [filterCourse, setFilterCourse] = useState<number | ''>('');
 
     // Filtrar usuarios por rol
     const students = useMemo(() => 
@@ -141,25 +145,28 @@ export const Settings: React.FC = () => {
         }
     };
 
-    // Función para asignar estudiantes a una materia
-    const handleAssignStudents = async (subjectId: string) => {
+    // Función para asignar todos los estudiantes a una materia
+    const handleAssignAllStudents = async (subjectId: string) => {
         const subject = subjects.find(s => s.id === subjectId);
         if (!subject) return;
 
         const courseName = getCourseName(subject.courseLevel);
         const subjectName = subject.name;
+        
+        // Obtener estudiantes del curso de la materia
+        const studentsInSubjectCourse = students.filter(s => s.level === subject.courseLevel);
 
         const result = await Swal.fire({
             title: '¿Asignar todos los estudiantes?',
             html: `
                 <div style="text-align: left;">
                     <p style="margin-bottom: 8px;">¿Estás seguro de que deseas asignar <strong>TODOS</strong> los estudiantes de ${courseName} a la materia <strong>${subjectName}</strong>?</p>
-                    <p style="font-size: 0.875rem; color: #6b7280;">Esta acción asignará ${studentsInCourse.length} estudiantes a la materia.</p>
+                    <p style="font-size: 0.875rem; color: #6b7280;">Esta acción asignará ${studentsInSubjectCourse.length} estudiantes a la materia.</p>
                 </div>
             `,
             icon: 'question',
             showCancelButton: true,
-            confirmButtonText: 'Sí, Asignar',
+            confirmButtonText: 'Sí, Asignar Todos',
             cancelButtonText: 'Cancelar',
             confirmButtonColor: '#16a34a',
             cancelButtonColor: '#6b7280',
@@ -168,7 +175,7 @@ export const Settings: React.FC = () => {
 
         if (result.isConfirmed) {
             try {
-                const studentUids = studentsInCourse.map(s => s.uid);
+                const studentUids = studentsInSubjectCourse.map(s => s.uid);
                 await assignMultipleStudentsToSubject(subjectId, studentUids);
                 toast.success(`Se asignaron ${studentUids.length} estudiantes a ${subjectName}`);
             } catch (error) {
@@ -177,6 +184,59 @@ export const Settings: React.FC = () => {
             }
         }
     };
+
+    // Función para abrir el modal de selección de estudiantes
+    const handleOpenStudentSelection = (subjectId: string) => {
+        const subject = subjects.find(s => s.id === subjectId);
+        if (!subject) return;
+        
+        setSelectedSubjectId(subjectId);
+        // Preseleccionar estudiantes ya asignados
+        const assignedUids = new Set(subject.studentUids);
+        setSelectedStudentUids(assignedUids);
+        // Filtrar por el curso de la materia por defecto
+        setFilterCourse(subject.courseLevel);
+        setIsSelectingStudents(true);
+    };
+
+    // Función para guardar la selección de estudiantes
+    const handleSaveSelectedStudents = async () => {
+        if (!selectedSubjectId) return;
+
+        const subject = subjects.find(s => s.id === selectedSubjectId);
+        if (!subject) return;
+
+        try {
+            const studentUidsArray = Array.from(selectedStudentUids);
+            // Actualizar los estudiantes directamente (reemplazar la lista completa)
+            await updateSubject(selectedSubjectId, { studentUids: studentUidsArray });
+            toast.success(`Se asignaron ${studentUidsArray.length} estudiantes a ${subject.name}`);
+            setIsSelectingStudents(false);
+            setSelectedSubjectId(null);
+            setSelectedStudentUids(new Set());
+            setFilterCourse('');
+        } catch (error) {
+            console.error('Error al asignar estudiantes:', error);
+            toast.error('Error al asignar estudiantes');
+        }
+    };
+
+    // Función para cancelar la selección
+    const handleCancelStudentSelection = () => {
+        setIsSelectingStudents(false);
+        setSelectedSubjectId(null);
+        setSelectedStudentUids(new Set());
+        setFilterCourse('');
+    };
+
+    // Obtener estudiantes filtrados por curso (para el modal)
+    const studentsForSelection = useMemo(() => {
+        if (filterCourse === '') {
+            // Si no hay filtro, mostrar todos los estudiantes
+            return students;
+        }
+        return students.filter(s => s.level === filterCourse);
+    }, [students, filterCourse]);
 
     // Función para remover estudiante de una materia
     const handleRemoveStudent = async (subjectId: string, studentUid: string) => {
@@ -415,13 +475,22 @@ export const Settings: React.FC = () => {
                                     <div>
                                         <div className="flex justify-between items-center mb-2">
                                             <h5 className="font-medium text-gray-700">Estudiantes Asignados ({assignedStudents.length})</h5>
-                                            <button
-                                                onClick={() => handleAssignStudents(subject.id)}
-                                                className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm"
-                                            >
-                                                <HiPlus className="w-4 h-4 inline mr-1" />
-                                                Asignar Todos
-                                            </button>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => handleOpenStudentSelection(subject.id)}
+                                                    className="px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm"
+                                                >
+                                                    <HiUsers className="w-4 h-4 inline mr-1" />
+                                                    Seleccionar
+                                                </button>
+                                                <button
+                                                    onClick={() => handleAssignAllStudents(subject.id)}
+                                                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm"
+                                                >
+                                                    <HiPlus className="w-4 h-4 inline mr-1" />
+                                                    Asignar Todos
+                                                </button>
+                                            </div>
                                         </div>
                                         
                                         {assignedStudents.length === 0 ? (
@@ -476,6 +545,146 @@ export const Settings: React.FC = () => {
                     ))}
                 </div>
             </div>
+
+            {/* Modal de Selección de Estudiantes */}
+            {isSelectingStudents && selectedSubjectId && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
+                        <div className="p-6 border-b">
+                            <h3 className="text-xl font-semibold text-gray-800">
+                                Seleccionar Estudiantes para {subjects.find(s => s.id === selectedSubjectId)?.name}
+                            </h3>
+                            <p className="text-sm text-gray-600 mt-1">
+                                {getCourseName(subjects.find(s => s.id === selectedSubjectId)?.courseLevel || 0)}
+                            </p>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-6">
+                            {/* Filtro por curso */}
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Filtrar por Curso
+                                </label>
+                                <select
+                                    value={filterCourse}
+                                    onChange={(e) => setFilterCourse(e.target.value ? Number(e.target.value) : '')}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="">Todos los cursos</option>
+                                    {getCourseOptions().map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="mb-4 flex items-center justify-between">
+                                <p className="text-sm text-gray-600">
+                                    Seleccionados: <span className="font-semibold">{selectedStudentUids.size}</span> 
+                                    {filterCourse !== '' && (
+                                        <span> de {studentsForSelection.length} en {getCourseName(filterCourse)}</span>
+                                    )}
+                                    {filterCourse === '' && (
+                                        <span> de {students.length} totales</span>
+                                    )}
+                                </p>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => {
+                                            const allUids = new Set(studentsForSelection.map(s => s.uid));
+                                            // Mantener los que ya estaban seleccionados de otros cursos
+                                            const merged = new Set([...selectedStudentUids, ...allUids]);
+                                            setSelectedStudentUids(merged);
+                                        }}
+                                        className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                                    >
+                                        Seleccionar Todos (Filtrado)
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            // Deseleccionar solo los del curso filtrado actual
+                                            const newSet = new Set(selectedStudentUids);
+                                            studentsForSelection.forEach(s => {
+                                                newSet.delete(s.uid);
+                                            });
+                                            setSelectedStudentUids(newSet);
+                                        }}
+                                        className="text-sm text-gray-600 hover:text-gray-700"
+                                    >
+                                        Deseleccionar (Filtrado)
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                                {studentsForSelection.map((student) => (
+                                    <label
+                                        key={student.uid}
+                                        className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                                            selectedStudentUids.has(student.uid)
+                                                ? 'bg-blue-50 border-blue-300'
+                                                : 'bg-white border-gray-200 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedStudentUids.has(student.uid)}
+                                            onChange={(e) => {
+                                                const newSet = new Set(selectedStudentUids);
+                                                if (e.target.checked) {
+                                                    newSet.add(student.uid);
+                                                } else {
+                                                    newSet.delete(student.uid);
+                                                }
+                                                setSelectedStudentUids(newSet);
+                                            }}
+                                            className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                                        />
+                                        <div className="flex-1 flex items-center justify-between">
+                                            <div>
+                                                <span className="font-medium text-gray-800">{student.name}</span>
+                                                {student.mail && (
+                                                    <p className="text-sm text-gray-600">{student.mail}</p>
+                                                )}
+                                            </div>
+                                            {student.level && (
+                                                <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium">
+                                                    {getCourseName(student.level)}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
+                            
+                            {studentsForSelection.length === 0 && (
+                                <div className="text-center py-8 text-gray-500">
+                                    {filterCourse === '' 
+                                        ? 'No hay estudiantes registrados' 
+                                        : `No hay estudiantes en ${getCourseName(filterCourse)}`
+                                    }
+                                </div>
+                            )}
+                        </div>
+                        
+                        <div className="p-6 border-t flex gap-3 justify-end">
+                            <button
+                                onClick={handleCancelStudentSelection}
+                                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleSaveSelectedStudents}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                                Guardar Selección ({selectedStudentUids.size})
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </section>
     );
 }

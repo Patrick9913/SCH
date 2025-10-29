@@ -150,19 +150,9 @@ export const AssignmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const getStudentsInSubject = (subjectId: number, courseLevel: number): string[] => {
-    const result = subjectAssignments
+    return subjectAssignments
       .filter(a => a.subjectId === subjectId && a.courseLevel === courseLevel)
       .map(a => a.studentUid);
-    
-    console.log('getStudentsInSubject:', {
-      subjectId,
-      courseLevel,
-      totalAssignments: subjectAssignments.length,
-      matchingAssignments: subjectAssignments.filter(a => a.subjectId === subjectId && a.courseLevel === courseLevel),
-      result
-    });
-    
-    return result;
   };
 
   // Teacher Assignment functions

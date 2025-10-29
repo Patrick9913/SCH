@@ -40,7 +40,7 @@ export interface User {
   asig?: number;
   password?: string; // Para usuarios pendientes
   createdAt?: Date;
-  status?: 'pending' | 'active'; // Estado del usuario
+  status?: 'pending' | 'active' | 'suspended'; // Estado del usuario
 }
 
 export interface PersonalView {
