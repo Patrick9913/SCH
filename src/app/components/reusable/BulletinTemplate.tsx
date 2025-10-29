@@ -75,12 +75,18 @@ export const BulletinTemplate: React.FC<BulletinTemplateProps> = ({
 
   // Función para obtener el nombre de la materia
   const getSubjectName = (subjectId: number) => {
-    return Assignments[subjectId as keyof typeof Assignments] || `Materia ${subjectId}`;
+    const assignmentKey = Object.keys(Assignments).find(
+      key => Assignments[key as keyof typeof Assignments] === subjectId
+    ) as keyof typeof Assignments | undefined;
+    return assignmentKey || `Materia ${subjectId}`;
   };
 
   // Función para obtener el nombre del curso
   const getCourseName = (courseLevel: number) => {
-    return UserCurses[courseLevel as keyof typeof UserCurses] || `Curso ${courseLevel}`;
+    const courseKey = Object.keys(UserCurses).find(
+      key => UserCurses[key as keyof typeof UserCurses] === courseLevel
+    ) as keyof typeof UserCurses | undefined;
+    return courseKey || `Curso ${courseLevel}`;
   };
 
   // Función para obtener la calificación de un período específico
