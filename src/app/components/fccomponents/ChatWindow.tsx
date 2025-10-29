@@ -18,7 +18,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat }) => {
   const [isTyping, setIsTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Mapeo de usuarios para obtener nombres
   const uidToName = useMemo(() => {
