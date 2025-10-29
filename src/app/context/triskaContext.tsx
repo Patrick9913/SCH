@@ -88,25 +88,90 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
                 return unsubscribe;
             } else if (user.role === 3) {
-                // Usuario común: obtener solo su propio documento en tiempo real usando el id del documento
+                // Estudiante: obtener su propio documento Y los profesores asignados a sus materias
                 const userDocRef = doc(db, "users", user.id);
+                let studentData: User | null = null;
                 
-                const unsubscribe = onSnapshot(userDocRef, (snapshot) => {
+                // Función para actualizar usuarios cuando cambian las materias o el estudiante
+                const updateUsersWithTeachers = async () => {
+                    if (!studentData) return;
+                    
+                    try {
+                        // Obtener las materias asignadas al estudiante para obtener los teacherUids
+                        const subjectsRef = collection(db, "subjects");
+                        const subjectsSnapshot = await getDocs(subjectsRef);
+                        
+                        const teacherUids = new Set<string>();
+                        subjectsSnapshot.docs.forEach(doc => {
+                            const subjectData = doc.data();
+                            const studentUids = subjectData.studentUids || [];
+                            if (studentUids.includes(user.id) && subjectData.teacherUid) {
+                                teacherUids.add(subjectData.teacherUid);
+                            }
+                        });
+                        
+                        // Obtener los profesores asignados
+                        if (teacherUids.size > 0) {
+                            const teachersPromises = Array.from(teacherUids).map(async (teacherUid) => {
+                                try {
+                                    const teacherDoc = await getDoc(doc(db, "users", teacherUid));
+                                    if (teacherDoc.exists()) {
+                                        const teacherData = teacherDoc.data();
+                                        return {
+                                            id: teacherDoc.id,
+                                            ...teacherData,
+                                            uid: (teacherData.uid as string) || teacherDoc.id,
+                                        } as User;
+                                    }
+                                } catch (error) {
+                                    console.error(`Error obteniendo profesor ${teacherUid}:`, error);
+                                }
+                                return null;
+                            });
+                            
+                            const teachers = await Promise.all(teachersPromises);
+                            const validTeachers = teachers.filter(t => t !== null) as User[];
+                            
+                            // Combinar estudiante + profesores
+                            setUsers([studentData, ...validTeachers]);
+                        } else {
+                            setUsers([studentData]);
+                        }
+                    } catch (error) {
+                        console.error("Error obteniendo profesores:", error);
+                        setUsers(studentData ? [studentData] : []);
+                    }
+                };
+                
+                // Suscribirse a cambios en el documento del estudiante
+                const unsubscribeSelf = onSnapshot(userDocRef, (snapshot) => {
                     if (snapshot.exists()) {
                         const data = snapshot.data();
-                        const userData = { 
+                        studentData = { 
                             id: snapshot.id, 
                             ...data,
-                            // Asegurar que uid sea igual a id para compatibilidad
                             uid: (data.uid as string) || snapshot.id,
                         } as User;
-                        setUsers([userData]);
+                        // Actualizar profesores cuando cambia el estudiante
+                        updateUsersWithTeachers();
                     } else {
+                        studentData = null;
                         setUsers([]);
                     }
                 });
 
-                return unsubscribe;
+                // También suscribirse a cambios en las materias para actualizar cuando cambien los profesores
+                const subjectsRef = collection(db, "subjects");
+                const unsubscribeSubjects = onSnapshot(subjectsRef, () => {
+                    // Cuando cambian las materias, actualizar la lista de profesores
+                    updateUsersWithTeachers();
+                });
+
+                // Retornar función de limpieza combinada
+                return () => {
+                    unsubscribeSelf();
+                    unsubscribeSubjects();
+                };
             } else if (user.role === 4) {
                 // Docente: obtener todos los usuarios estudiantes para poder filtrarlos después
                 const unsubscribe = onSnapshot(userRef, (snapshot) => {

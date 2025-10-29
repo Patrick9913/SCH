@@ -74,6 +74,30 @@ export const Home: React.FC = () => {
         return new Set(studentSubjects.map(s => s.subjectId));
     }, [studentSubjects]);
 
+    // Para estudiantes: obtener solo los profesores asignados a sus materias
+    const availableTeachers = useMemo(() => {
+        if (!user || user.role !== 3) {
+            // Si no es estudiante, devolver todos los usuarios (para admins, etc.)
+            return users;
+        }
+        
+        // Extraer todos los teacherUids de las materias asignadas al estudiante
+        const teacherUids = new Set<string>();
+        studentSubjects.forEach(subject => {
+            if (subject.teacherUid) {
+                teacherUids.add(subject.teacherUid);
+            }
+        });
+        
+        // Filtrar usuarios para incluir solo:
+        // 1. El mismo estudiante (su propio perfil)
+        // 2. Los profesores asignados a sus materias
+        return users.filter(u => 
+            u.uid === user.uid || // Su propio perfil
+            (teacherUids.has(u.uid) && u.role === 4) // Profesores asignados
+        );
+    }, [user, users, studentSubjects]);
+
     // Generar bloques de tiempo (7:45 a 16:30 en bloques de 40 minutos)
     const timeSlots = useMemo(() => {
         const slots: string[] = [];
@@ -400,166 +424,162 @@ export const Home: React.FC = () => {
                                     const daySchedules = studentWeeklySchedule?.[day] || [];
                                     const dayScheduleGroups = scheduleGroups[day] || [];
                                     
+                                    // Altura fija para cada bloque azul
+                                    const BLOCK_HEIGHT = 60; // Altura fija en píxeles
+                                    
                                     return (
                                         <div key={day} className="flex border-b border-gray-200 last:border-b-0">
                                             <div className="w-24 flex-shrink-0 p-3 text-sm font-medium text-gray-900 border-r border-gray-200 bg-gray-50">
                                                 {DayLabelsShort[day as keyof typeof DayLabelsShort]}
                                             </div>
-                                            <div className="flex-1 relative" style={{ minHeight: '80px' }}>
+                                            <div className="flex-1 relative">
                                                 {daySchedules.length === 0 ? (
                                                     /* Mensaje si no hay clases */
                                                     <div className="absolute inset-0 flex items-center justify-center">
                                                         <span className="text-gray-400 text-xs">Sin clases</span>
                                                     </div>
-                                                ) : (
-                                                    /* Renderizar bloques de tiempo con información de las clases */
-                                                    <div className="flex h-full relative">
-                                                        {/* Slots de tiempo como fondo/referencia */}
-                                                        {timeSlots.map((timeSlot, slotIndex) => (
-                                                            <div
-                                                                key={slotIndex}
-                                                                className="flex-1 min-w-[80px] h-full border-r border-gray-200 last:border-r-0 bg-white hover:bg-gray-50 transition-colors"
-                                                            />
-                                                        ))}
+                                                ) : (() => {
+                                                        // Primero calcular cuántas filas hay para saber la altura total
+                                                        const sortedGroups = [...dayScheduleGroups].sort((a, b) => a.startSlot - b.startSlot);
+                                                        const tempRows: Array<Array<[number, number]>> = [];
+                                                        const tempGroupRowMap = new Map<string, number>();
+                                                        
+                                                        sortedGroups.forEach(group => {
+                                                            let assignedRow = -1;
+                                                            for (let rowIndex = 0; rowIndex < tempRows.length; rowIndex++) {
+                                                                const rowRanges = tempRows[rowIndex];
+                                                                const canFit = rowRanges.every(([start, end]) => {
+                                                                    return group.endSlot < start || group.startSlot > end;
+                                                                });
+                                                                if (canFit) {
+                                                                    assignedRow = rowIndex;
+                                                                    break;
+                                                                }
+                                                            }
+                                                            if (assignedRow === -1) {
+                                                                assignedRow = tempRows.length;
+                                                                tempRows.push([]);
+                                                            }
+                                                            tempGroupRowMap.set(group.schedule.id, assignedRow);
+                                                            tempRows[assignedRow].push([group.startSlot, group.endSlot]);
+                                                            tempRows[assignedRow].sort((a, b) => a[0] - b[0]);
+                                                        });
+                                                        
+                                                        const calculatedRowHeight = tempRows.length * BLOCK_HEIGHT + (tempRows.length > 1 ? (tempRows.length - 1) * 4 : 0);
+                                                        
+                                                        return (
+                                                            <div className="flex relative" style={{ height: `${calculatedRowHeight}px`, minHeight: `${BLOCK_HEIGHT}px` }}>
+                                                                {/* Slots de tiempo como fondo/referencia */}
+                                                                {timeSlots.map((timeSlot, slotIndex) => (
+                                                                    <div
+                                                                        key={slotIndex}
+                                                                        className="flex-1 min-w-[80px] border-r border-gray-200 last:border-r-0 bg-white hover:bg-gray-50 transition-colors"
+                                                                        style={{ height: `${calculatedRowHeight}px` }}
+                                                                    />
+                                                                ))}
                                                         
                                                         {(() => {
-                                                            // Separar grupos que se solapan de los que no
-                                                            const nonOverlappingGroups: typeof dayScheduleGroups = [];
-                                                            const overlappingGroups: Array<typeof dayScheduleGroups> = [];
-                                                            const processed = new Set<string>();
+                                                            // Algoritmo de asignación inteligente: asignar cada materia a la primera fila disponible
+                                                            // Ordenar grupos por hora de inicio
+                                                            const sortedGroups = [...dayScheduleGroups].sort((a, b) => a.startSlot - b.startSlot);
                                                             
-                                                            // Detectar solapamientos
-                                                            const slotOccupancy: Record<number, typeof dayScheduleGroups> = {};
-                                                            dayScheduleGroups.forEach(group => {
-                                                                for (let slot = group.startSlot; slot <= group.endSlot; slot++) {
-                                                                    if (!slotOccupancy[slot]) slotOccupancy[slot] = [];
-                                                                    slotOccupancy[slot].push(group);
-                                                                }
-                                                            });
+                                                            // Representar cada fila como un array de rangos ocupados [startSlot, endSlot]
+                                                            const rows: Array<Array<[number, number]>> = [];
                                                             
-                                                            dayScheduleGroups.forEach(group => {
-                                                                const groupKey = group.schedule.id;
-                                                                if (processed.has(groupKey)) return;
+                                                            // Asignar cada grupo a una fila
+                                                            const groupRowMap = new Map<string, number>(); // group.schedule.id -> rowIndex
+                                                            
+                                                            sortedGroups.forEach(group => {
+                                                                // Buscar la primera fila donde hay espacio disponible
+                                                                let assignedRow = -1;
                                                                 
-                                                                // Verificar si este grupo se solapa con otros
-                                                                let overlaps = false;
-                                                                const overlappingSet: typeof dayScheduleGroups = [group];
-                                                                
-                                                                for (let slot = group.startSlot; slot <= group.endSlot; slot++) {
-                                                                    if (slotOccupancy[slot].length > 1) {
-                                                                        overlaps = true;
-                                                                        slotOccupancy[slot].forEach(otherGroup => {
-                                                                            if (otherGroup.schedule.id !== groupKey && !processed.has(otherGroup.schedule.id)) {
-                                                                                overlappingSet.push(otherGroup);
-                                                                                processed.add(otherGroup.schedule.id);
-                                                                            }
-                                                                        });
+                                                                for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+                                                                    const rowRanges = rows[rowIndex];
+                                                                    // Verificar si este grupo puede caber en esta fila sin solaparse
+                                                                    const canFit = rowRanges.every(([start, end]) => {
+                                                                        // No hay solapamiento si el grupo termina antes de que empiece otro
+                                                                        // o empieza después de que termine otro
+                                                                        return group.endSlot < start || group.startSlot > end;
+                                                                    });
+                                                                    
+                                                                    if (canFit) {
+                                                                        assignedRow = rowIndex;
                                                                         break;
                                                                     }
                                                                 }
                                                                 
-                                                                if (overlaps && overlappingSet.length > 1) {
-                                                                    overlappingGroups.push(overlappingSet);
-                                                                    overlappingSet.forEach(g => processed.add(g.schedule.id));
-                                                                } else {
-                                                                    nonOverlappingGroups.push(group);
-                                                                    processed.add(groupKey);
+                                                                // Si no hay fila disponible, crear una nueva
+                                                                if (assignedRow === -1) {
+                                                                    assignedRow = rows.length;
+                                                                    rows.push([]);
+                                                                }
+                                                                
+                                                                // Asignar el grupo a la fila
+                                                                groupRowMap.set(group.schedule.id, assignedRow);
+                                                                rows[assignedRow].push([group.startSlot, group.endSlot]);
+                                                                
+                                                                // Ordenar los rangos de la fila
+                                                                rows[assignedRow].sort((a, b) => a[0] - b[0]);
+                                                            });
+                                                            
+                                                            // Agrupar materias por fila asignada
+                                                            const groupsByRow: Array<typeof dayScheduleGroups> = [];
+                                                            for (let i = 0; i < rows.length; i++) {
+                                                                groupsByRow.push([]);
+                                                            }
+                                                            
+                                                            dayScheduleGroups.forEach(group => {
+                                                                const rowIndex = groupRowMap.get(group.schedule.id);
+                                                                if (rowIndex !== undefined) {
+                                                                    groupsByRow[rowIndex].push(group);
                                                                 }
                                                             });
                                                             
+                                                            // Calcular altura total de la fila: altura fija por bloque * cantidad de filas
+                                                            const totalRowHeight = rows.length * BLOCK_HEIGHT + (rows.length > 1 ? (rows.length - 1) * 4 : 0); // 4px de separación entre bloques
+                                                            
                                                             return (
                                                                 <>
-                                                                    {/* Renderizar bloques únicos que abarcan múltiples slots */}
-                                                                    {nonOverlappingGroups.map((group, groupIdx) => {
-                                                                        const slotCount = group.endSlot - group.startSlot + 1;
-                                                                        const leftPercent = (group.startSlot / timeSlots.length) * 100;
-                                                                        const widthPercent = (slotCount / timeSlots.length) * 100;
+                                                                    {groupsByRow.map((rowGroups, rowIndex) => {
+                                                                        const topPosition = rowIndex * (BLOCK_HEIGHT + 4); // 4px de separación entre filas
                                                                         
-                                                                        return (
-                                                                            <div
-                                                                                key={`${group.schedule.id}-${group.startSlot}`}
-                                                                                className="absolute bg-blue-500 text-white border border-blue-600 rounded"
-                                                                                style={{
-                                                                                    left: `${leftPercent}%`,
-                                                                                    width: `${widthPercent}%`,
-                                                                                    height: 'calc(100% - 4px)',
-                                                                                    zIndex: groupIdx + 1,
-                                                                                    top: '2px',
-                                                                                    bottom: '2px'
-                                                                                }}
-                                                                            >
-                                                                                {/* Información de la materia - solo una vez */}
-                                                                                <div className="p-2 flex flex-col justify-center h-full pointer-events-none">
-                                                                                    <div className="text-xs font-semibold mb-1 truncate">
-                                                                                        {group.schedule.subjectName || getSubjectName(group.schedule.subjectId)}
-                                                                                    </div>
-                                                                                    <div className="text-xs opacity-90 truncate">
-                                                                                        {group.schedule.startTime} - {group.schedule.endTime}
-                                                                                    </div>
-                                                                                    {group.schedule.classroom && (
-                                                                                        <div className="text-xs opacity-75 truncate mt-1">
-                                                                                            Aula: {group.schedule.classroom}
-                                                                                        </div>
-                                                                                    )}
-                                                                                </div>
-                                                                            </div>
-                                                                        );
-                                                                    })}
-                                                                    
-                                                                    {/* Renderizar grupos apilados que se solapan */}
-                                                                    {overlappingGroups.map((stackedGroups, stackIdx) => {
-                                                                        // Encontrar el rango común de slots
-                                                                        const minSlot = Math.min(...stackedGroups.map(g => g.startSlot));
-                                                                        const maxSlot = Math.max(...stackedGroups.map(g => g.endSlot));
-                                                                        const commonSlots = [];
-                                                                        for (let s = minSlot; s <= maxSlot; s++) {
-                                                                            if (slotOccupancy[s]?.length === stackedGroups.length) {
-                                                                                commonSlots.push(s);
-                                                                            }
-                                                                        }
-                                                                        
-                                                                        const leftPercent = (minSlot / timeSlots.length) * 100;
-                                                                        const widthPercent = commonSlots.length > 0 
-                                                                            ? (commonSlots.length / timeSlots.length) * 100
-                                                                            : ((maxSlot - minSlot + 1) / timeSlots.length) * 100;
-                                                                        
-                                                                        return stackedGroups.map((group, groupIdx) => {
-                                                                            const heightPercent = `${100 / stackedGroups.length}%`;
-                                                                            const topPercent = `${(groupIdx * 100) / stackedGroups.length}%`;
+                                                                        return rowGroups.map((group) => {
+                                                                            const slotCount = group.endSlot - group.startSlot + 1;
+                                                                            const leftPercent = (group.startSlot / timeSlots.length) * 100;
+                                                                            const widthPercent = (slotCount / timeSlots.length) * 100;
                                                                             
                                                                             return (
                                                                                 <div
-                                                                                    key={`stacked-${group.schedule.id}-${stackIdx}-${groupIdx}`}
+                                                                                    key={`${group.schedule.id}-row-${rowIndex}`}
                                                                                     className="absolute bg-blue-500 text-white border border-blue-600 rounded"
                                                                                     style={{
                                                                                         left: `${leftPercent}%`,
                                                                                         width: `${widthPercent}%`,
-                                                                                        height: heightPercent,
-                                                                                        top: topPercent,
-                                                                                        zIndex: 100 + stackIdx * 10 + groupIdx
+                                                                                        height: `${BLOCK_HEIGHT}px`,
+                                                                                        top: `${topPosition}px`,
+                                                                                        zIndex: rowIndex + 1
                                                                                     }}
                                                                                 >
-                                                                                    <div className="p-1 flex flex-col justify-center h-full pointer-events-none">
-                                                                                        {groupIdx === 0 ? (
-                                                                                            <>
+                                                                                    {(() => {
+                                                                                        const teacher = group.schedule.teacherUid 
+                                                                                            ? availableTeachers.find(u => u.uid === group.schedule.teacherUid)
+                                                                                            : null;
+                                                                                        return (
+                                                                                            <div className="px-2 py-0.5 flex flex-col justify-center h-full pointer-events-none">
                                                                                                 <div className="text-xs font-semibold mb-0.5 truncate">
                                                                                                     {group.schedule.subjectName || getSubjectName(group.schedule.subjectId)}
                                                                                                 </div>
-                                                                                                <div className="text-xs opacity-90 truncate">
-                                                                                                    {group.schedule.startTime} - {group.schedule.endTime}
+                                                                                                <div className="text-xs opacity-90 truncate mb-0.5">
+                                                                                                    {teacher ? teacher.name : 'Sin profesor asignado'}
                                                                                                 </div>
                                                                                                 {group.schedule.classroom && (
-                                                                                                    <div className="text-xs opacity-75 truncate mt-0.5">
+                                                                                                    <div className="text-xs opacity-75 truncate">
                                                                                                         Aula: {group.schedule.classroom}
                                                                                                     </div>
                                                                                                 )}
-                                                                                            </>
-                                                                                        ) : (
-                                                                                            <div className="text-xs font-semibold truncate">
-                                                                                                {group.schedule.subjectName || getSubjectName(group.schedule.subjectId)}
                                                                                             </div>
-                                                                                        )}
-                                                                                    </div>
+                                                                                        );
+                                                                                    })()}
                                                                                 </div>
                                                                             );
                                                                         });
@@ -567,8 +587,9 @@ export const Home: React.FC = () => {
                                                                 </>
                                                             );
                                                         })()}
-                                                    </div>
-                                                )}
+                                                            </div>
+                                                        );
+                                                    })()}
                                             </div>
                                         </div>
                                     );
