@@ -100,6 +100,19 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     loadSession();
   }, []);
 
+  // Marcar offline de manera best-effort cuando se cierra la pestaña
+  useEffect(() => {
+    if (!uid) return;
+    const handleBeforeUnload = async () => {
+      try {
+        const { updateDoc } = await import("firebase/firestore");
+        await updateDoc(doc(db, "users", uid), { online: false, lastOnlineAt: Date.now() });
+      } catch {}
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [uid]);
+
   const login = async (email: string, password: string) => {
     try {
       // Buscar usuario por email en Firestore
@@ -112,6 +125,13 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
 
       const userDoc = querySnapshot.docs[0];
       const userData = { id: userDoc.id, ...userDoc.data() } as User;
+
+      // Bloquear si ya está online
+      if ((userData as any).online === true) {
+        const err: any = new Error('ALREADY_ONLINE');
+        err.code = 'ALREADY_ONLINE';
+        throw err;
+      }
 
       // Verificar password
       if (!userData.password) {
@@ -154,6 +174,12 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
         await updateDoc(doc(db, "users", userData.id), updateData);
       }
 
+      // Marcar usuario online
+      {
+        const { updateDoc } = await import("firebase/firestore");
+        await updateDoc(doc(db, "users", userData.id), { online: true, lastOnlineAt: Date.now() });
+      }
+
       // Guardar sesión en localStorage
       const sessionData = { userId: userData.id, timestamp: Date.now() };
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
@@ -168,6 +194,12 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   };
 
   const logout = async () => {
+    try {
+      if (uid) {
+        const { updateDoc } = await import("firebase/firestore");
+        await updateDoc(doc(db, "users", uid), { online: false, lastOnlineAt: Date.now() });
+      }
+    } catch {}
     localStorage.removeItem(SESSION_STORAGE_KEY);
     setUser(null);
     setUid(null);

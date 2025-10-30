@@ -12,12 +12,14 @@ const Login: React.FC = () => {
 
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
+  const [errorMsg, setErrorMsg] = useState<string>("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (email && password) {
       try {
+        setErrorMsg("");
         await login(email, password);
         Swal.fire({
           icon: "success",
@@ -26,20 +28,16 @@ const Login: React.FC = () => {
           timer: 1500,
         });
         router.push("/");
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error al iniciar sesión: ", error);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: "Credenciales incorrectas",
-        });
+        if (error?.code === 'ALREADY_ONLINE' || error?.message === 'ALREADY_ONLINE') {
+          setErrorMsg("Usted ya ha iniciado sesión en otro dispositivo. Cierre la sesión anterior para continuar.");
+        } else {
+          setErrorMsg("Credenciales incorrectas o cuenta no disponible.");
+        }
       }
     } else {
-      Swal.fire({
-        icon: "warning",
-        title: "Campos incompletos",
-        text: "Por favor, complete todos los campos.",
-      });
+      setErrorMsg("Por favor, complete todos los campos.");
     }
   };
 
@@ -65,6 +63,11 @@ const Login: React.FC = () => {
         <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-lg shadow-xl w-full max-w-sm p-10">
           <h1 className="text-2xl text-center font-bold mb-6 text-gray-800">Iniciar Sesión</h1>
           <form className="space-y-4" onSubmit={handleSubmit}>
+            {errorMsg && (
+              <div className="text-red-600 text-sm font-medium bg-red-50 border border-red-200 rounded p-2">
+                {errorMsg}
+              </div>
+            )}
             <div>
               <label htmlFor="email" className="block text-sm text-gray-700">
                 Correo Electrónico
