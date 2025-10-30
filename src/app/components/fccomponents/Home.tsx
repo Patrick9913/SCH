@@ -422,82 +422,82 @@ export const Home: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                             <button 
                                 onClick={() => setMenu(2)} 
-                                className="text-left p-5 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all"
+                                className="text-left p-5 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-all"
                             >
                                 <div className="flex items-center justify-between mb-2">
-                                    <HiBookOpen className="w-6 h-6 text-blue-600" />
+                                    <HiBookOpen className="w-6 h-6 text-gray-700" />
                                 </div>
-                                <h3 className="text-sm font-medium text-blue-700 mb-1">Materias</h3>
-                                <p className="text-3xl font-bold text-blue-900 mb-1">{statistics.totalSubjects}</p>
-                                <p className="text-xs text-blue-600">Total registradas</p>
+                                <h3 className="text-sm font-medium text-gray-600 mb-1">Materias</h3>
+                                <p className="text-3xl font-bold text-gray-900 mb-1">{statistics.totalSubjects}</p>
+                                <p className="text-xs text-gray-500">Total registradas</p>
                             </button>
                             
                             <button 
                                 onClick={() => setMenu(3)} 
-                                className="text-left p-5 bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg hover:border-green-300 hover:shadow-md transition-all"
+                                className="text-left p-5 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-all"
                             >
                                 <div className="flex items-center justify-between mb-2">
-                                    <HiUsers className="w-6 h-6 text-green-600" />
+                                    <HiUsers className="w-6 h-6 text-gray-700" />
                                 </div>
-                                <h3 className="text-sm font-medium text-green-700 mb-1">Estudiantes</h3>
-                                <p className="text-3xl font-bold text-green-900 mb-1">{statistics.totalStudents}</p>
-                                <p className="text-xs text-green-600">Alumnos activos</p>
+                                <h3 className="text-sm font-medium text-gray-600 mb-1">Estudiantes</h3>
+                                <p className="text-3xl font-bold text-gray-900 mb-1">{statistics.totalStudents}</p>
+                                <p className="text-xs text-gray-500">Alumnos activos</p>
                             </button>
                             
                             <button 
                                 onClick={() => setMenu(3)} 
-                                className="text-left p-5 bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg hover:border-purple-300 hover:shadow-md transition-all"
+                                className="text-left p-5 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-all"
                             >
                                 <div className="flex items-center justify-between mb-2">
-                                    <HiAcademicCap className="w-6 h-6 text-purple-600" />
+                                    <HiAcademicCap className="w-6 h-6 text-gray-700" />
                                 </div>
-                                <h3 className="text-sm font-medium text-purple-700 mb-1">Docentes</h3>
-                                <p className="text-3xl font-bold text-purple-900 mb-1">{statistics.totalTeachers}</p>
-                                <p className="text-xs text-purple-600">Profesores activos</p>
+                                <h3 className="text-sm font-medium text-gray-600 mb-1">Docentes</h3>
+                                <p className="text-3xl font-bold text-gray-900 mb-1">{statistics.totalTeachers}</p>
+                                <p className="text-xs text-gray-500">Profesores activos</p>
                             </button>
                             
                             <button 
                                 onClick={() => setMenu(3)} 
-                                className="text-left p-5 bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-md transition-all"
+                                className="text-left p-5 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-all"
                             >
                                 <div className="flex items-center justify-between mb-2">
-                                    <HiUser className="w-6 h-6 text-gray-600" />
+                                    <HiUser className="w-6 h-6 text-gray-700" />
                                 </div>
-                                <h3 className="text-sm font-medium text-gray-700 mb-1">Total Usuarios</h3>
+                                <h3 className="text-sm font-medium text-gray-600 mb-1">Total Usuarios</h3>
                                 <p className="text-3xl font-bold text-gray-900 mb-1">{statistics.totalUsers}</p>
-                                <p className="text-xs text-gray-600">Todos los usuarios</p>
+                                <p className="text-xs text-gray-500">Todos los usuarios</p>
                             </button>
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <button 
                                 onClick={() => setMenu(7)} 
-                                className="text-left p-5 bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-lg hover:border-emerald-300 hover:shadow-md transition-all"
+                                className="text-left p-5 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-all"
                             >
                                 <div className="flex items-center justify-between mb-2">
-                                    <HiDocumentText className="w-6 h-6 text-emerald-600" />
+                                    <HiDocumentText className="w-6 h-6 text-gray-700" />
                                 </div>
-                                <h3 className="text-sm font-medium text-emerald-700 mb-1">Boletines Publicados</h3>
-                                <p className="text-3xl font-bold text-emerald-900 mb-1">{statistics.publishedBulletins}</p>
-                                <p className="text-xs text-emerald-600">Calificaciones visibles</p>
+                                <h3 className="text-sm font-medium text-gray-600 mb-1">Boletines Publicados</h3>
+                                <p className="text-3xl font-bold text-gray-900 mb-1">{statistics.publishedBulletins}</p>
+                                <p className="text-xs text-gray-500">Calificaciones visibles</p>
                             </button>
                             
-                            <div className="text-left p-5 bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-lg">
+                            <div className="text-left p-5 bg-white border border-gray-200 rounded-lg">
                                 <div className="flex items-center justify-between mb-2">
-                                    <HiClipboardCheck className="w-6 h-6 text-amber-600" />
+                                    <HiClipboardCheck className="w-6 h-6 text-gray-700" />
                                 </div>
-                                <h3 className="text-sm font-medium text-amber-700 mb-1">Estudiantes sin Notas</h3>
-                                <p className="text-3xl font-bold text-amber-900 mb-1">{statistics.studentsWithoutGrades}</p>
-                                <p className="text-xs text-amber-600">Requieren atención</p>
+                                <h3 className="text-sm font-medium text-gray-600 mb-1">Estudiantes sin Notas</h3>
+                                <p className="text-3xl font-bold text-gray-900 mb-1">{statistics.studentsWithoutGrades}</p>
+                                <p className="text-xs text-gray-500">Requieren atención</p>
                             </div>
                             
-                            <div className="text-left p-5 bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200 rounded-lg">
+                            <div className="text-left p-5 bg-white border border-gray-200 rounded-lg">
                                 <div className="flex items-center justify-between mb-2">
-                                    <HiDocumentText className="w-6 h-6 text-indigo-600" />
+                                    <HiDocumentText className="w-6 h-6 text-gray-700" />
                                 </div>
-                                <h3 className="text-sm font-medium text-indigo-700 mb-1">Total Calificaciones</h3>
-                                <p className="text-3xl font-bold text-indigo-900 mb-1">{statistics.totalGrades}</p>
-                                <p className="text-xs text-indigo-600">Registros totales</p>
+                                <h3 className="text-sm font-medium text-gray-600 mb-1">Total Calificaciones</h3>
+                                <p className="text-3xl font-bold text-gray-900 mb-1">{statistics.totalGrades}</p>
+                                <p className="text-xs text-gray-500">Registros totales</p>
                             </div>
                         </div>
                     </div>
