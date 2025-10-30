@@ -460,40 +460,73 @@ export const Assignments: React.FC = () => {
                             const assignedStudents = students.filter(s => subject.studentUids.includes(s.uid));
                             return (
                                 <div key={subject.id} className="p-4 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors mb-4">
-                                    <div className="flex justify-between items-start mb-4">
+                                    <div className="flex justify-between items-start mb-3">
                                         <div>
                                             <h4 className="font-semibold text-gray-800 text-lg">{subject.name}</h4>
-                                            <p className="text-sm text-gray-600">{getCourseName(subject.courseLevel)}</p>
-                                            {subject.catedrasHours > 0 && (
-                                                <p className="text-xs text-gray-500 mt-1">Horas cátedras: <span className="font-medium">{subject.catedrasHours}</span></p>
-                                            )}
+                                            <p className="text-sm text-gray-600">{getCourseName(subject.courseLevel)}{subject.courseDivision ? ` ${subject.courseDivision}` : ''}</p>
                                         </div>
                                         <button onClick={() => handleDeleteSubject(subject.id)} className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm">
                                             <HiTrash className="w-4 h-4" />
                                         </button>
                                     </div>
+
+                                    {/* Resumen compacto */}
+                                    {(() => {
+                                        const teacher = teachers.find(t => t.uid === subject.teacherUid);
+                                        const assignedStudents = students.filter(s => subject.studentUids.includes(s.uid));
+                                        const totalStudentsInCourseDivision = students.filter(s => s.level === subject.courseLevel && (subject.courseDivision ? s.division === subject.courseDivision : true)).length;
+                                        const actualSchedules = getSchedulesBySubject(subject.subjectId, subject.courseLevel);
+                                        const scheduleCount = (actualSchedules?.length || 0) + (actualSchedules.length === 0 ? (subject.plannedSchedules?.length || 0) : 0);
+
+                                        return (
+                                            <div className="flex flex-wrap items-center gap-2 mb-4">
+                                                <span className={`px-2 py-1 rounded text-xs font-medium ${teacher ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                                    {teacher ? `Docente: ${teacher.name}` : 'Sin docente'}
+                                                </span>
+                                                <span className={`px-2 py-1 rounded text-xs font-medium ${assignedStudents.length > 0 ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
+                                                    Alumnos: {assignedStudents.length}/{totalStudentsInCourseDivision}
+                                                </span>
+                                                <span className={`px-2 py-1 rounded text-xs font-medium ${scheduleCount > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-red-100 text-red-700'}`}>
+                                                    Horarios: {scheduleCount}
+                                                </span>
+                                                {subject.catedrasHours > 0 && (
+                                                    <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700">Horas cátedra: {subject.catedrasHours}</span>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
+
+                                    {/* Docente */}
                                     <div className="mb-4">
                                         <h5 className="font-medium text-gray-700 mb-2">Docente Asignado</h5>
-                                        {teacher ? (
-                                            <div className="flex items-center justify-between bg-white rounded p-3 border">
-                                                <div>
-                                                    <span className="font-medium">{teacher.name}</span>
-                                                    <p className="text-sm text-gray-600">{teacher.mail}</p>
+                                        {(() => {
+                                            const teacher = teachers.find(t => t.uid === subject.teacherUid);
+                                            if (teacher) {
+                                                return (
+                                                    <div className="flex items-center justify-between bg-white rounded p-3 border">
+                                                        <div>
+                                                            <span className="font-medium">{teacher.name}</span>
+                                                            <p className="text-sm text-gray-600">{teacher.mail}</p>
+                                                        </div>
+                                                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-sm"><HiCheck className="w-4 h-4 inline mr-1" />Asignado</span>
+                                                    </div>
+                                                );
+                                            }
+                                            return (
+                                                <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                                                    <p className="text-sm text-yellow-700">No hay docente asignado</p>
+                                                    <div className="mt-2">
+                                                        <select onChange={(e) => { if (e.target.value) { handleAssignTeacher(subject.id, e.target.value); e.target.value = ''; } }} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                                            <option value="">Seleccionar docente</option>
+                                                            {teachers.map((t) => (<option key={t.uid} value={t.uid}>{t.name}</option>))}
+                                                        </select>
+                                                    </div>
                                                 </div>
-                                                <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-sm"><HiCheck className="w-4 h-4 inline mr-1" />Asignado</span>
-                                            </div>
-                                        ) : (
-                                            <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                                                <p className="text-sm text-yellow-700">No hay docente asignado</p>
-                                                <div className="mt-2">
-                                                    <select onChange={(e) => { if (e.target.value) { handleAssignTeacher(subject.id, e.target.value); e.target.value = ''; } }} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                                        <option value="">Seleccionar docente</option>
-                                                        {teachers.map((t) => (<option key={t.uid} value={t.uid}>{t.name}</option>))}
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        )}
+                                            );
+                                        })()}
                                     </div>
+
+                                    {/* Horarios */}
                                     <div className="mb-4">
                                         <h5 className="font-medium text-gray-700 mb-2 flex items-center gap-2"><HiClock className="w-4 h-4" />Horarios de Clase</h5>
                                         {(() => {
@@ -538,29 +571,35 @@ export const Assignments: React.FC = () => {
                                             );
                                         })()}
                                     </div>
+
+                                    {/* Estudiantes */}
                                     <div>
                                         <div className="flex justify-between items-center mb-2">
-                                            <h5 className="font-medium text-gray-700">Estudiantes Asignados ({assignedStudents.length})</h5>
+                                            <h5 className="font-medium text-gray-700">Estudiantes Asignados ({students.filter(s => subject.studentUids.includes(s.uid)).length})</h5>
                                             <div className="flex gap-2">
                                                 <button onClick={() => handleOpenStudentSelection(subject.id)} className="px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm"><HiUsers className="w-4 h-4 inline mr-1" />Seleccionar</button>
                                                 <button onClick={() => handleAssignAllStudents(subject.id)} className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm"><HiPlus className="w-4 h-4 inline mr-1" />Asignar Todos</button>
                                             </div>
                                         </div>
-                                        {assignedStudents.length === 0 ? (
-                                            <div className="bg-yellow-50 border border-yellow-200 rounded p-3"><p className="text-sm text-yellow-700">No hay estudiantes asignados</p></div>
-                                        ) : (
-                                            <div className="space-y-2">
-                                                {assignedStudents.map((student) => (
-                                                    <div key={student.uid} className="flex justify-between items-center bg-white rounded p-2 border">
-                                                        <div>
-                                                            <span className="font-medium">{student.name}</span>
-                                                            <p className="text-sm text-gray-600">{student.mail}</p>
+                                        {(() => {
+                                            const assignedStudents = students.filter(s => subject.studentUids.includes(s.uid));
+                                            if (assignedStudents.length === 0) {
+                                                return <div className="bg-yellow-50 border border-yellow-200 rounded p-3"><p className="text-sm text-yellow-700">No hay estudiantes asignados</p></div>;
+                                            }
+                                            return (
+                                                <div className="space-y-2">
+                                                    {assignedStudents.map((student) => (
+                                                        <div key={student.uid} className="flex justify-between items-center bg-white rounded p-2 border">
+                                                            <div>
+                                                                <span className="font-medium">{student.name}</span>
+                                                                <p className="text-sm text-gray-600">{student.mail}</p>
+                                                            </div>
+                                                            <button onClick={() => handleRemoveStudent(subject.id, student.uid)} className="px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm"><HiTrash className="w-4 h-4" /></button>
                                                         </div>
-                                                        <button onClick={() => handleRemoveStudent(subject.id, student.uid)} className="px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm"><HiTrash className="w-4 h-4" /></button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
+                                                    ))}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             );
@@ -573,8 +612,8 @@ export const Assignments: React.FC = () => {
             <div className="mt-8 bg-gray-50 rounded-lg p-6">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Resumen de Materias</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {subjectSummary.map((summary) => (
-                        <div key={`${summary.subjectId}-${summary.courseLevel}`} className="bg-white rounded-lg p-4 border border-gray-200">
+                    {subjectSummary.map((summary, idx) => (
+                        <div key={`summary-${summary.subjectId}-${summary.courseLevel}-${idx}`} className="bg-white rounded-lg p-4 border border-gray-200">
                             <h4 className="font-medium text-gray-800">{summary.subjectName}</h4>
                             <p className="text-sm text-gray-600 mb-2">{summary.courseName}</p>
                             <div className="space-y-1 text-sm">
@@ -592,7 +631,7 @@ export const Assignments: React.FC = () => {
                     <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
                         <div className="p-6 border-b">
                             <h3 className="text-xl font-semibold text-gray-800">Seleccionar Estudiantes para {subjects.find(s => s.id === selectedSubjectId)?.name}</h3>
-                            <p className="text-sm text-gray-600 mt-1">{getCourseName(subjects.find(s => s.id === selectedSubjectId)?.courseLevel || 0)}</p>
+                            <p className="text-sm text-gray-600 mt-1">{getCourseName(subjects.find(s => s.id === selectedSubjectId)?.courseLevel || 0)}{subjects.find(s => s.id === selectedSubjectId)?.courseDivision ? ` ${subjects.find(s => s.id === selectedSubjectId)?.courseDivision}` : ''}</p>
                         </div>
                         <div className="flex-1 overflow-y-auto p-6">
                             {/* Encabezado informativo del curso y división (sin inputs) */}

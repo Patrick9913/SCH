@@ -213,11 +213,11 @@ export const Personal: React.FC = () => {
                             >
                                 <span className="inline-flex items-center gap-2"><HiPlus className="w-4 h-4"/> Nuevo usuario</span>
                             </button>
-                            <RefreshButton 
-                                onRefresh={handleRefresh}
-                                tooltip="Actualizar personal"
-                                size="md"
-                            />
+                        <RefreshButton 
+                            onRefresh={handleRefresh}
+                            tooltip="Actualizar personal"
+                            size="md"
+                        />
                         </div>
                     </div>
                     <p className="text-sm text-gray-500">
@@ -241,10 +241,10 @@ export const Personal: React.FC = () => {
                                 onActivate={isAdmin && u.status === 'suspended' && u.id !== currentUser?.id ? () => handleActivate(u) : undefined}
                             />
                         ))}
-                </div>
+                    </div>
                     
                     {/* Formulario modal removido: ahora la creación se hace en UserCreator */}
-                </div>
+            </div>
 
                 <div className="mb-8">
                     <h2 className="text-lg font-medium text-gray-900 mb-4">Docentes ({teachers.length})</h2>
