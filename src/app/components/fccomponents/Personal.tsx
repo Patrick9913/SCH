@@ -10,7 +10,7 @@ import toast from "react-hot-toast";
 import Swal from 'sweetalert2';
 
 export const Personal: React.FC = () => {
-    const { users, firstName, dni, mail, role, nUser, setNUser, setFirstName, setDni, setMail, setRole, newUser, updateUser, deleteUser, suspendUser, activateUser, password, setPassword, refreshUsers } = useTriskaContext();
+    const { users, firstName, dni, mail, role, nUser, setNUser, setFirstName, setDni, setMail, setRole, newUser, updateUser, deleteUser, suspendUser, activateUser, password, setPassword, refreshUsers, setMenu } = useTriskaContext();
     const { user: currentUser } = useAuthContext();
     const isAdmin = currentUser?.role === 1;
 
@@ -187,6 +187,16 @@ export const Personal: React.FC = () => {
         }
     }
 
+    const userRoleToString = (role: number) => {
+        return UserRole[role];
+    };
+
+    const getCourseName = (level: number) => {
+        return Object.keys(UserCurses).find(
+            key => UserCurses[key as keyof typeof UserCurses] === level
+        ) as keyof typeof UserCurses | undefined;
+    };
+
         return (
             <section className="relative flex-1 flex flex-col p-6 overflow-y-auto max-h-screen h-full bg-white">
                 <div className="mb-8">
@@ -195,11 +205,20 @@ export const Personal: React.FC = () => {
                             <IoPeople className="w-6 h-6 text-gray-700" />
                             <h1 className="text-2xl font-semibold text-gray-900">Personal</h1>
                         </div>
-                        <RefreshButton 
-                            onRefresh={handleRefresh}
-                            tooltip="Actualizar personal"
-                            size="md"
-                        />
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={() => setMenu(9)}
+                                className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
+                                title="Añadir nuevo usuario"
+                            >
+                                <span className="inline-flex items-center gap-2"><HiPlus className="w-4 h-4"/> Nuevo usuario</span>
+                            </button>
+                            <RefreshButton 
+                                onRefresh={handleRefresh}
+                                tooltip="Actualizar personal"
+                                size="md"
+                            />
+                        </div>
                     </div>
                     <p className="text-sm text-gray-500">
                         Gestiona la información del personal, roles y permisos del sistema.
@@ -208,8 +227,7 @@ export const Personal: React.FC = () => {
 
                 <div className="mb-8">
                     <h2 className="text-lg font-medium text-gray-900 mb-4">Administradores ({admins.length})</h2>
-                <div className="flex items-start gap-x-5">
-                    <div className="flex justify-start gap-x-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {admins.map(u => (
                             <Personalview
                                 key={u.id}
@@ -218,162 +236,19 @@ export const Personal: React.FC = () => {
                                 showActions={isAdmin}
                                 isSuspended={u.status === 'suspended'}
                                 onEdit={isAdmin ? () => handleEdit(u) : undefined}
-                                onDelete={undefined} // Los administradores no pueden eliminarse entre sí
-                                onSuspend={undefined} // Los administradores no pueden suspenderse entre sí
+                                onDelete={undefined}
+                                onSuspend={undefined}
                                 onActivate={isAdmin && u.status === 'suspended' && u.id !== currentUser?.id ? () => handleActivate(u) : undefined}
                             />
                         ))}
-                    </div>
-                    <button 
-                        onClick={() => setNUser(!nUser)} 
-                        className="cursor-pointer group w-16 h-16 rounded-full flex justify-center items-center bg-cyan-950 hover:bg-cyan-900 transition-colors"
-                    >
-                        <HiPlus className="group text-white w-6 h-6" />
-                    </button>
-                    {nUser && (
-                            <div className="z-40 backdrop-blur-md top-0 left-0 absolute w-full flex justify-center items-center flex-col p-5 overflow-y-scroll h-full bg-black/60 rounded-md">
-                            <form onSubmit={handleSubmit} className="rounded-md w-96 gap-y-4 h-auto flex flex-col justify-between p-6 bg-white shadow-lg">
-                                <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                                    {isEditMode ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
-                                </h3>
-                                
-                                <div className="flex flex-col gap-y-2">
-                                    <label className="text-sm font-medium text-gray-700">Nombre Completo</label>
-                                    <input 
-                                        value={firstName}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFirstName(e.target.value)} 
-                                        className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                                        type="text" 
-                                        placeholder="Ej: Juan Pérez"
-                                        required
-                                    />
-                                    </div>
-                                
-                                <div className="flex flex-col gap-y-2">
-                                    <label className="text-sm font-medium text-gray-700">Correo Electrónico</label>
-                                    <input 
-                                        value={mail}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMail(e.target.value)} 
-                                        className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                                        type="email" 
-                                        placeholder="ejemplo@escuela.com"
-                                        required
-                                    />
-                                    </div>
-                                
-                                <div className="flex flex-col gap-y-2">
-                                    <label className="text-sm font-medium text-gray-700">DNI</label>
-                                    <input 
-                                        value={dni}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDni(e.target.value)} 
-                                        className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                                        type="number" 
-                                        placeholder="12345678"
-                                        required
-                                    />
-                                    </div>
-                                
-                                <div className="flex flex-col gap-y-2">
-                                    <label className="text-sm font-medium text-gray-700">
-                                        Contraseña {isEditMode && <span className="text-gray-500 text-xs">(dejar vacío para mantener la actual)</span>}
-                                    </label>
-                                    <input 
-                                        value={password}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)} 
-                                        className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                                        type="password" 
-                                        placeholder={isEditMode ? "Dejar vacío para mantener" : "Mínimo 6 caracteres"}
-                                        required={!isEditMode}
-                                    />
-                                    </div>
-                                
-                                <div className="flex flex-col gap-y-2">
-                                    <label className="text-sm font-medium text-gray-700">Rol</label>
-                                    <select 
-                                        value={role} 
-                                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                                            setRole(Number(e.target.value));
-                                            // Resetear campos específicos al cambiar rol
-                                            setAsignatura('');
-                                            setCurso('');
-                                        }} 
-                                        className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                                        required
-                                    >
-                                        <option value={0} disabled>Seleccionar rol...</option>
-                                            <option value={1}>Administrador</option>
-                                            <option value={2}>Staff</option>
-                                            <option value={3}>Estudiante</option>
-                                            <option value={4}>Docente</option>
-                                            <option value={5}>Familia</option>
-                                        </select>
-                                    </div>
-
-                                {/* Campo específico para docentes */}
-                                {role === 4 && (
-                                    <div className="flex flex-col gap-y-2">
-                                        <label className="text-sm font-medium text-gray-700">Asignatura</label>
-                                        <select 
-                                            value={asignatura} 
-                                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setAsignatura(Number(e.target.value))} 
-                                            className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                                            required
-                                        >
-                                            <option value="" disabled>Seleccionar asignatura...</option>
-                                            {Object.entries(Assignments)
-                                                .filter(([key]) => !isNaN(Number(key)))
-                                                .map(([key, name]) => (
-                                                    <option key={key} value={key}>{name}</option>
-                                                ))}
-                                        </select>
-                                    </div>
-                                )}
-
-                                {/* Campo específico para estudiantes */}
-                                {role === 3 && (
-                                    <div className="flex flex-col gap-y-2">
-                                        <label className="text-sm font-medium text-gray-700">Curso</label>
-                                        <select 
-                                            value={curso} 
-                                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCurso(Number(e.target.value))} 
-                                            className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                                            required
-                                        >
-                                            <option value="" disabled>Seleccionar curso...</option>
-                                            {Object.entries(UserCurses)
-                                                .filter(([key]) => !isNaN(Number(key)))
-                                                .map(([key, name]) => (
-                                                    <option key={key} value={key}>{name}</option>
-                                                ))}
-                                        </select>
-                                    </div>
-                                )}
-                                
-                                <div className="flex gap-3 pt-4">
-                                    <button 
-                                        type="button" 
-                                        onClick={isEditMode ? handleCancelEdit : resetForm}
-                                        className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                                    >
-                                        Cancelar
-                                    </button>
-                                    <button 
-                                        type="submit" 
-                                        disabled={isLoading}
-                                        className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                                    >
-                                        {isLoading ? (isEditMode ? 'Actualizando...' : 'Creando...') : (isEditMode ? 'Actualizar Usuario' : 'Crear Usuario')}
-                                    </button>
-                                </div>
-                                </form>
-                            </div>
-                    )}
                 </div>
-            </div>
+                    
+                    {/* Formulario modal removido: ahora la creación se hace en UserCreator */}
+                </div>
 
                 <div className="mb-8">
                     <h2 className="text-lg font-medium text-gray-900 mb-4">Docentes ({teachers.length})</h2>
-                <div className="flex justify-start gap-x-5 flex-wrap">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {teachers.map(u => (
                         <Personalview
                             key={u.id}
@@ -392,7 +267,7 @@ export const Personal: React.FC = () => {
 
                 <div className="mb-8">
                     <h2 className="text-lg font-medium text-gray-900 mb-4">Staff ({staff.length})</h2>
-                <div className="flex justify-start gap-x-5 flex-wrap">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {staff.map(u => (
                         <Personalview
                             key={u.id}
@@ -411,21 +286,20 @@ export const Personal: React.FC = () => {
 
                 <div className="mb-8">
                     <h2 className="text-lg font-medium text-gray-900 mb-4">Estudiantes ({students.length})</h2>
-                <div className="flex justify-start gap-x-5 flex-wrap">
-                    {students.map(u => (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {students.map((student) => (
                         <Personalview
-                            key={u.id}
-                            name={u.name}
-                            role={UserRole[u.role]}
-                            level={u.level ? (Object.keys(UserCurses).find(
-                              key => UserCurses[key as keyof typeof UserCurses] === u.level
-                            ) as keyof typeof UserCurses | undefined) || String(u.level) : undefined}
+                            key={student.uid}
+                            name={student.name}
+                            role={userRoleToString(student.role)}
+                            level={student.level ? getCourseName(student.level) : undefined}
+                            division={student.division}
                             showActions={isAdmin}
-                            isSuspended={u.status === 'suspended'}
-                            onEdit={isAdmin ? () => handleEdit(u) : undefined}
-                            onDelete={isAdmin ? () => handleDelete(u) : undefined}
-                            onSuspend={isAdmin && u.status !== 'suspended' ? () => handleSuspend(u) : undefined}
-                            onActivate={isAdmin && u.status === 'suspended' ? () => handleActivate(u) : undefined}
+                            isSuspended={student.status === 'suspended'}
+                            onEdit={isAdmin ? () => handleEdit(student) : undefined}
+                            onDelete={isAdmin ? () => handleDelete(student) : undefined}
+                            onSuspend={isAdmin && student.status !== 'suspended' ? () => handleSuspend(student) : undefined}
+                            onActivate={isAdmin && student.status === 'suspended' ? () => handleActivate(student) : undefined}
                         />
                     ))}
                 </div>

@@ -11,6 +11,7 @@ import { HiCog } from 'react-icons/hi';
 import { RefreshButton } from '../reusable/RefreshButton';
 import { BulletinTemplate } from '../reusable/BulletinTemplate';
 import { useSettings } from '@/app/context/settingsContext';
+import { useSubjects } from '@/app/context/subjectContext';
 import Swal from 'sweetalert2';
 import toast from 'react-hot-toast';
 
@@ -19,6 +20,7 @@ export const BulletinReports: React.FC = () => {
   const { users } = useTriskaContext();
   const { user } = useAuthContext();
   const { isMainAdmin, gradeLoadingEnabled, toggleGradeLoading, isConnected, lastUpdated } = useSettings();
+  const { subjects } = useSubjects();
   
   // Estados para la publicación de boletines
   const [selectedCourse, setSelectedCourse] = useState<number | null>(null);
@@ -35,6 +37,22 @@ export const BulletinReports: React.FC = () => {
   const isStaff = user?.role === 1 || user?.role === 4 || user?.role === 2;
   const isStudent = user?.role === 3;
 
+  // Estado computado basado en alumnos asignados a materias del curso (fuente real de inscriptos)
+  const computedStatus = useMemo(() => {
+    if (!selectedCourse || !selectedPeriod) return null;
+    const courseSubjects = subjects.filter(s => s.courseLevel === selectedCourse);
+    const enrolledUids = new Set<string>();
+    courseSubjects.forEach(s => (s.studentUids || []).forEach(uid => enrolledUids.add(uid)));
+    const totalStudents = enrolledUids.size;
+    const coursePeriodGrades = grades.filter(g => g.courseLevel === selectedCourse && g.period === selectedPeriod);
+    const gradedStudents = Array.from(enrolledUids).filter(uid => coursePeriodGrades.some(g => g.studentUid === uid)).length;
+    const publishedStudents = Array.from(enrolledUids).filter(uid => {
+      const sg = coursePeriodGrades.filter(g => g.studentUid === uid);
+      return sg.length > 0 && sg.every(g => g.published);
+    }).length;
+    return { totalStudents, gradedStudents, publishedStudents, isComplete: gradedStudents === totalStudents && totalStudents > 0 };
+  }, [subjects, grades, selectedCourse, selectedPeriod]);
+
   // Función para manejar la publicación de boletines
   const handlePublishBulletins = async () => {
     if (!selectedCourse || !selectedPeriod) {
@@ -42,11 +60,31 @@ export const BulletinReports: React.FC = () => {
       return;
     }
 
-    const bulletinStatus = getBulletinStatus(selectedCourse, selectedPeriod);
+    const bulletinStatus = computedStatus || getBulletinStatus(selectedCourse, selectedPeriod);
     
     if (!bulletinStatus.isComplete) {
-      toast.error(`No se pueden publicar los boletines. Faltan calificaciones para ${bulletinStatus.totalStudents - bulletinStatus.gradedStudents} estudiantes.`);
-      return;
+      const missing = Math.max(0, bulletinStatus.totalStudents - bulletinStatus.gradedStudents);
+      const courseName = Object.keys(UserCurses).find(key => UserCurses[key as keyof typeof UserCurses] === selectedCourse) || 'Curso';
+      const periodName = PeriodLabels[selectedPeriod];
+      const confirm = await Swal.fire({
+        title: 'Faltan calificaciones',
+        html: `
+          <div style="text-align:left">
+            <p>Hay <strong>${missing}</strong> estudiante(s) sin calificaciones para:</n>
+            <p><strong>• Curso:</strong> ${courseName}</p>
+            <p><strong>• Período:</strong> ${periodName}</p>
+            <p style="font-size:0.875rem;color:#92400e;margin-top:8px;">Puedes publicar de todos modos. Solo se publicarán las calificaciones existentes; los estudiantes sin notas no verán calificaciones en este período.</p>
+          </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Publicar de todos modos',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#16a34a',
+        cancelButtonColor: '#6b7280',
+        reverseButtons: true,
+      });
+      if (!confirm.isConfirmed) return;
     }
 
     const courseName = Object.keys(UserCurses).find(key => UserCurses[key as keyof typeof UserCurses] === selectedCourse) || 'Curso';
@@ -200,8 +238,11 @@ export const BulletinReports: React.FC = () => {
   // Estudiantes del curso seleccionado por el administrador
   const studentsInSelectedCourse = useMemo(() => {
     if (!selectedAdminCourse) return [];
-    return users.filter(u => u.role === 3 && u.level === selectedAdminCourse);
-  }, [users, selectedAdminCourse]);
+    const courseSubjects = subjects.filter(s => s.courseLevel === selectedAdminCourse);
+    const enrolledUids = new Set<string>();
+    courseSubjects.forEach(s => (s.studentUids || []).forEach(uid => enrolledUids.add(uid)));
+    return users.filter(u => u.role === 3 && enrolledUids.has(u.uid));
+  }, [users, selectedAdminCourse, subjects]);
 
   // Calificaciones de estudiantes del curso seleccionado
   const courseGradesByStudent = useMemo(() => {
@@ -662,7 +703,7 @@ export const BulletinReports: React.FC = () => {
             <div className="mt-4 p-4 bg-white rounded border border-gray-200">
               <h4 className="font-semibold text-gray-800 mb-2">Estado del Boletín</h4>
               {(() => {
-                const status = getBulletinStatus(selectedCourse, selectedPeriod);
+                const status = computedStatus || getBulletinStatus(selectedCourse, selectedPeriod);
                 const courseName = Object.keys(UserCurses).find(key => UserCurses[key as keyof typeof UserCurses] === selectedCourse) || 'Curso';
                 const periodName = PeriodLabels[selectedPeriod];
                 

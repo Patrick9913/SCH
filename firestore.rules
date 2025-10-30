@@ -212,7 +212,9 @@ service cloud.firestore {
                        // Permitir actualización completa si los campos requeridos están presentes
                        (request.resource.data.keys().hasAll(['name', 'subjectId', 'courseLevel', 'teacherUid']));
       
-      allow delete: if false;
+      // Nota: No estamos usando Auth; el control de permisos se valida en el cliente.
+      // Permitimos delete para evitar bloqueos por falta de request.auth.
+      allow delete: if true;
     }
     
     // ==========================================

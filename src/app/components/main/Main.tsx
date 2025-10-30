@@ -2,14 +2,16 @@
 
 import React from "react";
 import { useTriskaContext } from "@/app/context/triskaContext";
-import { Settings } from "../fccomponents/Settings";
+import { Assignments } from "../fccomponents/Assignments";
 import { Personal } from "../fccomponents/Personal";
 import { Home } from "../fccomponents/Home"
+import { UserCreator } from "../fccomponents/UserCreator"
 import { Navbar } from "./Navbar";
 import { Messages } from "../fccomponents/Messages";
 import { Attendance } from "../fccomponents/Attendance";
 import { Grades } from "../fccomponents/Grades";
 import { BulletinReports } from "../fccomponents/BulletinReports";
+import { MyStudents } from "../fccomponents/MyStudents";
 
 export const Main: React.FC = () => {
 
@@ -20,7 +22,7 @@ export const Main: React.FC = () => {
     
     return (
         <div className="min-h-screen h-screen w-screen p-2">
-            <div className=" w-full h-full gap-x-3 flex">
+            <div className=" w-full h-full gap-x-2 flex">
                 <Navbar />
                 {
                     menu == 1 && (
@@ -29,7 +31,7 @@ export const Main: React.FC = () => {
                 }
                 {
                     menu == 2 && (
-                        <Settings />
+                        <Assignments />
                     )
                 }
                 {
@@ -55,6 +57,16 @@ export const Main: React.FC = () => {
                 {
                     menu == 7 && (
                         <BulletinReports />
+                    )
+                }
+                {
+                    menu == 10 && (
+                        <MyStudents />
+                    )
+                }
+                {
+                    menu == 9 && (
+                        <UserCreator />
                     )
                 }
             </div>

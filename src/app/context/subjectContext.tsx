@@ -103,6 +103,7 @@ export const SubjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
             name: data.name || '',
             subjectId: data.subjectId || 0,
             courseLevel: data.courseLevel || 0,
+            courseDivision: data.courseDivision || undefined,
             teacherUid: data.teacherUid || '',
             studentUids: Array.isArray(data.studentUids) ? data.studentUids : [],
             catedrasHours: data.catedrasHours || 0,
@@ -131,7 +132,8 @@ export const SubjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // Check if subject already exists for this course and subjectId
     const existing = subjects.find(s => 
       s.subjectId === data.subjectId && 
-      s.courseLevel === data.courseLevel
+      s.courseLevel === data.courseLevel &&
+      (s.courseDivision || '') === (data.courseDivision || '')
     );
     
     if (existing) {

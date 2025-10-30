@@ -203,7 +203,7 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
 
     // Función para crear un nuevo usuario (solo en Firestore)
-    const newUser = async ({ firstName, mail, dni, role, password, asignatura, curso }: NewUserData & { asignatura?: number, curso?: number }) => {
+    const newUser = async ({ firstName, mail, dni, role, password, asignatura, curso, division }: NewUserData & { asignatura?: number, curso?: number, division?: string }) => {
         try {
                 // Validar permisos - solo admin puede crear usuarios
                 if (!user || user.role !== 1) {
@@ -239,6 +239,7 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                     uid: userId, // uid igual al documentId desde el inicio
                 ...(asignatura && { asig: asignatura }),
                 ...(curso && { level: curso }),
+                ...(division && { division }),
                 createdAt: new Date(),
                     status: 'active'
                 });

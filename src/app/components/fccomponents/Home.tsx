@@ -12,10 +12,10 @@ import React, { useMemo, useCallback } from "react";
 export const Home: React.FC = () => {
 
     const { user} = useAuthContext()
-    const { users} = useTriskaContext()
+    const { users, setMenu } = useTriskaContext()
     const { announcements, createAnnouncement, deleteAnnouncement } = useAnnouncements()
     const { schedules, getSchedulesByCourse } = useSchedule()
-    const { getSubjectsByStudent } = useSubjects()
+    const { getSubjectsByStudent, getSubjectsByTeacher, subjects } = useSubjects()
 
     const students = users.filter( s => s.role === 3)
     const teachers = users.filter( t => t.role === 4)
@@ -375,25 +375,62 @@ export const Home: React.FC = () => {
                     {
                         user?.role == 1 && (
                             <>
-                                <div className="p-5 bg-white border border-gray-200 rounded-lg">
+                                <button onClick={() => setMenu(3)} className="text-left p-5 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-colors">
                                     <h3 className="text-sm font-medium text-gray-600 mb-2">Alumnos</h3>
                                     <p className="text-3xl font-semibold text-gray-900 mb-1">{students.length}</p>
-                                    <p className="text-xs text-gray-500">Matriculados este ciclo</p>
-                                </div>
-                                <div className="p-5 bg-white border border-gray-200 rounded-lg">
+                                    <p className="text-xs text-gray-500">Ir a gestión de personal</p>
+                                </button>
+                                <button onClick={() => setMenu(3)} className="text-left p-5 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-colors">
                                     <h3 className="text-sm font-medium text-gray-600 mb-2">Profesores</h3>
                                     <p className="text-3xl font-semibold text-gray-900 mb-1">{teachers.length}</p>
-                                    <p className="text-xs text-gray-500">Activos</p>
-                                </div>
-                                <div className="p-5 bg-white border border-gray-200 rounded-lg">
+                                    <p className="text-xs text-gray-500">Ir a gestión de personal</p>
+                                </button>
+                                <button onClick={() => setMenu(2)} className="text-left p-5 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-colors">
                                     <h3 className="text-sm font-medium text-gray-600 mb-2">Materias</h3>
-                                    <p className="text-3xl font-semibold text-gray-900 mb-1">15</p>
-                                    <p className="text-xs text-gray-500">Ofertadas este semestre</p>
-                                </div>
+                                    <p className="text-3xl font-semibold text-gray-900 mb-1">{subjects.length}</p>
+                                    <p className="text-xs text-gray-500">Ir a gestión de materias</p>
+                                </button>
                             </>
                         )
                     }
                 </div>
+                {/* Vista docente: materias y horarios asignados */}
+                {user?.role === 4 && user?.uid && (
+                    <div className="mb-8">
+                        <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+                            <HiBookOpen className="w-5 h-5 text-gray-700" />
+                            Mis Materias y Horarios
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {getSubjectsByTeacher(user.uid).map((subj) => (
+                                <div key={subj.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div>
+                                            <h3 className="font-semibold text-gray-800">{subj.name}</h3>
+                                            <p className="text-sm text-gray-500">{getCourseName(subj.courseLevel)}</p>
+                                        </div>
+                                    </div>
+                                    {subj.plannedSchedules && subj.plannedSchedules.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {subj.plannedSchedules.map((ps, idx) => (
+                                                <div key={idx} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded px-3 py-2 text-sm">
+                                                    <span className="font-medium text-gray-700">{DayLabels[ps.dayOfWeek as keyof typeof DayLabels]}</span>
+                                                    <span className="text-gray-700">{ps.startTime} - {ps.endTime}</span>
+                                                    {ps.classroom && <span className="text-gray-500">Aula: {ps.classroom}</span>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-sm text-gray-400">Sin horarios planificados</div>
+                                    )}
+                                </div>
+                            ))}
+                            {getSubjectsByTeacher(user.uid).length === 0 && (
+                                <div className="col-span-full text-sm text-gray-500">No tienes materias asignadas</div>
+                            )}
+                        </div>
+                    </div>
+                )}
                 {/* Horarios semanal para estudiantes - Vista tipo cuadrícula */}
                 {user?.role === 3 && (
                     <div className="mb-8">
@@ -408,7 +445,7 @@ export const Home: React.FC = () => {
                                     <div className="w-24 flex-shrink-0 p-2 text-xs font-medium text-gray-700 border-r border-gray-200"></div>
                                     {timeSlots.map((time, idx) => (
                                         <div 
-                                            key={time} 
+                                            key={`head-${time}`} 
                                             className={`flex-1 min-w-[80px] p-2 text-center text-xs font-medium text-gray-700 border-r border-gray-200 last:border-r-0 ${
                                                 idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'
                                             }`}
@@ -471,7 +508,7 @@ export const Home: React.FC = () => {
                                                                 {/* Slots de tiempo como fondo/referencia */}
                                                                 {timeSlots.map((timeSlot, slotIndex) => (
                                                                     <div
-                                                                        key={slotIndex}
+                                                                        key={`bg-${day}-${slotIndex}`}
                                                                         className="flex-1 min-w-[80px] border-r border-gray-200 last:border-r-0 bg-white hover:bg-gray-50 transition-colors"
                                                                         style={{ height: `${calculatedRowHeight}px` }}
                                                                     />

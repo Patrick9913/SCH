@@ -85,8 +85,8 @@ export const Navbar: React.FC = () => {
                                     onClick={() => setMenu(2)} 
                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
                                 >
-                                    <HiCog className="w-5 h-5" />
-                                    <span>Ajustes</span>
+                                    <HiBookOpen className="w-5 h-5" />
+                                    <span>Materias</span>
                                 </button>
                             </li>
                         </>
@@ -146,15 +146,6 @@ export const Navbar: React.FC = () => {
                             </li>
                             <li>
                                 <button 
-                                    onClick={() => setMenu(8)} 
-                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
-                                >
-                                    <IoCalendarClear className="w-5 h-5" />
-                                    <span>Horarios</span>
-                                </button>
-                            </li>
-                            <li>
-                                <button 
                                     onClick={() => setMenu(6)} 
                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
                                 >
@@ -173,11 +164,20 @@ export const Navbar: React.FC = () => {
                             </li>
                             <li>
                                 <button 
+                                    onClick={() => setMenu(10)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <IoPeople className="w-5 h-5" />
+                                    <span>Mis Alumnos</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button 
                                     onClick={() => setMenu(2)} 
                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
                                 >
-                                    <HiCog className="w-5 h-5" />
-                                    <span>Ajustes</span>
+                                    <HiBookOpen className="w-5 h-5" />
+                                    <span>Materias</span>
                                 </button>
                             </li>
                         </>
@@ -214,6 +214,15 @@ export const Navbar: React.FC = () => {
                             </li>
                             <li>
                                 <button 
+                                    onClick={() => setMenu(10)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <IoPeople className="w-5 h-5" />
+                                    <span>Mis Alumnos</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button 
                                     onClick={() => setMenu(6)} 
                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
                                 >
@@ -235,8 +244,8 @@ export const Navbar: React.FC = () => {
                                     onClick={() => setMenu(2)} 
                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
                                 >
-                                    <HiCog className="w-5 h-5" />
-                                    <span>Ajustes</span>
+                                    <HiBookOpen className="w-5 h-5" />
+                                    <span>Materias</span>
                                 </button>
                             </li>
                         </>

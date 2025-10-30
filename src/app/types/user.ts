@@ -14,6 +14,12 @@ export enum UserCurses {
   "5°" = 5
 }
 
+export enum CourseDivision {
+  A = 'A',
+  B = 'B',
+  C = 'C'
+}
+
 export enum Assignments {
   Matematica = 1,
   Lengua = 2,
@@ -35,6 +41,7 @@ export interface User {
   uid: string;
   mail?: string;
   level?: UserCurses;
+  division?: CourseDivision | string; // División del curso (A, B, C)
   childId?: string;
   dni?: number;
   asig?: number;

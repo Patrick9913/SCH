@@ -10,6 +10,7 @@ export interface Subject {
   name: string; // Nombre de la materia (ej: "Lengua", "Matemática")
   subjectId: number; // ID del enum Assignments
   courseLevel: number; // Curso (1°, 2°, 3°, etc.)
+  courseDivision?: string; // División (A, B, C)
   teacherUid: string; // UID del docente asignado
   studentUids: string[]; // Array de UIDs de estudiantes asignados
   catedrasHours: number; // Horas cátedras semanales
@@ -23,6 +24,7 @@ export interface SubjectInput {
   name: string;
   subjectId: number;
   courseLevel: number;
+  courseDivision?: string;
   teacherUid: string;
   studentUids?: string[];
   catedrasHours: number;
@@ -32,6 +34,7 @@ export interface SubjectInput {
 export interface SubjectUpdate {
   teacherUid?: string;
   studentUids?: string[];
+  courseDivision?: string;
 }
 
 // Tipos para el panel de administración
