@@ -98,6 +98,7 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           status: attendance.status,
           createdByUid: uid,
           createdAt: Date.now(),
+          updatedByUid: uid,
         }, { merge: true });
         
         console.log(`Asistencia guardada para estudiante ${attendance.studentUid} en fecha ${attendance.date}`);

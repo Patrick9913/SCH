@@ -3,9 +3,10 @@ import { useTriskaContext } from "@/app/context/triskaContext";
 import { useAnnouncements } from "@/app/context/announcementsContext";
 import { useSchedule } from "@/app/context/scheduleContext";
 import { useSubjects } from "@/app/context/subjectContext";
+import { useGrades } from "@/app/context/gradesContext";
 import { Assignments, UserCurses} from "@/app/types/user";
 import { DayLabels, DayLabelsShort } from "@/app/types/schedule";
-import { HiHome, HiClock, HiUser, HiBookOpen } from "react-icons/hi";
+import { HiHome, HiClock, HiUser, HiBookOpen, HiAcademicCap, HiUsers, HiDocumentText, HiClipboardCheck } from "react-icons/hi";
 
 import React, { useMemo, useCallback } from "react";
 
@@ -16,9 +17,50 @@ export const Home: React.FC = () => {
     const { announcements, createAnnouncement, deleteAnnouncement } = useAnnouncements()
     const { schedules, getSchedulesByCourse } = useSchedule()
     const { getSubjectsByStudent, getSubjectsByTeacher, subjects } = useSubjects()
+    const { grades } = useGrades()
 
     const students = users.filter( s => s.role === 3)
     const teachers = users.filter( t => t.role === 4)
+    const totalUsers = users.length
+    
+    // Calcular estadísticas para el administrador
+    const statistics = useMemo(() => {
+        if (user?.role !== 1) return null;
+        
+        // Cantidad de boletines publicados (calificaciones con published: true)
+        const publishedGrades = grades.filter(g => g.published === true).length;
+        
+        // Estudiantes con notas faltantes (simplificado: estudiantes que tienen materias pero no todas las calificaciones esperadas)
+        // Para esto, necesitaríamos comparar estudiantes inscritos con calificaciones, pero es complejo
+        // Por ahora, mostramos estudiantes sin ninguna calificación
+        const studentsWithSubjects = new Set<string>();
+        subjects.forEach(subject => {
+            (subject.studentUids || []).forEach(uid => studentsWithSubjects.add(uid));
+        });
+        
+        const studentsWithGrades = new Set<string>();
+        grades.forEach(grade => {
+            studentsWithGrades.add(grade.studentUid);
+        });
+        
+        // Estudiantes inscritos en materias pero sin calificaciones
+        const studentsWithoutGrades = Array.from(studentsWithSubjects).filter(
+            uid => !studentsWithGrades.has(uid)
+        ).length;
+        
+        // Total de calificaciones registradas
+        const totalGrades = grades.length;
+        
+        return {
+            totalSubjects: subjects.length,
+            totalStudents: students.length,
+            totalTeachers: teachers.length,
+            totalUsers,
+            publishedBulletins: publishedGrades,
+            studentsWithoutGrades,
+            totalGrades
+        };
+    }, [user, subjects, students, teachers, totalUsers, grades]);
 
     // Filtrar avisos por audiencia
     const filteredAnnouncements = React.useMemo(() => {
@@ -370,30 +412,96 @@ export const Home: React.FC = () => {
                         )}
                     </div>
                 </div>
-                {/* Resumen rápido */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    {
-                        user?.role == 1 && (
-                            <>
-                                <button onClick={() => setMenu(3)} className="text-left p-5 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-colors">
-                                    <h3 className="text-sm font-medium text-gray-600 mb-2">Alumnos</h3>
-                                    <p className="text-3xl font-semibold text-gray-900 mb-1">{students.length}</p>
-                                    <p className="text-xs text-gray-500">Ir a gestión de personal</p>
-                                </button>
-                                <button onClick={() => setMenu(3)} className="text-left p-5 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-colors">
-                                    <h3 className="text-sm font-medium text-gray-600 mb-2">Profesores</h3>
-                                    <p className="text-3xl font-semibold text-gray-900 mb-1">{teachers.length}</p>
-                                    <p className="text-xs text-gray-500">Ir a gestión de personal</p>
-                                </button>
-                                <button onClick={() => setMenu(2)} className="text-left p-5 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-colors">
-                                    <h3 className="text-sm font-medium text-gray-600 mb-2">Materias</h3>
-                                    <p className="text-3xl font-semibold text-gray-900 mb-1">{subjects.length}</p>
-                                    <p className="text-xs text-gray-500">Ir a gestión de materias</p>
-                                </button>
-                            </>
-                        )
-                    }
-                </div>
+                {/* Dashboard de Estadísticas para Administrador */}
+                {user?.role == 1 && statistics && (
+                    <div className="mb-8">
+                        <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+                            <HiClipboardCheck className="w-5 h-5 text-gray-700" />
+                            Estadísticas del Sistema
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                            <button 
+                                onClick={() => setMenu(2)} 
+                                className="text-left p-5 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all"
+                            >
+                                <div className="flex items-center justify-between mb-2">
+                                    <HiBookOpen className="w-6 h-6 text-blue-600" />
+                                </div>
+                                <h3 className="text-sm font-medium text-blue-700 mb-1">Materias</h3>
+                                <p className="text-3xl font-bold text-blue-900 mb-1">{statistics.totalSubjects}</p>
+                                <p className="text-xs text-blue-600">Total registradas</p>
+                            </button>
+                            
+                            <button 
+                                onClick={() => setMenu(3)} 
+                                className="text-left p-5 bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg hover:border-green-300 hover:shadow-md transition-all"
+                            >
+                                <div className="flex items-center justify-between mb-2">
+                                    <HiUsers className="w-6 h-6 text-green-600" />
+                                </div>
+                                <h3 className="text-sm font-medium text-green-700 mb-1">Estudiantes</h3>
+                                <p className="text-3xl font-bold text-green-900 mb-1">{statistics.totalStudents}</p>
+                                <p className="text-xs text-green-600">Alumnos activos</p>
+                            </button>
+                            
+                            <button 
+                                onClick={() => setMenu(3)} 
+                                className="text-left p-5 bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg hover:border-purple-300 hover:shadow-md transition-all"
+                            >
+                                <div className="flex items-center justify-between mb-2">
+                                    <HiAcademicCap className="w-6 h-6 text-purple-600" />
+                                </div>
+                                <h3 className="text-sm font-medium text-purple-700 mb-1">Docentes</h3>
+                                <p className="text-3xl font-bold text-purple-900 mb-1">{statistics.totalTeachers}</p>
+                                <p className="text-xs text-purple-600">Profesores activos</p>
+                            </button>
+                            
+                            <button 
+                                onClick={() => setMenu(3)} 
+                                className="text-left p-5 bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-md transition-all"
+                            >
+                                <div className="flex items-center justify-between mb-2">
+                                    <HiUser className="w-6 h-6 text-gray-600" />
+                                </div>
+                                <h3 className="text-sm font-medium text-gray-700 mb-1">Total Usuarios</h3>
+                                <p className="text-3xl font-bold text-gray-900 mb-1">{statistics.totalUsers}</p>
+                                <p className="text-xs text-gray-600">Todos los usuarios</p>
+                            </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <button 
+                                onClick={() => setMenu(7)} 
+                                className="text-left p-5 bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-lg hover:border-emerald-300 hover:shadow-md transition-all"
+                            >
+                                <div className="flex items-center justify-between mb-2">
+                                    <HiDocumentText className="w-6 h-6 text-emerald-600" />
+                                </div>
+                                <h3 className="text-sm font-medium text-emerald-700 mb-1">Boletines Publicados</h3>
+                                <p className="text-3xl font-bold text-emerald-900 mb-1">{statistics.publishedBulletins}</p>
+                                <p className="text-xs text-emerald-600">Calificaciones visibles</p>
+                            </button>
+                            
+                            <div className="text-left p-5 bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-lg">
+                                <div className="flex items-center justify-between mb-2">
+                                    <HiClipboardCheck className="w-6 h-6 text-amber-600" />
+                                </div>
+                                <h3 className="text-sm font-medium text-amber-700 mb-1">Estudiantes sin Notas</h3>
+                                <p className="text-3xl font-bold text-amber-900 mb-1">{statistics.studentsWithoutGrades}</p>
+                                <p className="text-xs text-amber-600">Requieren atención</p>
+                            </div>
+                            
+                            <div className="text-left p-5 bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200 rounded-lg">
+                                <div className="flex items-center justify-between mb-2">
+                                    <HiDocumentText className="w-6 h-6 text-indigo-600" />
+                                </div>
+                                <h3 className="text-sm font-medium text-indigo-700 mb-1">Total Calificaciones</h3>
+                                <p className="text-3xl font-bold text-indigo-900 mb-1">{statistics.totalGrades}</p>
+                                <p className="text-xs text-indigo-600">Registros totales</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 {/* Vista docente: materias y horarios asignados */}
                 {user?.role === 4 && user?.uid && (
                     <div className="mb-8">
@@ -634,50 +742,6 @@ export const Home: React.FC = () => {
                         </div>
                     </div>
                 )}
-                    {
-                        user?.role == 1 && (
-                            <>
-                                {/* Tabla de profesores */}
-                                <div className="mb-8">
-                                    <h2 className="text-lg font-medium text-gray-900 mb-4">Lista de Profesores</h2>
-                                    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                                        {
-                                            teachers.map( s => (
-                                                <div key={s.id} className="flex items-center gap-4 p-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors">
-                                                    <span className="text-sm font-medium text-gray-900 min-w-[150px]">{s.name}</span>
-                                                    <span className="text-xs text-gray-400">•</span>
-                                                    <a className="text-sm text-gray-600 hover:text-gray-900" href={`mailto:${s.mail}`}>{s.mail}</a>
-                                                    <span className="text-xs text-gray-400">•</span>
-                                                    <span className="text-sm text-gray-600">{s.dni}</span>
-                                                    <span className="text-xs text-gray-400">•</span>
-                                                    <span className="text-sm text-gray-600">{s.asig ? getSubjectName(s.asig) : 'Sin materia'}</span>
-                                                </div>
-                                            ))
-                                        }
-                                    </div>
-                                </div>
-                                {/* Tabla de alumnos */}
-                                <div className="mb-8">
-                                    <h2 className="text-lg font-medium text-gray-900 mb-4">Lista de Alumnos</h2>
-                                    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                                        {
-                                            students.map( s => (
-                                                <div key={s.id} className="flex items-center gap-4 p-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors">
-                                                    <span className="text-sm font-medium text-gray-900 min-w-[150px]">{s.name}</span>
-                                                    <span className="text-xs text-gray-400">•</span>
-                                                    <a className="text-sm text-gray-600 hover:text-gray-900" href={`mailto:${s.mail}`}>{s.mail}</a>
-                                                    <span className="text-xs text-gray-400">•</span>
-                                                    <span className="text-sm text-gray-600">{s.dni}</span>
-                                                    <span className="text-xs text-gray-400">•</span>
-                                                    <span className="text-sm font-medium text-gray-700">{s.level ? getCourseName(s.level) : 'Sin curso'}</span>
-                                                </div>
-                                            ))
-                                        }
-                                    </div>
-                                </div>
-                            </>
-                        )
-                    }
             </section>
     )
 }

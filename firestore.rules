@@ -31,13 +31,27 @@ service cloud.firestore {
       return userId != null && getUserRole(userId) == 4;
     }
     
+    // Verificar si gradesLoadingEnabled está habilitado
+    function isGradesLoadingEnabled() {
+      let settings = get(/databases/$(database)/documents/system/settings);
+      return settings != null && settings.exists() && 'gradesLoadingEnabled' in settings.data && settings.data.gradesLoadingEnabled == true;
+    }
+    
+    // Verificar si el usuario puede crear calificaciones
+    function canCreateGrade(userId) {
+      return isAdmin(userId) || (isTeacher(userId) && isGradesLoadingEnabled());
+    }
+    
     // Extraer userId del request (asumiendo que se pasa como campo en el documento)
     function getRequestUserId() {
-      // Intenta obtener el userId desde diferentes campos comunes
-      return request.resource.data.createdByUid != null ? 
-             request.resource.data.createdByUid : 
-             (request.resource.data.userId != null ? 
-              request.resource.data.userId : null);
+      // Para updates, primero intenta obtener updatedByUid
+      // Para creates, usa createdByUid
+      return request.resource.data.updatedByUid != null ? 
+             request.resource.data.updatedByUid : 
+             (request.resource.data.createdByUid != null ? 
+              request.resource.data.createdByUid : 
+              (request.resource.data.userId != null ? 
+               request.resource.data.userId : null));
     }
     
     // ==========================================
@@ -158,14 +172,20 @@ service cloud.firestore {
     match /attendance/{attendanceId} {
       allow read: if true;
       
+      // Crear: Solo Admin o Docente pueden crear asistencias
       allow create: if request.resource.data.keys().hasAll(['date', 'studentUid', 'courseLevel', 'status', 'createdByUid', 'createdAt']) &&
                        request.resource.data.date is string &&
                        request.resource.data.studentUid is string &&
                        request.resource.data.courseLevel is int &&
                        request.resource.data.status is string &&
-                       request.resource.data.createdByUid is string;
+                       request.resource.data.createdByUid is string &&
+                       (isAdmin(getRequestUserId()) || isTeacher(getRequestUserId()));
       
-      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
+      // Actualizar: Solo Admin o Docente pueden actualizar asistencias
+      // Se permite actualizar updatedByUid junto con status
+      allow update: if (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'updatedByUid']) ||
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])) &&
+                       (isAdmin(getRequestUserId()) || isTeacher(getRequestUserId()));
       
       allow delete: if false;
     }
@@ -177,7 +197,7 @@ service cloud.firestore {
       // Lectura: Todos pueden leer, el filtrado se hace en el cliente
       allow read: if true;
       
-      // Crear: Validación de estructura de datos
+      // Crear: Admin siempre puede crear, Docente solo si gradesLoadingEnabled está habilitado
       allow create: if request.resource.data.keys().hasAll(['studentUid', 'subjectId', 'courseLevel', 'period', 'grade', 'createdByUid', 'createdAt']) &&
                        request.resource.data.studentUid is string &&
                        request.resource.data.subjectId is int &&
@@ -185,10 +205,14 @@ service cloud.firestore {
                        request.resource.data.period is string &&
                        request.resource.data.grade is string &&
                        request.resource.data.createdByUid is string &&
-                       request.resource.data.published is bool;
+                       request.resource.data.published is bool &&
+                       canCreateGrade(getRequestUserId());
       
-      // Actualizar: Solo se puede cambiar published
-      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['published']);
+      // Actualizar: Solo Admin puede cambiar published (para publicar boletines)
+      // Se permite actualizar updatedByUid junto con published
+      allow update: if (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['published', 'updatedByUid']) ||
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['published'])) &&
+                       isAdmin(getRequestUserId());
       
       // Eliminar: Deshabilitado
       allow delete: if false;

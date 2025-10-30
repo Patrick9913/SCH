@@ -85,6 +85,9 @@ export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const publishGrades = async (courseLevel: number, period: Period) => {
+    if (!uid) {
+      throw new Error('No hay usuario autenticado');
+    }
     // Buscar todas las calificaciones del curso y período
     const q = query(
       collection(db, 'grades'),
@@ -94,13 +97,23 @@ export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     const snapshot = await getDocs(q);
     const updatePromises = snapshot.docs.map(docSnap => 
-      updateDoc(doc(db, 'grades', docSnap.id), { published: true })
+      updateDoc(doc(db, 'grades', docSnap.id), { 
+        published: true,
+        updatedByUid: uid 
+      })
     );
     
     await Promise.all(updatePromises);
   };
 
   const publishBulletins = async (courseLevel: number, period: Period): Promise<{ success: boolean; message: string; publishedCount: number }> => {
+    if (!uid) {
+      return {
+        success: false,
+        message: 'No hay usuario autenticado',
+        publishedCount: 0
+      };
+    }
     try {
       // Buscar todas las calificaciones del curso y período que no estén publicadas
       const q = query(
@@ -121,7 +134,10 @@ export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
       
       const updatePromises = snapshot.docs.map(docSnap => 
-        updateDoc(doc(db, 'grades', docSnap.id), { published: true })
+        updateDoc(doc(db, 'grades', docSnap.id), { 
+          published: true,
+          updatedByUid: uid 
+        })
       );
       
       await Promise.all(updatePromises);
