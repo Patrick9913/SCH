@@ -9,6 +9,7 @@ import { GradeLabels, PeriodLabels, GradeValue, Period } from '@/app/types/grade
 import { HiChartBar, HiCheck } from 'react-icons/hi';
 import { useSettings } from '@/app/context/settingsContext';
 import { useSubjects } from '@/app/context/subjectContext';
+import { Subject } from '@/app/types/subject';
 import { RefreshButton } from '../reusable/RefreshButton';
 import Swal from 'sweetalert2';
 import { 
@@ -38,11 +39,19 @@ export const Grades: React.FC = () => {
   const isAdminUser = isAdmin(user);
   const isTeacherUser = isTeacher(user);
   const isStudent = user?.role === 3;
+  const isFamily = user?.role === 5;
   const canManage = canManageGrades(user);
+  
+  // Obtener el estudiante relacionado si es Familia
+  const relatedStudent = useMemo(() => {
+    if (!user || !isFamily || !user.childId) return null;
+    return users.find(u => u.uid === user.childId || u.id === user.childId);
+  }, [user, isFamily, users]);
 
   // Estados para el flujo de registro
   const [selectedCourse, setSelectedCourse] = useState<number | ''>('');
-  const [selectedSubject, setSelectedSubject] = useState<number | ''>('');
+  const [selectedSubject, setSelectedSubject] = useState<number | string | ''>(''); // Puede ser enum ID o Firestore ID
+  const [selectedSubjectFirestoreId, setSelectedSubjectFirestoreId] = useState<string | null>(null); // ID de Firestore si hay división
   const [selectedPeriod, setSelectedPeriod] = useState<Period | ''>('');
   const [studentGrades, setStudentGrades] = useState<Record<string, GradeValue>>({});
 
@@ -60,9 +69,22 @@ export const Grades: React.FC = () => {
       const filtered = selectedCourse 
         ? teacherSubjects.filter(s => s.courseLevel === selectedCourse)
         : teacherSubjects;
-      return filtered.map(subject => ({
-        id: subject.subjectId,
-        name: subject.name
+      // Ordenar: primero por nombre de materia (alfabético), luego por división (A, B, C)
+      const sorted = [...filtered].sort((a, b) => {
+        // 1. Ordenar por nombre de materia
+        if (a.name !== b.name) {
+          return a.name.localeCompare(b.name);
+        }
+        // 2. Si tienen el mismo nombre, ordenar por división (A antes que B, etc.)
+        const divA = a.courseDivision || '';
+        const divB = b.courseDivision || '';
+        return divA.localeCompare(divB);
+      });
+      return sorted.map(subject => ({
+        id: subject.subjectId, // Enum ID para compatibilidad
+        name: subject.name,
+        courseDivision: subject.courseDivision,
+        firestoreId: subject.id // ID de Firestore para identificar la materia específica cuando hay división
       }));
     }
     return [];
@@ -95,7 +117,13 @@ export const Grades: React.FC = () => {
       return users.filter(u => u.role === 3 && u.level === selectedCourse);
     } else if (isTeacherUser && user) {
       // Docente solo ve estudiantes asignados a la materia específica usando el nuevo sistema
-      const subject = getSubjectByCourseAndSubject(Number(selectedCourse), Number(selectedSubject));
+      // Si hay ID de Firestore, buscar directamente por ese ID; si no, usar el método tradicional
+      let subject: Subject | undefined;
+      if (selectedSubjectFirestoreId) {
+        subject = subjects.find(s => s.id === selectedSubjectFirestoreId && s.teacherUid === user.uid);
+      } else {
+        subject = getSubjectByCourseAndSubject(Number(selectedCourse), Number(selectedSubject));
+      }
       
       if (!subject || subject.teacherUid !== user.uid) {
         return [];
@@ -113,7 +141,7 @@ export const Grades: React.FC = () => {
       );
     }
     return [];
-  }, [users, selectedCourse, selectedSubject, isAdminUser, isStaffUser, isTeacherUser, user, subjects, getSubjectByCourseAndSubject]);
+  }, [users, selectedCourse, selectedSubject, selectedSubjectFirestoreId, isAdminUser, isStaffUser, isTeacherUser, user, subjects, getSubjectByCourseAndSubject]);
 
   // Validar que el docente esté asignado a la materia seleccionada
   const canManageSelectedSubject = useMemo(() => {
@@ -122,12 +150,18 @@ export const Grades: React.FC = () => {
     if (isAdminUser || isStaffUser) return true;
     
     if (isTeacherUser) {
-      const subject = getSubjectByCourseAndSubject(selectedCourse, selectedSubject);
+      // Si hay ID de Firestore, buscar directamente por ese ID; si no, usar el método tradicional
+      let subject: Subject | undefined;
+      if (selectedSubjectFirestoreId) {
+        subject = subjects.find(s => s.id === selectedSubjectFirestoreId && s.teacherUid === user.uid);
+      } else {
+        subject = getSubjectByCourseAndSubject(selectedCourse, Number(selectedSubject));
+      }
       return subject ? subject.teacherUid === user.uid : false;
     }
     
     return false;
-  }, [selectedSubject, selectedCourse, user, isAdminUser, isStaffUser, isTeacherUser, subjects, getSubjectByCourseAndSubject]);
+  }, [selectedSubject, selectedCourse, selectedSubjectFirestoreId, user, isAdminUser, isStaffUser, isTeacherUser, subjects, getSubjectByCourseAndSubject]);
   React.useEffect(() => {
     if (!selectedCourse || !selectedSubject || !selectedPeriod) {
       setStudentGrades({});
@@ -191,6 +225,7 @@ export const Grades: React.FC = () => {
       // Resetear el formulario
       setSelectedCourse('');
       setSelectedSubject('');
+      setSelectedSubjectFirestoreId(null);
       setSelectedPeriod('');
       setStudentGrades({});
     } catch (error) {
@@ -208,6 +243,7 @@ export const Grades: React.FC = () => {
   const handleReset = () => {
     setSelectedCourse('');
     setSelectedSubject('');
+    setSelectedSubjectFirestoreId(null);
     setSelectedPeriod('');
     setStudentGrades({});
   };
@@ -217,13 +253,25 @@ export const Grades: React.FC = () => {
     refreshGrades();
   };
 
-  // Vista para estudiantes
+  // Vista para estudiantes y familia
   const studentView = useMemo(() => {
-    if (!user?.uid || !isStudent) return null;
+    let targetStudentUid: string | null = null;
+    let displayName = '';
+    
+    if (isStudent && user?.uid) {
+      targetStudentUid = user.uid;
+      displayName = user.name || 'Estudiante';
+    } else if (isFamily && relatedStudent) {
+      targetStudentUid = relatedStudent.uid;
+      displayName = relatedStudent.name || 'Estudiante';
+    } else {
+      return null;
+    }
+    
+    if (!targetStudentUid) return null;
 
-    const studentUser = users.find(u => u.uid === user.uid);
     // Solo mostrar calificaciones publicadas
-    const studentCourses = grades.filter(g => g.studentUid === user.uid && g.published);
+    const studentCourses = grades.filter(g => g.studentUid === targetStudentUid && g.published);
 
     // Agrupar por materia y periodo
     const groupedBySubject: Record<number, Record<Period, GradeValue[]>> = {};
@@ -286,7 +334,7 @@ export const Grades: React.FC = () => {
         )}
       </div>
     );
-  }, [user, isStudent, users, grades]);
+  }, [user, isStudent, isFamily, relatedStudent, users, grades]);
 
   return (
     <section className="flex-1 p-6 overflow-y-auto max-h-screen h-full bg-white">
@@ -317,8 +365,20 @@ export const Grades: React.FC = () => {
         )}
       </div>
 
-      {/* Vista de Estudiante */}
-      {isStudent && studentView}
+      {/* Vista de Estudiante y Familia */}
+      {(isStudent || isFamily) && studentView}
+      
+      {/* Mensaje para Familia sin hijo asignado */}
+      {isFamily && !relatedStudent && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <h3 className="font-semibold text-yellow-800 mb-2">
+            No hay estudiante vinculado
+          </h3>
+          <p className="text-yellow-700">
+            Tu cuenta no está vinculada a ningún estudiante. Contacta con la administración para vincular tu cuenta a tu hijo/hija.
+          </p>
+        </div>
+      )}
 
       {/* Vista de Staff/Docente - Formulario de Registro */}
       {canManage && (
@@ -366,6 +426,7 @@ export const Grades: React.FC = () => {
               onChange={(e) => {
                 setSelectedCourse(Number(e.target.value));
                 setSelectedSubject('');
+                setSelectedSubjectFirestoreId(null);
                 setSelectedPeriod('');
                 setStudentGrades({});
               }}
@@ -386,9 +447,28 @@ export const Grades: React.FC = () => {
               2. Selecciona la Materia
             </label>
             <select
-              value={selectedSubject}
+              value={selectedSubjectFirestoreId || selectedSubject}
               onChange={(e) => {
-                setSelectedSubject(Number(e.target.value));
+                const value = e.target.value;
+                // Si el valor parece ser un ID de Firestore (string largo), guardarlo
+                const selectedSubj = availableSubjects.find((s: any) => {
+                  const subjWithDiv = s as typeof s & { firestoreId?: string };
+                  return (subjWithDiv.firestoreId || s.id.toString()) === value;
+                });
+                
+                if (selectedSubj) {
+                  const subjWithDiv = selectedSubj as typeof selectedSubj & { firestoreId?: string };
+                  if (subjWithDiv.firestoreId) {
+                    setSelectedSubjectFirestoreId(subjWithDiv.firestoreId);
+                    setSelectedSubject(selectedSubj.id); // Mantener el enum ID para compatibilidad
+                  } else {
+                    setSelectedSubjectFirestoreId(null);
+                    setSelectedSubject(Number(value));
+                  }
+                } else {
+                  setSelectedSubjectFirestoreId(null);
+                  setSelectedSubject(Number(value));
+                }
                 setSelectedPeriod('');
                 setStudentGrades({});
               }}
@@ -396,11 +476,19 @@ export const Grades: React.FC = () => {
               className="w-full border rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               <option value="">Seleccionar materia...</option>
-              {availableSubjects.map((subject, index) => (
-                <option key={`${subject.id}-${selectedCourse}-${index}`} value={subject.id}>
-                  {subject.name}
-                </option>
-              ))}
+              {availableSubjects.map((subject, index) => {
+                const subjectWithDivision = subject as typeof subject & { courseDivision?: string; firestoreId?: string };
+                const displayName = subjectWithDivision.courseDivision 
+                  ? `${subject.name} - División ${subjectWithDivision.courseDivision}`
+                  : subject.name;
+                // Si hay división, usar el ID de Firestore; si no, usar el enum ID
+                const optionValue = subjectWithDivision.firestoreId || subject.id.toString();
+                return (
+                  <option key={`${subject.id}-${selectedCourse}-${index}`} value={optionValue}>
+                    {displayName}
+                  </option>
+                );
+              })}
             </select>
           </div>
 

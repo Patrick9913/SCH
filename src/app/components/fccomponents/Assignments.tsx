@@ -31,6 +31,7 @@ export const Assignments: React.FC = () => {
     const { addSchedule, getSchedulesBySubject } = useSchedule();
 
     const isAdmin = user?.role === UserRole.Administrador;
+    const isStudent = user?.role === UserRole.Estudiante;
 
     // Estados para el panel de materias
     const [activeTab, setActiveTab] = useState<'subjects' | 'assignments'>('subjects');
@@ -76,6 +77,13 @@ export const Assignments: React.FC = () => {
         .map(([label, value]) => ({ label, value: Number(value) }));
 
     const subjectSummary = useMemo(() => getSubjectSummary(), [getSubjectSummary]);
+
+    // Obtener materias asignadas al estudiante
+    const { getSubjectsByStudent } = useSubjects();
+    const studentSubjects = useMemo(() => {
+        if (!user || !isStudent || !user.uid) return [];
+        return getSubjectsByStudent(user.uid);
+    }, [user, isStudent, getSubjectsByStudent]);
 
     const areSchedulesValid = () => {
         if (selectedTimeSlots.size === 0) return false;
@@ -326,6 +334,102 @@ export const Assignments: React.FC = () => {
         if (result.isConfirmed) { try { await deleteSubject(subjectId); toast.success('Materia eliminada exitosamente'); } catch (error) { console.error('Error al eliminar materia:', error); toast.error('Error al eliminar materia'); } }
     };
 
+    // Vista para Estudiantes: solo lectura de sus materias
+    if (isStudent) {
+        return (
+            <section className="flex-1 p-6 overflow-y-auto max-h-screen h-full bg-white">
+                <div className="mb-8">
+                    <div className="flex items-center gap-3 mb-3">
+                        <HiBookOpen className="w-6 h-6 text-gray-700" />
+                        <h1 className="text-2xl font-semibold text-gray-900">Mis Materias</h1>
+                    </div>
+                    <p className="text-sm text-gray-500">Materias asignadas a tu curso.</p>
+                </div>
+
+                {studentSubjects.length === 0 ? (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+                        <HiBookOpen className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                        <p className="text-gray-500">No tienes materias asignadas</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {studentSubjects
+                            .sort((a, b) => {
+                                // Ordenar por nombre de materia, luego por división
+                                if (a.name !== b.name) {
+                                    return a.name.localeCompare(b.name);
+                                }
+                                const divA = a.courseDivision || '';
+                                const divB = b.courseDivision || '';
+                                return divA.localeCompare(divB);
+                            })
+                            .map((subject) => {
+                                const teacher = teachers.find(t => t.uid === subject.teacherUid);
+                                const courseName = getCourseName(subject.courseLevel);
+                                const actualSchedules = getSchedulesBySubject(subject.subjectId, subject.courseLevel);
+                                const schedules = actualSchedules.length > 0 ? actualSchedules : (subject.plannedSchedules || []);
+                                
+                                return (
+                                    <div key={subject.id} className="bg-white border border-gray-200 rounded-lg p-6 hover:border-gray-300 transition-colors">
+                                        <div className="mb-4">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <h3 className="text-lg font-semibold text-gray-800">{subject.name}</h3>
+                                                {subject.courseDivision && (
+                                                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded border border-blue-300">
+                                                        {subject.courseDivision}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-sm text-gray-600 font-medium">{courseName}</p>
+                                        </div>
+
+                                        {teacher && (
+                                            <div className="mb-4 pb-4 border-b border-gray-200">
+                                                <p className="text-sm text-gray-600 mb-1">Docente:</p>
+                                                <p className="font-medium text-gray-900">{teacher.name}</p>
+                                                {teacher.mail && (
+                                                    <p className="text-xs text-gray-500">{teacher.mail}</p>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {schedules.length > 0 && (
+                                            <div>
+                                                <p className="text-sm text-gray-600 mb-2 flex items-center gap-2">
+                                                    <HiClock className="w-4 h-4" />
+                                                    Horarios:
+                                                </p>
+                                                <div className="space-y-2">
+                                                    {schedules.map((schedule, idx) => (
+                                                        <div key={idx} className="bg-gray-50 rounded p-2 text-sm">
+                                                            <div className="flex items-center gap-3">
+                                                                <span className="font-medium text-gray-800">
+                                                                    {DayLabels[schedule.dayOfWeek as keyof typeof DayLabels]}
+                                                                </span>
+                                                                <span className="text-gray-600">
+                                                                    {schedule.startTime} - {schedule.endTime}
+                                                                </span>
+                                                                {schedule.classroom && (
+                                                                    <span className="text-xs text-gray-500">
+                                                                        Aula: {schedule.classroom}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                    </div>
+                )}
+            </section>
+        );
+    }
+
+    // Vista solo para Admin
     if (!isAdmin) {
         return (
             <section className="flex-1 p-6 overflow-y-auto max-h-screen h-full bg-white">

@@ -16,6 +16,20 @@ export const Schedule: React.FC = () => {
 
   const isStaff = user?.role === 1 || user?.role === 4 || user?.role === 2;
   const isStudent = user?.role === 3;
+  const isFamily = user?.role === 5;
+  
+  // Obtener el estudiante relacionado si es Familia
+  const relatedStudent = React.useMemo(() => {
+    if (!user || !isFamily || !user.childId) return null;
+    return users.find(u => u.uid === user.childId || u.id === user.childId);
+  }, [user, isFamily, users]);
+  
+  // Obtener el estudiante objetivo (el propio estudiante o el hijo si es familia)
+  const targetStudent = React.useMemo(() => {
+    if (isStudent && user) return user;
+    if (isFamily && relatedStudent) return relatedStudent;
+    return null;
+  }, [isStudent, isFamily, user, relatedStudent]);
 
   // Estados
   const [selectedDay, setSelectedDay] = useState<number>(0);
@@ -34,13 +48,13 @@ export const Schedule: React.FC = () => {
   const daySchedules = useMemo(() => {
     let filtered = schedules.filter(s => s.dayOfWeek === selectedDay);
     
-    if (isStudent && user?.level) {
-      filtered = filtered.filter(s => s.courseLevel === user.level);
+    if (targetStudent?.level) {
+      filtered = filtered.filter(s => s.courseLevel === targetStudent.level);
     }
     
     // Ordenar por hora de inicio
     return filtered.sort((a, b) => a.startTime.localeCompare(b.startTime));
-  }, [schedules, selectedDay, isStudent, user?.level]);
+  }, [schedules, selectedDay, targetStudent?.level]);
 
   // Obtener nombre del profesor
   const getTeacherName = (uid: string) => {
@@ -117,8 +131,18 @@ export const Schedule: React.FC = () => {
         <p className="text-gray-600">
           {isStaff 
             ? 'Gestiona los horarios de clases de cada curso' 
+            : isFamily 
+            ? 'Consulta el horario semanal'
             : 'Consulta tu horario semanal'}
         </p>
+        
+        {isFamily && !relatedStudent && (
+          <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-sm text-yellow-700">
+              Tu cuenta no está vinculada a ningún estudiante. Contacta con la administración para vincular tu cuenta a tu hijo/hija.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Formulario de agregar clase (solo staff) */}

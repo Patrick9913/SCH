@@ -27,7 +27,14 @@ export const Attendance: React.FC = () => {
   const isAdminUser = isAdmin(user);
   const isTeacherUser = isTeacher(user);
   const isStudent = user?.role === 3;
+  const isFamily = user?.role === 5;
   const canManage = canManageGrades(user);
+  
+  // Obtener el estudiante relacionado si es Familia
+  const relatedStudent = useMemo(() => {
+    if (!user || !isFamily || !user.childId) return null;
+    return users.find(u => u.uid === user.childId || u.id === user.childId);
+  }, [user, isFamily, users]);
 
   // Estados para el flujo de registro
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -248,20 +255,27 @@ export const Attendance: React.FC = () => {
     }
   };
 
+  // Obtener el estudiante objetivo (el propio estudiante o el hijo si es familia)
+  const targetStudent = useMemo(() => {
+    if (isStudent && user) return user;
+    if (isFamily && relatedStudent) return relatedStudent;
+    return null;
+  }, [isStudent, isFamily, user, relatedStudent]);
+
   // Calcular faltas restantes para estudiantes
   const remainingAbsences = useMemo(() => {
-    if (!user || !isStudent) return 30;
+    if (!targetStudent) return 30;
     // Usar tanto uid como id para compatibilidad, priorizando id
-    const studentRecords = records.filter(r => r.studentUid === user.id || r.studentUid === user.uid);
+    const studentRecords = records.filter(r => r.studentUid === targetStudent.id || r.studentUid === targetStudent.uid);
     const absentCount = studentRecords.filter(r => r.status === 'absent').length;
     return Math.max(0, 30 - absentCount);
-  }, [user, isStudent, records]);
+  }, [targetStudent, records]);
 
   // Generar lista de meses disponibles
   const availableMonths = useMemo(() => {
-    if (!user || !isStudent) return [];
+    if (!targetStudent) return [];
     // Usar tanto uid como id para compatibilidad, priorizando id
-    const studentRecords = records.filter(r => r.studentUid === user.id || r.studentUid === user.uid);
+    const studentRecords = records.filter(r => r.studentUid === targetStudent.id || r.studentUid === targetStudent.uid);
     const monthsSet = new Set<string>();
     
     studentRecords.forEach(record => {
@@ -271,30 +285,30 @@ export const Attendance: React.FC = () => {
     });
     
     return Array.from(monthsSet).sort().reverse();
-  }, [user, isStudent, records]);
+  }, [targetStudent, records]);
 
   // Obtener registros del mes seleccionado
   const monthlyRecords = useMemo(() => {
-    if (!user || !isStudent || !selectedMonth) return [];
+    if (!targetStudent || !selectedMonth) return [];
     // Usar tanto uid como id para compatibilidad, priorizando id
-    const studentRecords = records.filter(r => r.studentUid === user.id || r.studentUid === user.uid);
+    const studentRecords = records.filter(r => r.studentUid === targetStudent.id || r.studentUid === targetStudent.uid);
     
     return studentRecords.filter(record => {
       const date = new Date(record.date);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       return monthKey === selectedMonth;
     });
-  }, [user, isStudent, records, selectedMonth]);
+  }, [targetStudent, records, selectedMonth]);
 
-  // Vista para estudiantes
+  // Vista para estudiantes y familia
   const studentView = useMemo(() => {
-    if (!user || !isStudent) return null;
+    if (!targetStudent) return null;
 
     // Filtrar registros del estudiante usando tanto uid como id para compatibilidad
     // Priorizar id sobre uid ya que id es siempre el documentId de Firestore
     const studentRecords = records.filter(r => {
-      const matchById = r.studentUid === user.id;
-      const matchByUid = r.studentUid === user.uid;
+      const matchById = r.studentUid === targetStudent.id;
+      const matchByUid = r.studentUid === targetStudent.uid;
       return matchById || matchByUid;
     });
 
@@ -416,7 +430,7 @@ export const Attendance: React.FC = () => {
         )}
       </div>
     );
-  }, [user, isStudent, records, selectedMonth, availableMonths, monthlyRecords]);
+  }, [targetStudent, records, selectedMonth, availableMonths, monthlyRecords]);
 
   return (
     <section className="flex-1 p-6 overflow-y-auto max-h-screen h-full bg-white">
@@ -428,13 +442,13 @@ export const Attendance: React.FC = () => {
             <h1 className="text-2xl font-semibold text-gray-900">Asistencias</h1>
           </div>
           <div className="flex items-center gap-3">
-            {isStudent && (
+            {(isStudent || isFamily) && targetStudent && (
               <div className={`text-sm font-semibold px-3 py-1.5 rounded-lg ${
                 remainingAbsences >= 20 ? 'bg-green-50 text-green-700 border border-green-200' :
                 remainingAbsences >= 10 ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
                 'bg-red-50 text-red-700 border border-red-200'
               }`}>
-                Faltas: {remainingAbsences} / 30
+                {isFamily ? `${targetStudent.name}: ` : ''}Faltas: {remainingAbsences} / 30
               </div>
             )}
             <RefreshButton 
@@ -458,8 +472,20 @@ export const Attendance: React.FC = () => {
         )}
       </div>
 
-      {/* Vista para Estudiantes */}
-      {isStudent && studentView}
+      {/* Vista de Estudiante y Familia */}
+      {(isStudent || isFamily) && studentView}
+      
+      {/* Mensaje para Familia sin hijo asignado */}
+      {isFamily && !relatedStudent && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <h3 className="font-semibold text-yellow-800 mb-2">
+            No hay estudiante vinculado
+          </h3>
+          <p className="text-yellow-700">
+            Tu cuenta no está vinculada a ningún estudiante. Contacta con la administración para vincular tu cuenta a tu hijo/hija.
+          </p>
+        </div>
+      )}
 
       {/* Vista para Staff/Docente */}
       {canManage && (

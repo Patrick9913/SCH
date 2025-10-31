@@ -25,8 +25,8 @@ interface TriskaContextProps {
     password: string;
     setPassword: Dispatch<SetStateAction<string>>
     setDni: Dispatch<SetStateAction<string>>;
-    newUser: (data: NewUserData & { asignatura?: number, curso?: number }) => Promise<void>;
-    updateUser: (userId: string, data: Partial<NewUserData & { asignatura?: number, curso?: number }>) => Promise<void>;
+    newUser: (data: NewUserData & { asignatura?: number, curso?: number, division?: string, courseId?: string, level?: number }) => Promise<User | undefined>;
+    updateUser: (userId: string, data: Partial<NewUserData & { asignatura?: number, curso?: number, division?: string, courseId?: string, level?: number }>) => Promise<void>;
     deleteUser: (userId: string) => Promise<void>;
     suspendUser: (userId: string) => Promise<void>;
     activateUser: (userId: string) => Promise<void>;
@@ -203,7 +203,7 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
 
     // Función para crear un nuevo usuario (solo en Firestore)
-    const newUser = async ({ firstName, mail, dni, role, password, asignatura, curso, division }: NewUserData & { asignatura?: number, curso?: number, division?: string }) => {
+    const newUser = async ({ firstName, mail, dni, role, password, asignatura, curso, division, courseId, level }: NewUserData & { asignatura?: number, curso?: number, division?: string, courseId?: string, level?: number }): Promise<User | undefined> => {
         try {
                 // Validar permisos - solo admin puede crear usuarios
                 if (!user || user.role !== 1) {
@@ -230,19 +230,46 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 const userId = docRef.id;
                 
                 // Crear documento en Firestore con uid igual al documentId desde el inicio
-                await setDoc(docRef, {
-                name: firstName.trim(),
-                mail: mail.trim(),
-                dni: Number(dni),
-                role: role,
+                const userData: any = {
+                    name: firstName.trim(),
+                    mail: mail.trim(),
+                    dni: Number(dni),
+                    role: role,
                     password: hashedPassword,
                     uid: userId, // uid igual al documentId desde el inicio
-                ...(asignatura && { asig: asignatura }),
-                ...(curso && { level: curso }),
-                ...(division && { division }),
-                createdAt: new Date(),
+                    ...(asignatura && { asig: asignatura }),
+                    createdAt: new Date(),
                     status: 'active'
-                });
+                };
+
+                // Si se proporciona courseId, usar courseId y level/division del curso
+                // Si no, mantener compatibilidad con el sistema antiguo (curso y division directos)
+                if (courseId !== undefined) {
+                    userData.courseId = courseId;
+                    if (level !== undefined) userData.level = level;
+                    if (division !== undefined) userData.division = division;
+                } else {
+                    // Sistema antiguo: mantener compatibilidad
+                    if (curso !== undefined) userData.level = curso;
+                    if (division !== undefined) userData.division = division;
+                }
+                
+                await setDoc(docRef, userData);
+
+                // Retornar el usuario creado
+                const createdUser: User = {
+                    id: userId,
+                    uid: userId,
+                    name: firstName.trim(),
+                    mail: mail.trim(),
+                    dni: Number(dni),
+                    role: role as any,
+                    ...(asignatura && { asig: asignatura }),
+                    ...(courseId && { courseId }),
+                    ...(level !== undefined && { level: level as any }),
+                    ...(division && { division }),
+                    status: 'active'
+                };
 
                 await Swal.fire({
                     icon: 'success',
@@ -257,6 +284,8 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             setFirstName("");
             setMail("");
             setPassword("");
+            
+            return createdUser;
         } catch (error) {
             console.error("💥 Ha ocurrido un error al crear el usuario:", error);
             await Swal.fire({
@@ -265,11 +294,12 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 text: error instanceof Error ? error.message : String(error),
                 confirmButtonColor: '#dc2626',
             });
+            throw error; // Re-lanzar para que el componente pueda manejarlo
         }
     };
 
     // Función para actualizar un usuario
-    const updateUser = async (userId: string, data: Partial<NewUserData & { asignatura?: number, curso?: number }>) => {
+    const updateUser = async (userId: string, data: Partial<NewUserData & { asignatura?: number, curso?: number, division?: string, courseId?: string, level?: number }>) => {
         try {
             // Validar permisos - solo admin puede actualizar usuarios
             if (!user || user.role !== 1) {
@@ -313,6 +343,18 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 updateData.asig = data.asignatura;
             }
 
+            // Sistema nuevo: usar courseId, level y division si están presentes
+            if (data.courseId !== undefined) {
+                updateData.courseId = data.courseId;
+            }
+            if (data.level !== undefined) {
+                updateData.level = data.level;
+            }
+            if (data.division !== undefined) {
+                updateData.division = data.division;
+            }
+            
+            // Sistema antiguo: mantener compatibilidad con curso
             if (data.curso !== undefined) {
                 updateData.level = data.curso;
             }

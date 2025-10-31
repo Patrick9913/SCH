@@ -510,12 +510,37 @@ export const Home: React.FC = () => {
                             Mis Materias y Horarios
                         </h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {getSubjectsByTeacher(user.uid).map((subj) => (
+                            {[...getSubjectsByTeacher(user.uid)]
+                                .sort((a, b) => {
+                                    // 1. Ordenar por nombre de materia (alfabético)
+                                    if (a.name !== b.name) {
+                                        return a.name.localeCompare(b.name);
+                                    }
+                                    // 2. Si tienen el mismo nombre, ordenar por curso
+                                    if (a.courseLevel !== b.courseLevel) {
+                                        return a.courseLevel - b.courseLevel;
+                                    }
+                                    // 3. Si tienen el mismo curso, ordenar por división (A antes que B, etc.)
+                                    const divA = a.courseDivision || '';
+                                    const divB = b.courseDivision || '';
+                                    return divA.localeCompare(divB);
+                                })
+                                .map((subj) => (
                                 <div key={subj.id} className="bg-white border border-gray-200 rounded-lg p-4">
                                     <div className="flex items-center justify-between mb-3">
-                                        <div>
-                                            <h3 className="font-semibold text-gray-800">{subj.name}</h3>
-                                            <p className="text-sm text-gray-500">{getCourseName(subj.courseLevel)}</p>
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <h3 className="font-semibold text-gray-800">{subj.name}</h3>
+                                                {subj.courseDivision && (
+                                                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded border border-blue-300">
+                                                        {subj.courseDivision}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-sm text-gray-600 font-medium">
+                                                {getCourseName(subj.courseLevel)}
+                                                {subj.courseDivision ? ` - División ${subj.courseDivision}` : ''}
+                                            </p>
                                         </div>
                                     </div>
                                     {subj.plannedSchedules && subj.plannedSchedules.length > 0 ? (

@@ -11,7 +11,7 @@ import { HiCog } from "react-icons/hi";
 import { HiHome } from "react-icons/hi";
 import { HiDocumentCheck } from "react-icons/hi2";
 import { HiChatBubbleOvalLeft } from "react-icons/hi2";
-import { HiChartBar, HiDocumentText } from "react-icons/hi";
+import { HiChartBar, HiDocumentText, HiAcademicCap } from "react-icons/hi";
 import { UserRole } from "@/app/types/user";
 
 export const Navbar: React.FC = () => {
@@ -89,6 +89,24 @@ export const Navbar: React.FC = () => {
                                     <span>Materias</span>
                                 </button>
                             </li>
+                            <li>
+                                <button 
+                                    onClick={() => setMenu(8)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <IoCalendarClear className="w-5 h-5" />
+                                    <span>Horarios</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button 
+                                    onClick={() => setMenu(13)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiAcademicCap className="w-5 h-5" />
+                                    <span>Cursos</span>
+                                </button>
+                            </li>
                         </>
                     )}
                     {/* Opciones para ESTUDIANTE (role === 3) */}
@@ -105,11 +123,11 @@ export const Navbar: React.FC = () => {
                             </li>
                             <li>
                                 <button 
-                                    onClick={() => setMenu(5)} 
+                                    onClick={() => setMenu(2)} 
                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
                                 >
-                                    <HiDocumentCheck className="w-5 h-5" />
-                                    <span>Asistencias</span>
+                                    <HiBookOpen className="w-5 h-5" />
+                                    <span>Materias</span>
                                 </button>
                             </li>
                             <li>
@@ -137,6 +155,15 @@ export const Navbar: React.FC = () => {
                             </li>
                             <li>
                                 <button 
+                                    onClick={() => setMenu(10)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <IoPeople className="w-5 h-5" />
+                                    <span>Mis Alumnos</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button 
                                     onClick={() => setMenu(5)} 
                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
                                 >
@@ -153,36 +180,9 @@ export const Navbar: React.FC = () => {
                                     <span>Calificaciones</span>
                                 </button>
                             </li>
-                            <li>
-                                <button 
-                                    onClick={() => setMenu(4)} 
-                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
-                                >
-                                    <HiChatBubbleOvalLeft className="w-5 h-5" />
-                                    <span>Mensajes</span>
-                                </button>
-                            </li>
-                            <li>
-                                <button 
-                                    onClick={() => setMenu(10)} 
-                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
-                                >
-                                    <IoPeople className="w-5 h-5" />
-                                    <span>Mis Alumnos</span>
-                                </button>
-                            </li>
-                            <li>
-                                <button 
-                                    onClick={() => setMenu(2)} 
-                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
-                                >
-                                    <HiBookOpen className="w-5 h-5" />
-                                    <span>Materias</span>
-                                </button>
-                            </li>
                         </>
                     )}
-                    {/* Opciones para STAFF (role === 2) */}
+                    {/* Opciones para STAFF/PRECEPTOR (role === 2) */}
                     {user?.role === 2 && (
                         <>
                             <li>
@@ -196,6 +196,15 @@ export const Navbar: React.FC = () => {
                             </li>
                             <li>
                                 <button 
+                                    onClick={() => setMenu(12)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiBookOpen className="w-5 h-5" />
+                                    <span>Mis Cursos</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button 
                                     onClick={() => setMenu(5)} 
                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
                                 >
@@ -203,22 +212,36 @@ export const Navbar: React.FC = () => {
                                     <span>Asistencias</span>
                                 </button>
                             </li>
+                        </>
+                    )}
+                    {/* Opciones para FAMILIA (role === 5) */}
+                    {user?.role === 5 && (
+                        <>
                             <li>
                                 <button 
-                                    onClick={() => setMenu(8)} 
+                                    onClick={() => setMenu(1)} 
                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
                                 >
-                                    <IoCalendarClear className="w-5 h-5" />
-                                    <span>Horarios</span>
+                                    <HiHome className="w-5 h-5" />
+                                    <span>Inicio</span>
                                 </button>
                             </li>
                             <li>
                                 <button 
-                                    onClick={() => setMenu(10)} 
+                                    onClick={() => setMenu(7)} 
                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
                                 >
-                                    <IoPeople className="w-5 h-5" />
-                                    <span>Mis Alumnos</span>
+                                    <HiDocumentText className="w-5 h-5" />
+                                    <span>Boletines</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button 
+                                    onClick={() => setMenu(5)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiDocumentCheck className="w-5 h-5" />
+                                    <span>Asistencias</span>
                                 </button>
                             </li>
                             <li>
@@ -241,11 +264,11 @@ export const Navbar: React.FC = () => {
                             </li>
                             <li>
                                 <button 
-                                    onClick={() => setMenu(2)} 
+                                    onClick={() => setMenu(8)} 
                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
                                 >
-                                    <HiBookOpen className="w-5 h-5" />
-                                    <span>Materias</span>
+                                    <IoCalendarClear className="w-5 h-5" />
+                                    <span>Horarios</span>
                                 </button>
                             </li>
                         </>

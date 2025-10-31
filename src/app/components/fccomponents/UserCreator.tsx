@@ -1,16 +1,18 @@
 'use client';
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { IoPeople } from "react-icons/io5";
 import { HiArrowLeft } from "react-icons/hi";
 import { useTriskaContext } from "@/app/context/triskaContext";
 import { useAuthContext } from "@/app/context/authContext";
+import { useCourses } from "@/app/context/courseContext";
 import { Assignments, UserCurses, CourseDivision } from "@/app/types/user";
 import toast from "react-hot-toast";
 
 export const UserCreator: React.FC = () => {
     const { setMenu, newUser } = useTriskaContext();
     const { user: currentUser } = useAuthContext();
+    const { courses, assignStudentToCourse } = useCourses();
     const isAdmin = currentUser?.role === 1;
 
     const [firstName, setFirstName] = useState('');
@@ -19,9 +21,16 @@ export const UserCreator: React.FC = () => {
     const [password, setPassword] = useState('');
     const [role, setRole] = useState<number>(0);
     const [asignatura, setAsignatura] = useState<number | ''>('');
-    const [curso, setCurso] = useState<number | ''>('');
-    const [division, setDivision] = useState<CourseDivision | ''>('');
+    const [selectedCourseId, setSelectedCourseId] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
+
+    // Cursos ordenados para mostrar
+    const sortedCourses = useMemo(() => {
+        return [...courses].sort((a, b) => {
+            if (a.level !== b.level) return a.level - b.level;
+            return (a.division || '').localeCompare(b.division || '');
+        });
+    }, [courses]);
 
     if (!isAdmin) {
         return (
@@ -35,22 +44,72 @@ export const UserCreator: React.FC = () => {
     }
 
     const resetForm = () => {
-        setFirstName(''); setMail(''); setDni(''); setPassword(''); setRole(0); setAsignatura(''); setCurso('');
+        setFirstName(''); setMail(''); setDni(''); setPassword(''); setRole(0); setAsignatura(''); setSelectedCourseId('');
+    };
+
+    const getCourseName = (level: number): string => {
+        const course = Object.entries(UserCurses).find(([_, value]) => value === level);
+        return course ? course[0] : `${level}°`;
     };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!firstName || !mail || !dni || !role) { toast.error('Por favor completa todos los campos requeridos'); return; }
-        if (!password) { toast.error('La contraseña es requerida'); return; }
-        if (role === 4 && !asignatura) { toast.error('Selecciona una asignatura para el docente'); return; }
-        if (role === 3 && (!curso || !division)) { toast.error('Selecciona curso y división para el estudiante'); return; }
+        if (!firstName || !mail || !dni || !role) { 
+            toast.error('Por favor completa todos los campos requeridos'); 
+            return; 
+        }
+        if (!password) { 
+            toast.error('La contraseña es requerida'); 
+            return; 
+        }
+        if (role === 4 && !asignatura) { 
+            toast.error('Selecciona una asignatura para el docente'); 
+            return; 
+        }
+        if (role === 3 && !selectedCourseId) { 
+            toast.error('Selecciona un curso para el estudiante'); 
+            return; 
+        }
+        
         setIsLoading(true);
         try {
-            await newUser({ firstName, mail, dni: Number(dni), role, password, ...(asignatura && { asignatura }), ...(curso && { curso }), ...(division && { division }) });
+            // Obtener el curso seleccionado para extraer level y division
+            const selectedCourse = courses.find(c => c.id === selectedCourseId);
+            
+            // Crear el usuario
+            const userData: any = {
+                firstName,
+                mail,
+                dni: Number(dni),
+                role,
+                password,
+                ...(asignatura && { asignatura })
+            };
+
+            // Si es estudiante, agregar courseId, level y division
+            if (role === 3 && selectedCourse) {
+                userData.courseId = selectedCourseId;
+                userData.level = selectedCourse.level;
+                userData.division = selectedCourse.division;
+            }
+
+            const createdUser = await newUser(userData);
+            
+            // Si es estudiante, agregarlo automáticamente al curso
+            if (role === 3 && selectedCourseId && createdUser?.uid) {
+                try {
+                    await assignStudentToCourse(selectedCourseId, createdUser.uid);
+                } catch (courseError) {
+                    console.error('Error al asignar estudiante al curso:', courseError);
+                    // No bloqueamos la creación si falla la asignación
+                }
+            }
+
             resetForm();
-            toast.success('Usuario creado. Puedes seguir creando más desde aquí.');
-        } catch (error) {
+            toast.success('Usuario creado exitosamente. Puedes seguir creando más desde aquí.');
+        } catch (error: any) {
             console.error('Error al crear usuario:', error);
+            toast.error(error.message || 'Error al crear usuario');
         } finally {
             setIsLoading(false);
         }
@@ -95,7 +154,7 @@ export const UserCreator: React.FC = () => {
                     </div>
                     <div className="flex flex-col gap-y-2">
                         <label className="text-sm font-medium text-gray-700">Rol</label>
-                        <select value={role} onChange={(e) => { setRole(Number(e.target.value)); setAsignatura(''); setCurso(''); }} className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        <select value={role} onChange={(e) => { setRole(Number(e.target.value)); setAsignatura(''); setSelectedCourseId(''); }} className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                             <option value={0} disabled>Seleccionar rol...</option>
                             <option value={1}>Administrador</option>
                             <option value={2}>Staff</option>
@@ -116,26 +175,35 @@ export const UserCreator: React.FC = () => {
                         </div>
                     )}
                     {role === 3 && (
-                        <>
                         <div className="flex flex-col gap-y-2">
-                            <label className="text-sm font-medium text-gray-700">Curso</label>
-                            <select value={curso} onChange={(e) => setCurso(Number(e.target.value))} className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                                <option value="" disabled>Seleccionar curso...</option>
-                                {Object.entries(UserCurses).filter(([key]) => !isNaN(Number(key))).map(([key, name]) => (
-                                    <option key={key} value={key}>{name}</option>
-                                ))}
-                            </select>
+                            <label className="text-sm font-medium text-gray-700">Curso <span className="text-xs text-gray-500">(debe estar previamente creado)</span></label>
+                            {courses.length === 0 ? (
+                                <div className="p-3 border border-yellow-300 rounded-lg bg-yellow-50">
+                                    <p className="text-sm text-yellow-800">
+                                        No hay cursos creados. Por favor crea los cursos primero en la sección "Cursos".
+                                    </p>
+                                </div>
+                            ) : (
+                                <select 
+                                    value={selectedCourseId} 
+                                    onChange={(e) => setSelectedCourseId(e.target.value)} 
+                                    className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                    required
+                                >
+                                    <option value="" disabled>Seleccionar curso...</option>
+                                    {sortedCourses.map(course => (
+                                        <option key={course.id} value={course.id}>
+                                            {getCourseName(course.level)} - División {course.division}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
+                            {selectedCourseId && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                    El estudiante será asignado automáticamente a este curso al crearlo.
+                                </p>
+                            )}
                         </div>
-                        <div className="flex flex-col gap-y-2">
-                            <label className="text-sm font-medium text-gray-700">División</label>
-                            <select value={division} onChange={(e) => setDivision(e.target.value as CourseDivision)} className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                                <option value="" disabled>Seleccionar división...</option>
-                                {Object.values(CourseDivision).map(div => (
-                                    <option key={div} value={div}>{div}</option>
-                                ))}
-                            </select>
-                        </div>
-                        </>
                     )}
                     <div className="md:col-span-2 flex gap-3 pt-2">
                         <button type="button" onClick={() => setMenu(3)} className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">Cancelar</button>

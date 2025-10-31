@@ -13,11 +13,26 @@ export const MyStudents: React.FC = () => {
   const { users } = useTriskaContext();
 
   const isTeacher = user?.role === 4;
-  const [selectedSubjectId, setSelectedSubjectId] = useState<number | 'all'>('all');
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | 'all'>('all'); // Cambiar a string para usar ID de Firestore
 
   const subjects = useMemo(() => {
     if (!user?.uid) return [];
-    return getSubjectsByTeacher(user.uid);
+    const teacherSubjects = getSubjectsByTeacher(user.uid);
+    // Ordenar: primero por nombre de materia (alfabético), luego por curso (numérico), luego por división (A, B, C)
+    return [...teacherSubjects].sort((a, b) => {
+      // 1. Ordenar por nombre de materia
+      if (a.name !== b.name) {
+        return a.name.localeCompare(b.name);
+      }
+      // 2. Si tienen el mismo nombre, ordenar por curso
+      if (a.courseLevel !== b.courseLevel) {
+        return a.courseLevel - b.courseLevel;
+      }
+      // 3. Si tienen el mismo curso, ordenar por división (A antes que B, etc.)
+      const divA = a.courseDivision || '';
+      const divB = b.courseDivision || '';
+      return divA.localeCompare(divB);
+    });
   }, [user, getSubjectsByTeacher]);
 
   const allStudents = useMemo(() => {
@@ -27,7 +42,8 @@ export const MyStudents: React.FC = () => {
 
   const filteredStudents = useMemo(() => {
     if (selectedSubjectId === 'all') return allStudents;
-    const subj = subjects.find(s => s.subjectId === selectedSubjectId);
+    // Buscar por ID de Firestore (s.id) en lugar de subjectId para distinguir divisiones
+    const subj = subjects.find(s => s.id === selectedSubjectId);
     if (!subj) return [];
     const uids = new Set(subj.studentUids || []);
     return users.filter(u => u.role === 3 && uids.has(u.uid));
@@ -66,11 +82,17 @@ export const MyStudents: React.FC = () => {
             {subjects.map(s => (
               <button
                 key={s.id}
-                onClick={() => setSelectedSubjectId(s.subjectId)}
-                className={`px-3 py-1 rounded-full text-sm border ${selectedSubjectId === s.subjectId ? 'bg-gray-900 text-white border-gray-900' : 'bg-gray-100 text-gray-700'}`}
-                title={`${s.name} • ${getCourseName(s.courseLevel)}`}
+                onClick={() => setSelectedSubjectId(s.id)} // Usar ID de Firestore para distinguir divisiones
+                className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-2 ${selectedSubjectId === s.id ? 'bg-gray-900 text-white border-gray-900' : 'bg-gray-100 text-gray-700 border-gray-300'}`}
+                title={`${s.name} • ${getCourseName(s.courseLevel)}${s.courseDivision ? ` - División ${s.courseDivision}` : ''}`}
               >
-                {s.name}
+                <span>{s.name}</span>
+                <span className="font-semibold">
+                  {getCourseName(s.courseLevel)}
+                  {s.courseDivision && <span className={`ml-1 px-1.5 py-0.5 rounded text-xs font-bold ${selectedSubjectId === s.id ? 'bg-blue-300 text-blue-900' : 'bg-blue-200 text-blue-800'}`}>
+                    {s.courseDivision}
+                  </span>}
+                </span>
               </button>
             ))}
           </div>

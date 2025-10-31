@@ -11,7 +11,9 @@ export enum UserCurses {
   "2°" = 2,
   "3°" = 3,
   "4°" = 4,
-  "5°" = 5
+  "5°" = 5,
+  "6°" = 6,
+  "7°" = 7
 }
 
 export enum CourseDivision {
@@ -40,8 +42,9 @@ export interface User {
   role: UserRole;
   uid: string;
   mail?: string;
-  level?: UserCurses;
-  division?: CourseDivision | string; // División del curso (A, B, C)
+  level?: UserCurses; // Mantener para retrocompatibilidad, pero derivar de courseId
+  division?: CourseDivision | string; // Mantener para retrocompatibilidad, pero derivar de courseId
+  courseId?: string; // ID del curso asignado (referencia al documento Course en Firestore)
   childId?: string;
   dni?: number;
   asig?: number;

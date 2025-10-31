@@ -36,6 +36,20 @@ export const BulletinReports: React.FC = () => {
 
   const isStaff = user?.role === 1 || user?.role === 4 || user?.role === 2;
   const isStudent = user?.role === 3;
+  const isFamily = user?.role === 5;
+  
+  // Obtener el estudiante relacionado si es Familia
+  const relatedStudent = useMemo(() => {
+    if (!user || !isFamily || !user.childId) return null;
+    return users.find(u => u.uid === user.childId || u.id === user.childId);
+  }, [user, isFamily, users]);
+  
+  // Obtener el estudiante objetivo (el propio estudiante o el hijo si es familia)
+  const targetStudent = useMemo(() => {
+    if (isStudent && user) return user;
+    if (isFamily && relatedStudent) return relatedStudent;
+    return null;
+  }, [isStudent, isFamily, user, relatedStudent]);
 
   // Estado computado basado en alumnos asignados a materias del curso (fuente real de inscriptos)
   const computedStatus = useMemo(() => {
@@ -212,16 +226,15 @@ export const BulletinReports: React.FC = () => {
 
   // Filtrar calificaciones según el usuario
   const visibleGrades = useMemo(() => {
-    if (isStudent && user?.uid) {
-      // Estudiantes solo ven calificaciones publicadas
-      return grades.filter(g => g.studentUid === user.uid && g.published);
-    }
     if (isStaff) {
       // Staff ve todas las calificaciones (publicadas y no publicadas)
       return grades;
+    } else if (targetStudent?.uid) {
+      // Estudiantes y Familia solo ven calificaciones publicadas
+      return grades.filter(g => g.studentUid === targetStudent.uid && g.published);
     }
     return [];
-  }, [grades, user, isStudent, isStaff]);
+  }, [grades, targetStudent, isStaff]);
 
   // Agrupar calificaciones por estudiante
   const gradesByStudent = useMemo(() => {
@@ -261,11 +274,11 @@ export const BulletinReports: React.FC = () => {
     return grouped;
   }, [grades, selectedAdminCourse]);
 
-  // Para estudiantes: mostrar solo su boletín
+  // Para estudiantes y familia: mostrar solo su boletín o el del hijo
   const studentView = useMemo(() => {
-    if (!user?.uid || !isStudent) return null;
+    if (!targetStudent?.uid) return null;
 
-    const studentGrades = visibleGrades.filter(g => g.studentUid === user.uid);
+    const studentGrades = visibleGrades.filter(g => g.studentUid === targetStudent.uid);
 
     // Agrupar por materia
     const groupedBySubject: Record<number, Record<Period, typeof studentGrades>> = {};
@@ -286,7 +299,7 @@ export const BulletinReports: React.FC = () => {
     };
 
     // Obtener datos del estudiante
-    const studentData = users.find(u => u.uid === user.uid);
+    const studentData = targetStudent;
     const courseName = studentData?.level ? Object.keys(UserCurses).find(key => UserCurses[key as keyof typeof UserCurses] === studentData.level) || 'Sin curso' : 'Sin curso';
 
     return (
@@ -408,7 +421,7 @@ export const BulletinReports: React.FC = () => {
         )}
       </div>
     );
-  }, [user, isStudent, visibleGrades, users]);
+  }, [targetStudent, visibleGrades, users]);
 
   // Para admin/staff: ver todos los boletines
   const adminView = useMemo(() => {
@@ -554,8 +567,8 @@ export const BulletinReports: React.FC = () => {
           />
         </div>
         <p className="text-sm text-gray-500">
-          {isStudent 
-            ? 'Consulta tu boletín de calificaciones' 
+          {(isStudent || isFamily)
+            ? (isFamily ? 'Consulta el boletín de calificaciones' : 'Consulta tu boletín de calificaciones')
             : isMainAdmin
             ? 'Gestiona y publica los boletines de calificaciones'
             : 'Consulta los boletines de los estudiantes'}
@@ -744,7 +757,17 @@ export const BulletinReports: React.FC = () => {
       )}
 
       {/* Vista según rol */}
-      {isStudent && studentView}
+      {(isStudent || isFamily) && studentView}
+      {isFamily && !relatedStudent && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <h3 className="font-semibold text-yellow-800 mb-2">
+            No hay estudiante vinculado
+          </h3>
+          <p className="text-yellow-700">
+            Tu cuenta no está vinculada a ningún estudiante. Contacta con la administración para vincular tu cuenta a tu hijo/hija.
+          </p>
+        </div>
+      )}
       {isStaff && adminView}
 
       {/* Modal/Vista de Boletín Individual */}
