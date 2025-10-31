@@ -5,6 +5,7 @@ import { useAttendance } from '@/app/context/attendanceContext';
 import { useTriskaContext } from '@/app/context/triskaContext';
 import { useAuthContext } from '@/app/context/authContext';
 import { useCourses } from '@/app/context/courseContext';
+import { useSubjects } from '@/app/context/subjectContext';
 import { UserCurses } from '@/app/types/user';
 import { AttendanceStatus, AttendanceRecord } from '@/app/types/attendance';
 import { HiUserGroup, HiCheck, HiXCircle, HiClock } from 'react-icons/hi';
@@ -24,6 +25,7 @@ export const Attendance: React.FC = () => {
   const { users } = useTriskaContext();
   const { user } = useAuthContext();
   const { courses } = useCourses();
+  const { getSubjectsByTeacher } = useSubjects();
 
   const isStaffUser = isStaff(user);
   const isAdminUser = isAdmin(user);
@@ -58,12 +60,20 @@ export const Attendance: React.FC = () => {
         courseId: course.id
       }));
     } else if (isTeacherUser && user) {
-      // Docente solo ve sus cursos asignados
-      const teacherCourses = getAvailableCourses(user);
-      return teacherCourses;
+      // Docente solo ve sus cursos asignados usando el nuevo sistema
+      const teacherSubjects = getSubjectsByTeacher(user.uid);
+      const assignedCourseLevels = [...new Set(teacherSubjects.map(ts => ts.courseLevel))];
+      return courses
+        .filter(course => assignedCourseLevels.includes(course.level))
+        .map(course => ({
+          id: course.level,
+          name: getCourseName(course.level),
+          division: course.division,
+          courseId: course.id
+        }));
     }
     return [];
-  }, [isAdminUser, isStaffUser, isTeacherUser, user, courses]);
+  }, [isAdminUser, isStaffUser, isTeacherUser, user, courses, getSubjectsByTeacher]);
 
   // Estudiantes filtrados por curso seleccionado
   const studentsInCourse = useMemo(() => {
