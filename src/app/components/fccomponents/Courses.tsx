@@ -8,6 +8,8 @@ import { UserCurses, UserRole, CourseDivision } from '@/app/types/user';
 import { HiAcademicCap, HiPlus, HiTrash, HiUsers, HiUserGroup, HiCheck, HiX } from 'react-icons/hi';
 import Swal from 'sweetalert2';
 import toast from 'react-hot-toast';
+import { CourseCard } from '../reusable/CourseCard';
+import { CourseDetail } from '../reusable/CourseDetail';
 
 export const Courses: React.FC = () => {
   const { courses, createCourse, updateCourse, deleteCourse, assignPreceptorToCourse, assignStudentToCourse, removeStudentFromCourse, assignMultipleStudentsToCourse } = useCourses();
@@ -25,6 +27,7 @@ export const Courses: React.FC = () => {
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [selectedStudentUids, setSelectedStudentUids] = useState<Set<string>>(new Set());
   const [isSelectingStudents, setIsSelectingStudents] = useState(false);
+  const [selectedCourseForDetail, setSelectedCourseForDetail] = useState<string | null>(null);
 
   // Helpers
   const getCourseName = (level: number): string => {
@@ -296,154 +299,66 @@ export const Courses: React.FC = () => {
         </div>
       </div>
 
-      {/* Lista de Cursos */}
-      <div className="mb-8">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Cursos Existentes ({courses.length})</h2>
-        {courses.length === 0 ? (
-          <div className="text-center py-8">
-            <HiAcademicCap className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-            <p className="text-gray-500">No hay cursos creados</p>
+      {/* Vista de Resumen o Detalle */}
+      {selectedCourseForDetail ? (() => {
+        const course = courses.find(c => c.id === selectedCourseForDetail);
+        if (!course) {
+          setSelectedCourseForDetail(null);
+          return null;
+        }
+        
+        const preceptor = preceptors.find(p => p.uid === course.preceptorUid);
+        const assignedStudents = students.filter(s => course.studentUids.includes(s.uid));
+
+        return (
+          <CourseDetail
+            course={course}
+            preceptor={preceptor}
+            preceptors={preceptors}
+            students={students}
+            assignedStudents={assignedStudents}
+            onAssignPreceptor={(preceptorUid) => handleAssignPreceptor(course.id, preceptorUid)}
+            onSelectStudents={() => handleOpenStudentSelection(course.id)}
+            onAssignAllStudents={() => handleAssignAllStudents(course.id)}
+            onRemoveStudent={(studentUid) => handleRemoveStudent(course.id, studentUid)}
+            onDeleteCourse={() => {
+              handleDeleteCourse(course.id);
+              setSelectedCourseForDetail(null);
+            }}
+            onBack={() => setSelectedCourseForDetail(null)}
+          />
+        );
+      })() : (
+        <>
+          {/* Lista de Cursos - Vista de Tarjetas */}
+          <div className="mb-8">
+            <h2 className="text-lg font-medium text-gray-900 mb-4">Cursos Existentes</h2>
+            {courses.length === 0 ? (
+              <div className="text-center py-8">
+                <HiAcademicCap className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                <p className="text-gray-500">No hay cursos creados</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {courses.map((course) => {
+                  const assignedStudents = students.filter(s => course.studentUids.includes(s.uid));
+                  const preceptor = preceptors.find(p => p.uid === course.preceptorUid);
+
+                  return (
+                    <CourseCard
+                      key={course.id}
+                      course={course}
+                      preceptor={preceptor}
+                      studentCount={assignedStudents.length}
+                      onClick={() => setSelectedCourseForDetail(course.id)}
+                    />
+                  );
+                })}
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="grid gap-4">
-            {courses.map((course) => {
-              const assignedStudents = students.filter(s => course.studentUids.includes(s.uid));
-              const preceptor = preceptors.find(p => p.uid === course.preceptorUid);
-              const courseName = getCourseName(course.level);
-              
-              // Estudiantes del mismo nivel y división que aún no están asignados
-              const availableStudents = students.filter(s => 
-                s.level === course.level && 
-                s.division === course.division &&
-                !course.studentUids.includes(s.uid)
-              );
-
-              return (
-                <div key={course.id} className="p-4 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-semibold text-gray-800 text-lg">
-                          {courseName} - División {course.division}
-                        </h4>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleDeleteCourse(course.id)}
-                      className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm"
-                    >
-                      <HiTrash className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* Resumen */}
-                  <div className="flex flex-wrap items-center gap-2 mb-4">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      preceptor ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {preceptor ? `Preceptor: ${preceptor.name}` : 'Sin preceptor'}
-                    </span>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      assignedStudents.length > 0 ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
-                    }`}>
-                      Alumnos: {assignedStudents.length}
-                      {availableStudents.length > 0 && ` (${availableStudents.length} disponible${availableStudents.length !== 1 ? 's' : ''})`}
-                    </span>
-                  </div>
-
-                  {/* Preceptor */}
-                  <div className="mb-4">
-                    <h5 className="font-medium text-gray-700 mb-2">Preceptor Asignado</h5>
-                    {preceptor ? (
-                      <div className="flex items-center justify-between bg-white rounded p-3 border">
-                        <div>
-                          <span className="font-medium">{preceptor.name}</span>
-                          {preceptor.mail && (
-                            <p className="text-sm text-gray-600">{preceptor.mail}</p>
-                          )}
-                        </div>
-                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-sm">
-                          <HiCheck className="w-4 h-4 inline mr-1" />
-                          Asignado
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                        <p className="text-sm text-yellow-700 mb-2">No hay preceptor asignado</p>
-                        <select
-                          onChange={(e) => {
-                            if (e.target.value) {
-                              handleAssignPreceptor(course.id, e.target.value);
-                              e.target.value = '';
-                            }
-                          }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                        >
-                          <option value="">Seleccionar preceptor</option>
-                          {preceptors.map((p) => (
-                            <option key={p.uid} value={p.uid}>{p.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Estudiantes */}
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <h5 className="font-medium text-gray-700">
-                        Estudiantes Asignados ({assignedStudents.length})
-                      </h5>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleOpenStudentSelection(course.id)}
-                          className="px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm"
-                        >
-                          <HiUsers className="w-4 h-4 inline mr-1" />
-                          Seleccionar
-                        </button>
-                        {availableStudents.length > 0 && (
-                          <button
-                            onClick={() => handleAssignAllStudents(course.id)}
-                            className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm"
-                          >
-                            <HiPlus className="w-4 h-4 inline mr-1" />
-                            Asignar Todos
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    {assignedStudents.length === 0 ? (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                        <p className="text-sm text-yellow-700">No hay estudiantes asignados</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {assignedStudents.map((student) => (
-                          <div key={student.uid} className="flex justify-between items-center bg-white rounded p-2 border">
-                            <div>
-                              <span className="font-medium">{student.name}</span>
-                              {student.mail && (
-                                <p className="text-sm text-gray-600">{student.mail}</p>
-                              )}
-                            </div>
-                            <button
-                              onClick={() => handleRemoveStudent(course.id, student.uid)}
-                              className="px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm"
-                            >
-                              <HiTrash className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+        </>
+      )}
 
       {/* Modal de Selección de Estudiantes */}
       {isSelectingStudents && selectedCourseId && (

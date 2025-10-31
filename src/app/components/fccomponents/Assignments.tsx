@@ -10,6 +10,8 @@ import { Assignments as AssignmentEnum, UserCurses, UserRole, CourseDivision } f
 import { DayLabels } from '@/app/types/schedule';
 import Swal from 'sweetalert2';
 import toast from 'react-hot-toast';
+import { SubjectCard } from '../reusable/SubjectCard';
+import { SubjectDetail } from '../reusable/SubjectDetail';
 
 // Nota: Este componente es una refactorización de Settings.tsx renombrado a Assignments.tsx
 // y con el encabezado y textos principales cambiados a "Materias".
@@ -49,6 +51,7 @@ export const Assignments: React.FC = () => {
     const [selectedTimeSlots, setSelectedTimeSlots] = useState<Map<string, string>>(new Map());
     const [selectionStart, setSelectionStart] = useState<{ day: number; time: string } | null>(null);
     const [currentHover, setCurrentHover] = useState<{ day: number; time: string } | null>(null);
+    const [selectedSubjectForDetail, setSelectedSubjectForDetail] = useState<string | null>(null);
 
     // Filtrar usuarios por rol
     const students = useMemo(() => 
@@ -549,185 +552,92 @@ export const Assignments: React.FC = () => {
                 )}
             </div>
 
-            {/* Lista de Materias */}
-            <div className="mb-8">
-                <h2 className="text-lg font-medium text-gray-900 mb-4">Materias Existentes</h2>
-                {subjects.length === 0 ? (
-                    <div className="text-center py-8">
-                        <HiAcademicCap className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                        <p className="text-gray-500">No hay materias creadas</p>
-                    </div>
-                ) : (
-                    <div className="grid gap-4">
-                        {subjects.map((subject) => {
-                            const teacher = teachers.find(t => t.uid === subject.teacherUid);
-                            const assignedStudents = students.filter(s => subject.studentUids.includes(s.uid));
-                            return (
-                                <div key={subject.id} className="p-4 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors mb-4">
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div>
-                                            <h4 className="font-semibold text-gray-800 text-lg">{subject.name}</h4>
-                                            <p className="text-sm text-gray-600">{getCourseName(subject.courseLevel)}{subject.courseDivision ? ` ${subject.courseDivision}` : ''}</p>
-                                        </div>
-                                        <button onClick={() => handleDeleteSubject(subject.id)} className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm">
-                                            <HiTrash className="w-4 h-4" />
-                                        </button>
-                                    </div>
+            {/* Vista de Resumen o Detalle */}
+            {selectedSubjectForDetail ? (() => {
+                const subject = subjects.find(s => s.id === selectedSubjectForDetail);
+                if (!subject) {
+                    setSelectedSubjectForDetail(null);
+                    return null;
+                }
+                
+                const teacher = teachers.find(t => t.uid === subject.teacherUid);
+                const assignedStudents = students.filter(s => subject.studentUids.includes(s.uid));
+                const totalStudentsInCourseDivision = students.filter(s => 
+                    s.level === subject.courseLevel && 
+                    (subject.courseDivision ? s.division === subject.courseDivision : true)
+                ).length;
+                
+                // Obtener horarios (actuales o planificados)
+                const actualSchedules = getSchedulesBySubject(subject.subjectId, subject.courseLevel);
+                const allSchedules = actualSchedules.length > 0 
+                    ? actualSchedules 
+                    : (subject.plannedSchedules || []).map((s, idx) => ({
+                        id: `planned-${idx}`,
+                        dayOfWeek: s.dayOfWeek,
+                        startTime: s.startTime,
+                        endTime: s.endTime,
+                        classroom: s.classroom,
+                    }));
 
-                                    {/* Resumen compacto */}
-                                    {(() => {
-                                        const teacher = teachers.find(t => t.uid === subject.teacherUid);
-                                        const assignedStudents = students.filter(s => subject.studentUids.includes(s.uid));
-                                        const totalStudentsInCourseDivision = students.filter(s => s.level === subject.courseLevel && (subject.courseDivision ? s.division === subject.courseDivision : true)).length;
-                                        const actualSchedules = getSchedulesBySubject(subject.subjectId, subject.courseLevel);
-                                        const scheduleCount = (actualSchedules?.length || 0) + (actualSchedules.length === 0 ? (subject.plannedSchedules?.length || 0) : 0);
-
-                                        return (
-                                            <div className="flex flex-wrap items-center gap-2 mb-4">
-                                                <span className={`px-2 py-1 rounded text-xs font-medium ${teacher ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                                    {teacher ? `Docente: ${teacher.name}` : 'Sin docente'}
-                                                </span>
-                                                <span className={`px-2 py-1 rounded text-xs font-medium ${assignedStudents.length > 0 ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
-                                                    Alumnos: {assignedStudents.length}/{totalStudentsInCourseDivision}
-                                                </span>
-                                                <span className={`px-2 py-1 rounded text-xs font-medium ${scheduleCount > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-red-100 text-red-700'}`}>
-                                                    Horarios: {scheduleCount}
-                                                </span>
-                                                {subject.catedrasHours > 0 && (
-                                                    <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700">Horas cátedra: {subject.catedrasHours}</span>
-                                                )}
-                                            </div>
-                                        );
-                                    })()}
-
-                                    {/* Docente */}
-                                    <div className="mb-4">
-                                        <h5 className="font-medium text-gray-700 mb-2">Docente Asignado</h5>
-                                        {(() => {
-                                            const teacher = teachers.find(t => t.uid === subject.teacherUid);
-                                            if (teacher) {
-                                                return (
-                                                    <div className="flex items-center justify-between bg-white rounded p-3 border">
-                                                        <div>
-                                                            <span className="font-medium">{teacher.name}</span>
-                                                            <p className="text-sm text-gray-600">{teacher.mail}</p>
-                                                        </div>
-                                                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-sm"><HiCheck className="w-4 h-4 inline mr-1" />Asignado</span>
-                                                    </div>
-                                                );
-                                            }
-                                            return (
-                                                <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                                                    <p className="text-sm text-yellow-700">No hay docente asignado</p>
-                                                    <div className="mt-2">
-                                                        <select onChange={(e) => { if (e.target.value) { handleAssignTeacher(subject.id, e.target.value); e.target.value = ''; } }} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                                            <option value="">Seleccionar docente</option>
-                                                            {teachers.map((t) => (<option key={t.uid} value={t.uid}>{t.name}</option>))}
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })()}
-                                    </div>
-
-                                    {/* Horarios */}
-                                    <div className="mb-4">
-                                        <h5 className="font-medium text-gray-700 mb-2 flex items-center gap-2"><HiClock className="w-4 h-4" />Horarios de Clase</h5>
-                                        {(() => {
-                                            const actualSchedules = getSchedulesBySubject(subject.subjectId, subject.courseLevel);
-                                            if (actualSchedules.length === 0 && subject.plannedSchedules && subject.plannedSchedules.length > 0) {
-                                                return (
-                                                    <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-2">
-                                                        <p className="text-sm text-blue-700 mb-2">Horarios planificados (se crearán al asignar un docente):</p>
-                                                        <div className="space-y-2">
-                                                            {subject.plannedSchedules.map((schedule, idx) => (
-                                                                <div key={idx} className="bg-white rounded p-2 border border-blue-100">
-                                                                    <div className="flex items-center gap-3">
-                                                                        <span className="font-medium text-gray-800 text-sm">{DayLabels[schedule.dayOfWeek as keyof typeof DayLabels]}</span>
-                                                                        <span className="text-sm text-gray-600">{schedule.startTime} - {schedule.endTime}</span>
-                                                                        {schedule.classroom && (<span className="text-xs text-gray-500">Aula: {schedule.classroom}</span>)}
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            }
-                                            if (actualSchedules.length === 0 && (!subject.plannedSchedules || subject.plannedSchedules.length === 0)) {
-                                                return (<div className="bg-yellow-50 border border-yellow-200 rounded p-3"><p className="text-sm text-yellow-700">No hay horarios configurados para esta materia</p></div>);
-                                            }
-                                            return (
-                                                <div className="space-y-2">
-                                                    {actualSchedules.map((schedule) => (
-                                                        <div key={schedule.id} className="bg-white rounded p-3 border border-gray-200">
-                                                            <div className="flex items-center justify-between">
-                                                                <div className="flex-1">
-                                                                    <div className="flex items-center gap-3 mb-1">
-                                                                        <span className="font-medium text-gray-800">{DayLabels[schedule.dayOfWeek as keyof typeof DayLabels]}</span>
-                                                                        <span className="text-sm text-gray-600">{schedule.startTime} - {schedule.endTime}</span>
-                                                                    </div>
-                                                                    {schedule.classroom && (<p className="text-sm text-gray-500">Aula: {schedule.classroom}</p>)}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            );
-                                        })()}
-                                    </div>
-
-                                    {/* Estudiantes */}
-                                    <div>
-                                        <div className="flex justify-between items-center mb-2">
-                                            <h5 className="font-medium text-gray-700">Estudiantes Asignados ({students.filter(s => subject.studentUids.includes(s.uid)).length})</h5>
-                                            <div className="flex gap-2">
-                                                <button onClick={() => handleOpenStudentSelection(subject.id)} className="px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm"><HiUsers className="w-4 h-4 inline mr-1" />Seleccionar</button>
-                                                <button onClick={() => handleAssignAllStudents(subject.id)} className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm"><HiPlus className="w-4 h-4 inline mr-1" />Asignar Todos</button>
-                                            </div>
-                                        </div>
-                                        {(() => {
-                                            const assignedStudents = students.filter(s => subject.studentUids.includes(s.uid));
-                                            if (assignedStudents.length === 0) {
-                                                return <div className="bg-yellow-50 border border-yellow-200 rounded p-3"><p className="text-sm text-yellow-700">No hay estudiantes asignados</p></div>;
-                                            }
-                                            return (
-                                                <div className="space-y-2">
-                                                    {assignedStudents.map((student) => (
-                                                        <div key={student.uid} className="flex justify-between items-center bg-white rounded p-2 border">
-                                                            <div>
-                                                                <span className="font-medium">{student.name}</span>
-                                                                <p className="text-sm text-gray-600">{student.mail}</p>
-                                                            </div>
-                                                            <button onClick={() => handleRemoveStudent(subject.id, student.uid)} className="px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm"><HiTrash className="w-4 h-4" /></button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            );
-                                        })()}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
-
-            {/* Resumen de materias */}
-            <div className="mt-8 bg-gray-50 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Resumen de Materias</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {subjectSummary.map((summary, idx) => (
-                        <div key={`summary-${summary.subjectId}-${summary.courseLevel}-${idx}`} className="bg-white rounded-lg p-4 border border-gray-200">
-                            <h4 className="font-medium text-gray-800">{summary.subjectName}</h4>
-                            <p className="text-sm text-gray-600 mb-2">{summary.courseName}</p>
-                            <div className="space-y-1 text-sm">
-                                <div className="flex justify-between"><span>Docente:</span><span className="font-medium">{summary.teacherName || 'Sin asignar'}</span></div>
-                                <div className="flex justify-between"><span>Estudiantes:</span><span className="font-medium">{summary.assignedStudents}</span></div>
+                return (
+                    <SubjectDetail
+                        subject={subject}
+                        teacher={teacher}
+                        teachers={teachers}
+                        students={students}
+                        assignedStudents={assignedStudents}
+                        schedules={allSchedules}
+                        totalStudentsInCourse={totalStudentsInCourseDivision}
+                        onAssignTeacher={(teacherUid) => handleAssignTeacher(subject.id, teacherUid)}
+                        onSelectStudents={() => handleOpenStudentSelection(subject.id)}
+                        onAssignAllStudents={() => handleAssignAllStudents(subject.id)}
+                        onRemoveStudent={(studentUid) => handleRemoveStudent(subject.id, studentUid)}
+                        onDeleteSubject={() => {
+                            handleDeleteSubject(subject.id);
+                            setSelectedSubjectForDetail(null);
+                        }}
+                        onBack={() => setSelectedSubjectForDetail(null)}
+                    />
+                );
+            })() : (
+                <>
+                    {/* Lista de Materias - Vista de Tarjetas */}
+                    <div className="mb-8">
+                        <h2 className="text-lg font-medium text-gray-900 mb-4">Resumen de Materias</h2>
+                        {subjects.length === 0 ? (
+                            <div className="text-center py-8">
+                                <HiAcademicCap className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                                <p className="text-gray-500">No hay materias creadas</p>
                             </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {subjects.map((subject) => {
+                                    const teacher = teachers.find(t => t.uid === subject.teacherUid);
+                                    const assignedStudents = students.filter(s => subject.studentUids.includes(s.uid));
+                                    const totalStudentsInCourseDivision = students.filter(s => 
+                                        s.level === subject.courseLevel && 
+                                        (subject.courseDivision ? s.division === subject.courseDivision : true)
+                                    ).length;
+                                    const actualSchedules = getSchedulesBySubject(subject.subjectId, subject.courseLevel);
+                                    const scheduleCount = (actualSchedules?.length || 0) + (actualSchedules.length === 0 ? (subject.plannedSchedules?.length || 0) : 0);
+
+                                    return (
+                                        <SubjectCard
+                                            key={subject.id}
+                                            subject={subject}
+                                            teacher={teacher}
+                                            studentCount={assignedStudents.length}
+                                            totalStudentsInCourse={totalStudentsInCourseDivision}
+                                            scheduleCount={scheduleCount}
+                                            onClick={() => setSelectedSubjectForDetail(subject.id)}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </>
+            )}
 
             {/* Modal selección de estudiantes */}
             {isSelectingStudents && selectedSubjectId && (
