@@ -4,6 +4,7 @@ export enum UserRole {
   Estudiante = 3,
   Docente = 4,
   Familia  = 5,
+  Seguridad = 6,
 }
 
 export enum UserCurses {
@@ -45,7 +46,8 @@ export interface User {
   level?: UserCurses; // Mantener para retrocompatibilidad, pero derivar de courseId
   division?: CourseDivision | string; // Mantener para retrocompatibilidad, pero derivar de courseId
   courseId?: string; // ID del curso asignado (referencia al documento Course en Firestore)
-  childId?: string;
+  childId?: string; // Mantener para retrocompatibilidad (un solo hijo)
+  childrenIds?: string[]; // Múltiples hijos (array de UIDs de estudiantes)
   dni?: number;
   asig?: number;
   password?: string; // Para usuarios pendientes

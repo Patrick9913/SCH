@@ -34,11 +34,41 @@ export const Attendance: React.FC = () => {
   const isFamily = user?.role === 5;
   const canManage = canManageGrades(user);
   
-  // Obtener el estudiante relacionado si es Familia
-  const relatedStudent = useMemo(() => {
-    if (!user || !isFamily || !user.childId) return null;
-    return users.find(u => u.uid === user.childId || u.id === user.childId);
+  // Estado para seleccionar qué hijo ver (para familias con múltiples hijos)
+  const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+  
+  // Obtener todos los estudiantes relacionados si es Familia
+  const relatedStudents = useMemo(() => {
+    if (!user || !isFamily) return [];
+    
+    // Priorizar childrenIds (múltiples hijos)
+    if (user.childrenIds && user.childrenIds.length > 0) {
+      return users.filter(u => 
+        user.childrenIds?.includes(u.id) || user.childrenIds?.includes(u.uid)
+      );
+    }
+    
+    // Fallback a childId (retrocompatibilidad - un solo hijo)
+    if (user.childId) {
+      const student = users.find(u => u.uid === user.childId || u.id === user.childId);
+      return student ? [student] : [];
+    }
+    
+    return [];
   }, [user, isFamily, users]);
+  
+  // Auto-seleccionar el primer hijo si hay múltiples y no hay ninguno seleccionado
+  React.useEffect(() => {
+    if (isFamily && relatedStudents.length > 0 && !selectedChildId) {
+      setSelectedChildId(relatedStudents[0].id || relatedStudents[0].uid);
+    }
+  }, [isFamily, relatedStudents, selectedChildId]);
+  
+  // Obtener el estudiante relacionado actualmente seleccionado
+  const relatedStudent = useMemo(() => {
+    if (!isFamily || !selectedChildId) return null;
+    return relatedStudents.find(s => s.id === selectedChildId || s.uid === selectedChildId) || null;
+  }, [isFamily, selectedChildId, relatedStudents]);
 
   // Estados para el flujo de registro
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -498,11 +528,50 @@ export const Attendance: React.FC = () => {
         )}
       </div>
 
+      {/* Selector de hijos para familias con múltiples hijos */}
+      {isFamily && relatedStudents.length > 1 && (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Selecciona el hijo/a para ver sus asistencias:
+          </label>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {relatedStudents.map(student => {
+              const studentId = student.id || student.uid;
+              const isSelected = selectedChildId === studentId;
+              const courseName = student.level 
+                ? Object.keys(UserCurses).find(key => UserCurses[key as keyof typeof UserCurses] === student.level) || 'Sin curso'
+                : 'Sin curso';
+              
+              return (
+                <button
+                  key={studentId}
+                  onClick={() => setSelectedChildId(studentId)}
+                  className={`p-4 rounded-lg border-2 transition-all text-left ${
+                    isSelected
+                      ? 'bg-blue-100 border-blue-500 shadow-md'
+                      : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className={`w-3 h-3 rounded-full ${isSelected ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
+                    <h3 className="font-semibold text-gray-900">{student.name}</h3>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    Curso: {courseName}
+                    {student.division && ` ${student.division}`}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Vista de Estudiante y Familia */}
       {(isStudent || isFamily) && studentView}
       
       {/* Mensaje para Familia sin hijo asignado */}
-      {isFamily && !relatedStudent && (
+      {isFamily && relatedStudents.length === 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
           <h3 className="font-semibold text-yellow-800 mb-2">
             No hay estudiante vinculado

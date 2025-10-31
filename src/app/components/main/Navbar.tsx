@@ -11,7 +11,7 @@ import { HiCog } from "react-icons/hi";
 import { HiHome } from "react-icons/hi";
 import { HiDocumentCheck } from "react-icons/hi2";
 import { HiChatBubbleOvalLeft } from "react-icons/hi2";
-import { HiChartBar, HiDocumentText, HiAcademicCap } from "react-icons/hi";
+import { HiChartBar, HiDocumentText, HiAcademicCap, HiShieldCheck, HiClipboardList } from "react-icons/hi";
 import { UserRole } from "@/app/types/user";
 
 export const Navbar: React.FC = () => {
@@ -255,15 +255,6 @@ export const Navbar: React.FC = () => {
                             </li>
                             <li>
                                 <button 
-                                    onClick={() => setMenu(6)} 
-                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
-                                >
-                                    <HiChartBar className="w-5 h-5" />
-                                    <span>Calificaciones</span>
-                                </button>
-                            </li>
-                            <li>
-                                <button 
                                     onClick={() => setMenu(4)} 
                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
                                 >
@@ -273,11 +264,43 @@ export const Navbar: React.FC = () => {
                             </li>
                             <li>
                                 <button 
-                                    onClick={() => setMenu(8)} 
+                                    onClick={() => setMenu(14)} 
                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
                                 >
-                                    <IoCalendarClear className="w-5 h-5" />
-                                    <span>Horarios</span>
+                                    <HiShieldCheck className="w-5 h-5" />
+                                    <span>Retiros Anticipados</span>
+                                </button>
+                            </li>
+                        </>
+                    )}
+                    {/* Opciones para SEGURIDAD (role === 6) */}
+                    {user?.role === 6 && (
+                        <>
+                            <li>
+                                <button 
+                                    onClick={() => setMenu(1)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiHome className="w-5 h-5" />
+                                    <span>Inicio</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button 
+                                    onClick={() => setMenu(15)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiShieldCheck className="w-5 h-5" />
+                                    <span>Validar Retiros</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button 
+                                    onClick={() => setMenu(16)} 
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                >
+                                    <HiClipboardList className="w-5 h-5" />
+                                    <span>Historial de Retiros</span>
                                 </button>
                             </li>
                         </>

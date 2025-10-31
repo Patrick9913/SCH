@@ -12,6 +12,7 @@ import { AuthContextProvider } from "../context/authContext";
 import { SubjectProvider } from "../context/subjectContext";
 import { ScheduleProvider } from "../context/scheduleContext";
 import { CourseProvider } from "../context/courseContext";
+import { WithdrawalProvider } from "../context/withdrawalContext";
 import { Toaster } from 'react-hot-toast';
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -26,7 +27,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
                   <TriskaProvider>
                     <ChatProvider>
                       <GradesProvider>
-                        <ScheduleProvider>
+                        <WithdrawalProvider>
+                          <ScheduleProvider>
                         <Toaster 
                           position="top-right"
                           toastOptions={{
@@ -51,6 +53,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
                         />
                         {children}
                         </ScheduleProvider>
+                        </WithdrawalProvider>
                       </GradesProvider>
                     </ChatProvider>
                   </TriskaProvider>

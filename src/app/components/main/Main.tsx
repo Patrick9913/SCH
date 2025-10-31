@@ -15,6 +15,9 @@ import { MyStudents } from "../fccomponents/MyStudents";
 import { Schedule } from "../fccomponents/Schedule";
 import { MyCourses } from "../fccomponents/MyCourses";
 import { Courses } from "../fccomponents/Courses";
+import { EarlyWithdrawals } from "../fccomponents/EarlyWithdrawals";
+import { WithdrawalSecurity } from "../fccomponents/WithdrawalSecurity";
+import { WithdrawalHistory } from "../fccomponents/WithdrawalHistory";
 
 export const Main: React.FC = () => {
 
@@ -85,6 +88,21 @@ export const Main: React.FC = () => {
                 {
                     menu == 13 && (
                         <Courses />
+                    )
+                }
+                {
+                    menu == 14 && (
+                        <EarlyWithdrawals />
+                    )
+                }
+                {
+                    menu == 15 && (
+                        <WithdrawalSecurity />
+                    )
+                }
+                {
+                    menu == 16 && (
+                        <WithdrawalHistory />
                     )
                 }
             </div>

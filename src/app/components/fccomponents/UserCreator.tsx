@@ -11,7 +11,7 @@ import { Assignments, UserCurses, CourseDivision } from "@/app/types/user";
 import toast from "react-hot-toast";
 
 export const UserCreator: React.FC = () => {
-    const { setMenu, newUser } = useTriskaContext();
+    const { setMenu, newUser, users } = useTriskaContext();
     const { user: currentUser } = useAuthContext();
     const { courses, assignStudentToCourse } = useCourses();
     const { subjects } = useSubjects();
@@ -24,6 +24,7 @@ export const UserCreator: React.FC = () => {
     const [role, setRole] = useState<number>(0);
     const [asignatura, setAsignatura] = useState<number | ''>('');
     const [selectedCourseId, setSelectedCourseId] = useState<string>('');
+    const [selectedChildrenIds, setSelectedChildrenIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
     // Cursos ordenados para mostrar
@@ -49,6 +50,13 @@ export const UserCreator: React.FC = () => {
         return Array.from(subjectMap.values()).sort((a, b) => a.name.localeCompare(b.name));
     }, [subjects]);
 
+    // Estudiantes disponibles para asignar como hijos
+    const availableStudents = useMemo(() => {
+        return users
+            .filter(u => u.role === 3) // Solo estudiantes
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }, [users]);
+
     if (!isAdmin) {
         return (
             <section className="flex-1 p-6 overflow-y-auto max-h-screen h-full bg-white">
@@ -61,7 +69,7 @@ export const UserCreator: React.FC = () => {
     }
 
     const resetForm = () => {
-        setFirstName(''); setMail(''); setDni(''); setPassword(''); setRole(0); setAsignatura(''); setSelectedCourseId('');
+        setFirstName(''); setMail(''); setDni(''); setPassword(''); setRole(0); setAsignatura(''); setSelectedCourseId(''); setSelectedChildrenIds([]);
     };
 
     const getCourseName = (level: number): string => {
@@ -87,6 +95,10 @@ export const UserCreator: React.FC = () => {
             toast.error('Selecciona un curso para el estudiante'); 
             return; 
         }
+        if (role === 5 && selectedChildrenIds.length === 0) { 
+            toast.error('Selecciona al menos un hijo para el familiar'); 
+            return; 
+        }
         
         setIsLoading(true);
         try {
@@ -108,6 +120,13 @@ export const UserCreator: React.FC = () => {
                 userData.courseId = selectedCourseId;
                 userData.level = selectedCourse.level;
                 userData.division = selectedCourse.division;
+            }
+
+            // Si es familia, agregar childrenIds
+            if (role === 5 && selectedChildrenIds.length > 0) {
+                userData.childrenIds = selectedChildrenIds;
+                // Para retrocompatibilidad, también establecer childId con el primer hijo
+                userData.childId = selectedChildrenIds[0];
             }
 
             const createdUser = await newUser(userData);
@@ -171,13 +190,14 @@ export const UserCreator: React.FC = () => {
                     </div>
                     <div className="flex flex-col gap-y-2">
                         <label className="text-sm font-medium text-gray-700">Rol</label>
-                        <select value={role} onChange={(e) => { setRole(Number(e.target.value)); setAsignatura(''); setSelectedCourseId(''); }} className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        <select value={role} onChange={(e) => { setRole(Number(e.target.value)); setAsignatura(''); setSelectedCourseId(''); setSelectedChildrenIds([]); }} className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                             <option value={0} disabled>Seleccionar rol...</option>
                             <option value={1}>Administrador</option>
                             <option value={2}>Staff</option>
                             <option value={3}>Estudiante</option>
                             <option value={4}>Docente</option>
                             <option value={5}>Familia</option>
+                            <option value={6}>Seguridad</option>
                         </select>
                     </div>
                     {role === 4 && (
@@ -227,6 +247,57 @@ export const UserCreator: React.FC = () => {
                                 <p className="text-xs text-gray-500 mt-1">
                                     El estudiante será asignado automáticamente a este curso al crearlo.
                                 </p>
+                            )}
+                        </div>
+                    )}
+                    {role === 5 && (
+                        <div className="flex flex-col gap-y-2 md:col-span-2">
+                            <label className="text-sm font-medium text-gray-700">
+                                Hijos <span className="text-xs text-gray-500">(Selecciona los alumnos asociados a este familiar)</span>
+                            </label>
+                            {availableStudents.length === 0 ? (
+                                <div className="p-3 border border-yellow-300 rounded-lg bg-yellow-50">
+                                    <p className="text-sm text-yellow-800">
+                                        No hay estudiantes creados. Por favor crea los estudiantes primero.
+                                    </p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="p-3 border border-gray-300 rounded-lg max-h-60 overflow-y-auto bg-gray-50">
+                                        {availableStudents.map(student => (
+                                            <label 
+                                                key={student.id} 
+                                                className="flex items-center gap-3 p-2 hover:bg-white rounded cursor-pointer transition-colors"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedChildrenIds.includes(student.id || student.uid)}
+                                                    onChange={(e) => {
+                                                        const studentId = student.id || student.uid;
+                                                        if (e.target.checked) {
+                                                            setSelectedChildrenIds([...selectedChildrenIds, studentId]);
+                                                        } else {
+                                                            setSelectedChildrenIds(selectedChildrenIds.filter(id => id !== studentId));
+                                                        }
+                                                    }}
+                                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                />
+                                                <div className="flex-1">
+                                                    <p className="text-sm font-medium text-gray-900">{student.name}</p>
+                                                    <p className="text-xs text-gray-500">
+                                                        DNI: {student.dni || 'Sin DNI'} 
+                                                        {student.level && ` • Curso: ${getCourseName(student.level)}${student.division ? ` ${student.division}` : ''}`}
+                                                    </p>
+                                                </div>
+                                            </label>
+                                        ))}
+                                    </div>
+                                    {selectedChildrenIds.length > 0 && (
+                                        <p className="text-xs text-green-600 mt-1">
+                                            ✓ {selectedChildrenIds.length} {selectedChildrenIds.length === 1 ? 'hijo seleccionado' : 'hijos seleccionados'}
+                                        </p>
+                                    )}
+                                </>
                             )}
                         </div>
                     )}

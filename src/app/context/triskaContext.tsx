@@ -25,8 +25,8 @@ interface TriskaContextProps {
     password: string;
     setPassword: Dispatch<SetStateAction<string>>
     setDni: Dispatch<SetStateAction<string>>;
-    newUser: (data: NewUserData & { asignatura?: number, curso?: number, division?: string, courseId?: string, level?: number }) => Promise<User | undefined>;
-    updateUser: (userId: string, data: Partial<NewUserData & { asignatura?: number, curso?: number, division?: string, courseId?: string, level?: number }>) => Promise<void>;
+    newUser: (data: NewUserData & { asignatura?: number, curso?: number, division?: string, courseId?: string, level?: number, childId?: string, childrenIds?: string[] }) => Promise<User | undefined>;
+    updateUser: (userId: string, data: Partial<NewUserData & { asignatura?: number, curso?: number, division?: string, courseId?: string, level?: number, childId?: string, childrenIds?: string[] }>) => Promise<void>;
     deleteUser: (userId: string) => Promise<void>;
     suspendUser: (userId: string) => Promise<void>;
     activateUser: (userId: string) => Promise<void>;
@@ -188,6 +188,32 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 });
 
                 return unsubscribe;
+            } else if (user.role === 5) {
+                // Familia: obtener solo los usuarios estudiantes relacionados (vía childrenIds o childId)
+                const unsubscribe = onSnapshot(userRef, (snapshot) => {
+                    const usersData = snapshot.docs.map((doc) => {
+                        const data = doc.data() as Omit<User, 'id'>;
+                        return {
+                            ...data,
+                            id: doc.id,
+                            uid: data.uid || doc.id,
+                        } as User;
+                    }).filter(u => {
+                        // Priorizar childrenIds (múltiples hijos)
+                        if (user.childrenIds && user.childrenIds.length > 0) {
+                            return user.childrenIds.includes(u.id) || user.childrenIds.includes(u.uid);
+                        }
+                        // Fallback a childId (retrocompatibilidad)
+                        return user.childId && (u.id === user.childId || u.uid === user.childId);
+                    });
+                    setUsers(usersData);
+                });
+
+                return unsubscribe;
+            } else if (user.role === 6) {
+                // Seguridad: no necesita cargar usuarios, solo datos básicos
+                setUsers([user]);
+                return undefined;
             }
             return undefined;
         } catch (error) {
@@ -203,7 +229,7 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
 
     // Función para crear un nuevo usuario (solo en Firestore)
-    const newUser = async ({ firstName, mail, dni, role, password, asignatura, curso, division, courseId, level }: NewUserData & { asignatura?: number, curso?: number, division?: string, courseId?: string, level?: number }): Promise<User | undefined> => {
+    const newUser = async ({ firstName, mail, dni, role, password, asignatura, curso, division, courseId, level, childId, childrenIds }: NewUserData & { asignatura?: number, curso?: number, division?: string, courseId?: string, level?: number, childId?: string, childrenIds?: string[] }): Promise<User | undefined> => {
         try {
                 // Validar permisos - solo admin puede crear usuarios
                 if (!user || user.role !== 1) {
@@ -253,6 +279,10 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                     if (curso !== undefined) userData.level = curso;
                     if (division !== undefined) userData.division = division;
                 }
+
+                // Si es familia, agregar childId y childrenIds
+                if (childId !== undefined) userData.childId = childId;
+                if (childrenIds !== undefined && childrenIds.length > 0) userData.childrenIds = childrenIds;
                 
                 await setDoc(docRef, userData);
 
@@ -268,6 +298,8 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                     ...(courseId && { courseId }),
                     ...(level !== undefined && { level: level as any }),
                     ...(division && { division }),
+                    ...(childId && { childId }),
+                    ...(childrenIds && childrenIds.length > 0 && { childrenIds }),
                     status: 'active'
                 };
 
