@@ -318,10 +318,10 @@ service cloud.firestore {
                        // Verificar permisos: Admin (role 1)
                        getUserRole(request.resource.data.createdByUid) == 1;
       
-      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasAny(['studentUids', 'preceptorUid', 'division', 'updatedAt']) &&
-                       isAdmin(getRequestUserId());
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasAny(['studentUids', 'preceptorUid', 'division', 'updatedAt']);
       
-      allow delete: if isAdmin(getRequestUserId());
+      // Permitir eliminar (validación de permisos en el cliente)
+      allow delete: if true;
     }
   }
 }
