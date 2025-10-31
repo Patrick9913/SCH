@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useAttendance } from '@/app/context/attendanceContext';
 import { useTriskaContext } from '@/app/context/triskaContext';
 import { useAuthContext } from '@/app/context/authContext';
+import { useCourses } from '@/app/context/courseContext';
 import { UserCurses } from '@/app/types/user';
 import { AttendanceStatus, AttendanceRecord } from '@/app/types/attendance';
 import { HiUserGroup, HiCheck, HiXCircle, HiClock } from 'react-icons/hi';
@@ -22,6 +23,7 @@ export const Attendance: React.FC = () => {
   const { records, addMultipleAttendances, getAttendanceForStudent, refreshAttendance } = useAttendance();
   const { users } = useTriskaContext();
   const { user } = useAuthContext();
+  const { courses } = useCourses();
 
   const isStaffUser = isStaff(user);
   const isAdminUser = isAdmin(user);
@@ -39,6 +41,7 @@ export const Attendance: React.FC = () => {
   // Estados para el flujo de registro
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedCourse, setSelectedCourse] = useState<number | ''>('');
+  const [selectedCourseDivision, setSelectedCourseDivision] = useState<string | null>(null); // División del curso seleccionado
   const [studentAttendances, setStudentAttendances] = useState<Record<string, AttendanceStatus>>({});
   
   // Estado para estudiantes: mes seleccionado
@@ -47,27 +50,38 @@ export const Attendance: React.FC = () => {
   // Obtener cursos disponibles según permisos
   const availableCourses = useMemo(() => {
     if (isAdminUser || isStaffUser) {
-      // Admin y Staff pueden ver todos los cursos
-      return Object.entries(UserCurses)
-        .filter(([key]) => !isNaN(Number(key)))
-        .map(([key, name]) => ({ id: Number(key), name: name as string }));
+      // Admin y Staff pueden ver todos los cursos creados
+      return courses.map(course => ({
+        id: course.level,
+        name: getCourseName(course.level),
+        division: course.division,
+        courseId: course.id
+      }));
     } else if (isTeacherUser && user) {
       // Docente solo ve sus cursos asignados
-      return getAvailableCourses(user);
+      const teacherCourses = getAvailableCourses(user);
+      return teacherCourses;
     }
     return [];
-  }, [isAdminUser, isStaffUser, isTeacherUser, user]);
+  }, [isAdminUser, isStaffUser, isTeacherUser, user, courses]);
 
   // Estudiantes filtrados por curso seleccionado
   const studentsInCourse = useMemo(() => {
     if (!selectedCourse) return [];
-    return users.filter(u => u.role === 3 && u.level === selectedCourse).map(u => ({
+    let filtered = users.filter(u => u.role === 3 && u.level === selectedCourse);
+    
+    // Si hay división seleccionada, filtrar también por división
+    if (selectedCourseDivision) {
+      filtered = filtered.filter(u => u.division === selectedCourseDivision);
+    }
+    
+    return filtered.map(u => ({
       ...u,
       // Asegurar que uid sea igual a id para compatibilidad
       // Usar id como identificador principal ya que es el documentId de Firestore
       uid: u.id || u.uid,
     }));
-  }, [users, selectedCourse]);
+  }, [users, selectedCourse, selectedCourseDivision]);
 
   // Cargar asistencias existentes cuando se selecciona fecha y curso
   const initialAttendances = useMemo(() => {
@@ -189,6 +203,7 @@ export const Attendance: React.FC = () => {
       // Resetear el formulario
       setSelectedDate('');
       setSelectedCourse('');
+      setSelectedCourseDivision(null);
       setStudentAttendances({});
     } catch (error) {
       console.error('Error al guardar asistencias:', error);
@@ -205,6 +220,7 @@ export const Attendance: React.FC = () => {
   const handleReset = () => {
     setSelectedDate('');
     setSelectedCourse('');
+    setSelectedCourseDivision(null);
     setStudentAttendances({});
   };
 
@@ -501,6 +517,7 @@ export const Attendance: React.FC = () => {
               onChange={(e) => {
                 setSelectedDate(e.target.value);
                 setSelectedCourse('');
+                setSelectedCourseDivision(null);
                 setStudentAttendances({});
               }}
               className="w-full border rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -515,7 +532,9 @@ export const Attendance: React.FC = () => {
             <select
               value={selectedCourse}
               onChange={(e) => {
+                const courseData = availableCourses.find(c => c.id === Number(e.target.value));
                 setSelectedCourse(Number(e.target.value));
+                setSelectedCourseDivision(courseData?.division || null);
                 setStudentAttendances({});
               }}
               disabled={!selectedDate}
@@ -523,8 +542,8 @@ export const Attendance: React.FC = () => {
             >
               <option value="">Seleccionar curso...</option>
               {availableCourses.map((course) => (
-                <option key={course.id} value={course.id}>
-                  {course.name}
+                <option key={course.courseId || course.id} value={course.id}>
+                  {course.name}{course.division ? ` - División ${course.division}` : ''}
                 </option>
               ))}
             </select>

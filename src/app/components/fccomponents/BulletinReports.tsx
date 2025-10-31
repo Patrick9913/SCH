@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { useGrades } from '@/app/context/gradesContext';
 import { useTriskaContext } from '@/app/context/triskaContext';
 import { useAuthContext } from '@/app/context/authContext';
+import { useCourses } from '@/app/context/courseContext';
 import { Assignments, UserCurses, User } from '@/app/types/user';
 import { GradeLabels, PeriodLabels, Period } from '@/app/types/grade';
 import { HiDocumentText, HiPrinter } from 'react-icons/hi';
@@ -19,6 +20,7 @@ export const BulletinReports: React.FC = () => {
   const { grades, publishGrades, publishBulletins, getBulletinStatus, refreshGrades } = useGrades();
   const { users } = useTriskaContext();
   const { user } = useAuthContext();
+  const { courses } = useCourses();
   const { isMainAdmin, gradeLoadingEnabled, toggleGradeLoading, isConnected, lastUpdated } = useSettings();
   const { subjects } = useSubjects();
   
@@ -447,13 +449,12 @@ export const BulletinReports: React.FC = () => {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Selecciona un curso</option>
-            {Object.entries(UserCurses)
-              .filter(([key, value]) => typeof value === 'number')
-              .map(([key, value]) => (
-                <option key={value} value={value}>
-                  {key}
-                </option>
-              ))}
+            {courses.map(course => (
+              <option key={course.id} value={course.level}>
+                {Object.keys(UserCurses).find(key => UserCurses[key as keyof typeof UserCurses] === course.level)}
+                {course.division ? ` - División ${course.division}` : ''}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -666,13 +667,12 @@ export const BulletinReports: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 <option value="">Selecciona un curso</option>
-                {Object.entries(UserCurses)
-                  .filter(([key, value]) => typeof value === 'number')
-                  .map(([key, value]) => (
-                    <option key={value} value={value}>
-                      {key}
-                    </option>
-                  ))}
+                {courses.map(course => (
+                  <option key={course.id} value={course.level}>
+                    {Object.keys(UserCurses).find(key => UserCurses[key as keyof typeof UserCurses] === course.level)}
+                    {course.division ? ` - División ${course.division}` : ''}
+                  </option>
+                ))}
               </select>
             </div>
 

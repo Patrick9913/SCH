@@ -6,6 +6,7 @@ import { HiArrowLeft } from "react-icons/hi";
 import { useTriskaContext } from "@/app/context/triskaContext";
 import { useAuthContext } from "@/app/context/authContext";
 import { useCourses } from "@/app/context/courseContext";
+import { useSubjects } from "@/app/context/subjectContext";
 import { Assignments, UserCurses, CourseDivision } from "@/app/types/user";
 import toast from "react-hot-toast";
 
@@ -13,6 +14,7 @@ export const UserCreator: React.FC = () => {
     const { setMenu, newUser } = useTriskaContext();
     const { user: currentUser } = useAuthContext();
     const { courses, assignStudentToCourse } = useCourses();
+    const { subjects } = useSubjects();
     const isAdmin = currentUser?.role === 1;
 
     const [firstName, setFirstName] = useState('');
@@ -31,6 +33,21 @@ export const UserCreator: React.FC = () => {
             return (a.division || '').localeCompare(b.division || '');
         });
     }, [courses]);
+
+    // Materias únicas para selección (solo las creadas)
+    const uniqueSubjects = useMemo(() => {
+        // Obtener materias únicas por nombre (para evitar duplicados)
+        const subjectMap = new Map<string, { name: string; subjectId: number }>();
+        subjects.forEach(subject => {
+            if (!subjectMap.has(subject.name)) {
+                subjectMap.set(subject.name, {
+                    name: subject.name,
+                    subjectId: subject.subjectId
+                });
+            }
+        });
+        return Array.from(subjectMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    }, [subjects]);
 
     if (!isAdmin) {
         return (
@@ -166,12 +183,20 @@ export const UserCreator: React.FC = () => {
                     {role === 4 && (
                         <div className="flex flex-col gap-y-2">
                             <label className="text-sm font-medium text-gray-700">Asignatura</label>
-                            <select value={asignatura} onChange={(e) => setAsignatura(Number(e.target.value))} className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                                <option value="" disabled>Seleccionar asignatura...</option>
-                                {Object.entries(Assignments).filter(([key]) => !isNaN(Number(key))).map(([key, name]) => (
-                                    <option key={key} value={key}>{name}</option>
-                                ))}
-                            </select>
+                            {uniqueSubjects.length === 0 ? (
+                                <div className="p-3 border border-yellow-300 rounded-lg bg-yellow-50">
+                                    <p className="text-sm text-yellow-800">
+                                        No hay materias creadas. Por favor crea las materias primero en la sección "Materias".
+                                    </p>
+                                </div>
+                            ) : (
+                                <select value={asignatura} onChange={(e) => setAsignatura(Number(e.target.value))} className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                    <option value="" disabled>Seleccionar asignatura...</option>
+                                    {uniqueSubjects.map(subject => (
+                                        <option key={subject.subjectId} value={subject.subjectId}>{subject.name}</option>
+                                    ))}
+                                </select>
+                            )}
                         </div>
                     )}
                     {role === 3 && (

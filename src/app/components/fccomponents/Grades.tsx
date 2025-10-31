@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { useGrades } from '@/app/context/gradesContext';
 import { useTriskaContext } from '@/app/context/triskaContext';
 import { useAuthContext } from '@/app/context/authContext';
+import { useCourses } from '@/app/context/courseContext';
 import { Assignments, UserCurses } from '@/app/types/user';
 import { GradeLabels, PeriodLabels, GradeValue, Period } from '@/app/types/grade';
 import { HiChartBar, HiCheck } from 'react-icons/hi';
@@ -27,6 +28,7 @@ export const Grades: React.FC = () => {
   const { grades, addMultipleGrades, getGradeForStudent, refreshGrades } = useGrades();
   const { users } = useTriskaContext();
   const { user } = useAuthContext();
+  const { courses } = useCourses();
   const { gradeLoadingEnabled, isMainAdmin, isConnected } = useSettings();
   const { 
     subjects,
@@ -50,6 +52,8 @@ export const Grades: React.FC = () => {
 
   // Estados para el flujo de registro
   const [selectedCourse, setSelectedCourse] = useState<number | ''>('');
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null); // ID de Firestore del curso
+  const [selectedCourseDivision, setSelectedCourseDivision] = useState<string | null>(null); // División del curso seleccionado
   const [selectedSubject, setSelectedSubject] = useState<number | string | ''>(''); // Puede ser enum ID o Firestore ID
   const [selectedSubjectFirestoreId, setSelectedSubjectFirestoreId] = useState<string | null>(null); // ID de Firestore si hay división
   const [selectedPeriod, setSelectedPeriod] = useState<Period | ''>('');
@@ -58,17 +62,46 @@ export const Grades: React.FC = () => {
   // Obtener materias y cursos disponibles según permisos
   const availableSubjects = useMemo(() => {
     if (isAdminUser || isStaffUser) {
-      // Admin y Staff pueden ver todas las materias
-      return Object.entries(Assignments)
-        .filter(([key, value]) => !isNaN(Number(value)))
-        .map(([key, value]) => ({ id: Number(value), name: key }));
+      // Admin y Staff pueden ver todas las materias creadas
+      // Filtrar por curso seleccionado si hay uno seleccionado
+      let filtered = selectedCourse 
+        ? subjects.filter(s => s.courseLevel === selectedCourse)
+        : subjects;
+      
+      // Si hay división seleccionada, filtrar también por división
+      if (selectedCourseDivision && filtered.length > 0) {
+        filtered = filtered.filter(s => s.courseDivision === selectedCourseDivision);
+      }
+      // Ordenar: primero por nombre de materia (alfabético), luego por división (A, B, C)
+      const sorted = [...filtered].sort((a, b) => {
+        // 1. Ordenar por nombre de materia
+        if (a.name !== b.name) {
+          return a.name.localeCompare(b.name);
+        }
+        // 2. Si tienen el mismo nombre, ordenar por división (A antes que B, etc.)
+        const divA = a.courseDivision || '';
+        const divB = b.courseDivision || '';
+        return divA.localeCompare(divB);
+      });
+      return sorted.map(subject => ({
+        id: subject.subjectId, // Enum ID para compatibilidad
+        name: subject.name,
+        courseDivision: subject.courseDivision,
+        firestoreId: subject.id // ID de Firestore para identificar la materia específica cuando hay división
+      }));
     } else if (isTeacherUser && user) {
       // Docente solo ve sus materias asignadas usando el nuevo sistema
       const teacherSubjects = getSubjectsByTeacher(user.uid);
       // Filtrar por curso seleccionado si hay uno seleccionado
-      const filtered = selectedCourse 
+      let filtered = selectedCourse 
         ? teacherSubjects.filter(s => s.courseLevel === selectedCourse)
         : teacherSubjects;
+      
+      // Si hay división seleccionada, filtrar también por división
+      if (selectedCourseDivision && filtered.length > 0) {
+        filtered = filtered.filter(s => s.courseDivision === selectedCourseDivision);
+      }
+      
       // Ordenar: primero por nombre de materia (alfabético), luego por división (A, B, C)
       const sorted = [...filtered].sort((a, b) => {
         // 1. Ordenar por nombre de materia
@@ -88,33 +121,44 @@ export const Grades: React.FC = () => {
       }));
     }
     return [];
-  }, [isAdminUser, isStaffUser, isTeacherUser, user, selectedCourse, getSubjectsByTeacher]);
+  }, [isAdminUser, isStaffUser, isTeacherUser, user, selectedCourse, selectedCourseDivision, subjects, getSubjectsByTeacher]);
 
   const availableCourses = useMemo(() => {
     if (isAdminUser || isStaffUser) {
-      // Admin y Staff pueden ver todos los cursos
-      return Object.entries(UserCurses)
-        .filter(([key, value]) => !isNaN(Number(value)))
-        .map(([key, value]) => ({ id: Number(value), name: key }));
+      // Admin y Staff pueden ver todos los cursos creados
+      return courses.map(course => ({
+        id: course.level,
+        name: getCourseName(course.level),
+        division: course.division,
+        courseId: course.id
+      }));
     } else if (isTeacherUser && user) {
       // Docente solo ve sus cursos asignados usando el nuevo sistema
       const teacherSubjects = getSubjectsByTeacher(user.uid);
-      const assignedCourses = [...new Set(teacherSubjects.map(ts => ts.courseLevel))];
-      return Object.entries(UserCurses)
-        .filter(([key, value]) => !isNaN(Number(value)))
-        .filter(([key, value]) => assignedCourses.includes(Number(value)))
-        .map(([key, value]) => ({ id: Number(value), name: key }));
+      const assignedCourseLevels = [...new Set(teacherSubjects.map(ts => ts.courseLevel))];
+      return courses
+        .filter(course => assignedCourseLevels.includes(course.level))
+        .map(course => ({
+          id: course.level,
+          name: getCourseName(course.level),
+          division: course.division,
+          courseId: course.id
+        }));
     }
     return [];
-  }, [isAdminUser, isStaffUser, isTeacherUser, user, getSubjectsByTeacher]);
+  }, [isAdminUser, isStaffUser, isTeacherUser, user, courses, getSubjectsByTeacher]);
 
   // Estudiantes filtrados por curso seleccionado y materia
   const studentsInCourse = useMemo(() => {
     if (!selectedCourse || !selectedSubject) return [];
     
     if (isAdminUser || isStaffUser) {
-      // Admin y Staff ven todos los estudiantes del curso
-      return users.filter(u => u.role === 3 && u.level === selectedCourse);
+      // Admin y Staff ven todos los estudiantes del curso (y división si está seleccionada)
+      let filtered = users.filter(u => u.role === 3 && u.level === selectedCourse);
+      if (selectedCourseDivision) {
+        filtered = filtered.filter(u => u.division === selectedCourseDivision);
+      }
+      return filtered;
     } else if (isTeacherUser && user) {
       // Docente solo ve estudiantes asignados a la materia específica usando el nuevo sistema
       // Si hay ID de Firestore, buscar directamente por ese ID; si no, usar el método tradicional
@@ -141,7 +185,7 @@ export const Grades: React.FC = () => {
       );
     }
     return [];
-  }, [users, selectedCourse, selectedSubject, selectedSubjectFirestoreId, isAdminUser, isStaffUser, isTeacherUser, user, subjects, getSubjectByCourseAndSubject]);
+  }, [users, selectedCourse, selectedCourseDivision, selectedSubject, selectedSubjectFirestoreId, isAdminUser, isStaffUser, isTeacherUser, user, subjects, getSubjectByCourseAndSubject]);
 
   // Validar que el docente esté asignado a la materia seleccionada
   const canManageSelectedSubject = useMemo(() => {
@@ -424,7 +468,10 @@ export const Grades: React.FC = () => {
             <select
               value={selectedCourse}
               onChange={(e) => {
+                const courseData = availableCourses.find(c => c.id === Number(e.target.value));
                 setSelectedCourse(Number(e.target.value));
+                setSelectedCourseId(courseData?.courseId || null);
+                setSelectedCourseDivision(courseData?.division || null);
                 setSelectedSubject('');
                 setSelectedSubjectFirestoreId(null);
                 setSelectedPeriod('');
@@ -434,8 +481,8 @@ export const Grades: React.FC = () => {
             >
               <option value="">Seleccionar curso...</option>
               {availableCourses.map((course) => (
-                <option key={course.id} value={course.id}>
-                  {course.name}
+                <option key={course.courseId} value={course.id}>
+                  {course.name}{course.division ? ` - División ${course.division}` : ''}
                 </option>
               ))}
             </select>

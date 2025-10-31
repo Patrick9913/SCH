@@ -6,6 +6,7 @@ import { useAuthContext } from '@/app/context/authContext';
 import { useTriskaContext } from '@/app/context/triskaContext';
 import { useSubjects } from '@/app/context/subjectContext';
 import { useSchedule } from '@/app/context/scheduleContext';
+import { useCourses } from '@/app/context/courseContext';
 import { Assignments as AssignmentEnum, UserCurses, UserRole, CourseDivision } from '@/app/types/user';
 import { DayLabels } from '@/app/types/schedule';
 import Swal from 'sweetalert2';
@@ -31,13 +32,15 @@ export const Assignments: React.FC = () => {
         getSubjectSummary
     } = useSubjects();
     const { addSchedule, getSchedulesBySubject } = useSchedule();
+    const { courses } = useCourses();
 
     const isAdmin = user?.role === UserRole.Administrador;
     const isStudent = user?.role === UserRole.Estudiante;
 
     // Estados para el panel de materias
     const [activeTab, setActiveTab] = useState<'subjects' | 'assignments'>('subjects');
-    const [selectedCourse, setSelectedCourse] = useState<number | ''>('');
+    const [selectedCourseId, setSelectedCourseId] = useState<string | ''>(''); // ID del curso seleccionado
+    const [selectedCourse, setSelectedCourse] = useState<number | ''>(''); // Level del curso (para retrocompatibilidad)
     const [selectedSubject, setSelectedSubject] = useState<number | ''>('');
     const [selectedDivision, setSelectedDivision] = useState<CourseDivision | ''>('');
     const [catedrasHours, setCatedrasHours] = useState<number | ''>('');
@@ -75,9 +78,18 @@ export const Assignments: React.FC = () => {
     const getSubjectOptions = () => Object.entries(AssignmentEnum)
         .filter(([_, value]) => !isNaN(Number(value)))
         .map(([label, value]) => ({ label, value: Number(value) }));
-    const getCourseOptions = () => Object.entries(UserCurses)
-        .filter(([_, value]) => !isNaN(Number(value)))
-        .map(([label, value]) => ({ label, value: Number(value) }));
+    const getCourseOptions = () => {
+        // Usar cursos dinámicos desde Firestore en lugar del enum estático
+        return courses.map(course => {
+            const courseName = getCourseName(course.level);
+            return { 
+                label: `${courseName}${course.division ? ` ${course.division}` : ''}`, 
+                value: course.id,
+                level: course.level,
+                division: course.division
+            };
+        });
+    };
 
     const subjectSummary = useMemo(() => getSubjectSummary(), [getSubjectSummary]);
 
@@ -146,6 +158,7 @@ export const Assignments: React.FC = () => {
                     plannedSchedules: subjectSchedules
                 });
                 toast.success(`Materia ${subjectName} creada para ${courseName}`);
+                setSelectedCourseId('');
                 setSelectedCourse('');
                 setSelectedSubject('');
                 setSelectedDivision('');
@@ -459,44 +472,45 @@ export const Assignments: React.FC = () => {
             {/* Panel de Creación */}
             <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <h2 className="text-lg font-medium text-gray-900 mb-4">Crear Nueva Materia</h2>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Seleccionar Curso</label>
-                        <select value={selectedCourse} onChange={(e) => { const v = Number(e.target.value) || ''; setSelectedCourse(v); if (v === '') { setSelectedSubject(''); setSubjectSchedules([]); setSelectedTimeSlots(new Map()); setCatedrasHours(''); } }} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <select value={selectedCourseId} onChange={(e) => { 
+                            const courseData = getCourseOptions().find(c => c.value === e.target.value);
+                            if (courseData) {
+                                setSelectedCourseId(courseData.value);
+                                setSelectedCourse(courseData.level);
+                                setSelectedDivision(courseData.division as CourseDivision || '');
+                            } else {
+                                setSelectedCourseId('');
+                                setSelectedCourse('');
+                                setSelectedDivision('');
+                            }
+                            setSelectedSubject('');
+                            setSubjectSchedules([]);
+                            setSelectedTimeSlots(new Map());
+                            setCatedrasHours('');
+                        }} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="">Selecciona un curso</option>
                             {getCourseOptions().map(o => (<option key={`curso-${o.value}`} value={o.value}>{o.label}</option>))}
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">División</label>
-                        <select
-                            value={selectedDivision}
-                            onChange={(e) => setSelectedDivision(e.target.value as CourseDivision)}
-                            disabled={!selectedCourse}
-                            className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!selectedCourse ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                        >
-                            <option value="">Selecciona división</option>
-                            {Object.values(CourseDivision).map(div => (
-                                <option key={`div-${div}`} value={div}>{div}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Seleccionar Materia</label>
-                        <select value={selectedSubject} onChange={(e) => { const v = Number(e.target.value) || ''; setSelectedSubject(v); if (v === '') { setSubjectSchedules([]); setSelectedTimeSlots(new Map()); setCatedrasHours(''); } }} disabled={!selectedCourse || !selectedDivision} className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${(!selectedCourse || !selectedDivision) ? 'bg-gray-100 cursor-not-allowed' : ''}`}>
+                        <select value={selectedSubject} onChange={(e) => { const v = Number(e.target.value) || ''; setSelectedSubject(v); if (v === '') { setSubjectSchedules([]); setSelectedTimeSlots(new Map()); setCatedrasHours(''); } }} disabled={!selectedCourse} className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!selectedCourse ? 'bg-gray-100 cursor-not-allowed' : ''}`}>
                             <option value="">Selecciona una materia</option>
                             {getSubjectOptions().map(o => (<option key={`materia-${o.value}`} value={o.value}>{o.label}</option>))}
                         </select>
                     </div>
                     <div className="flex items-end">
-                        <button onClick={handleCreateSubject} disabled={!selectedCourse || !selectedDivision || !selectedSubject || selectedTimeSlots.size === 0 || !areSchedulesValid() || !catedrasHours || Number(catedrasHours) <= 0 || isCreating} className={`w-full px-4 py-2 rounded-md font-semibold transition-all ${(selectedCourse && selectedDivision && selectedSubject && selectedTimeSlots.size > 0 && areSchedulesValid() && catedrasHours && Number(catedrasHours) > 0 && !isCreating) ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}>
+                        <button onClick={handleCreateSubject} disabled={!selectedCourse || !selectedSubject || selectedTimeSlots.size === 0 || !areSchedulesValid() || !catedrasHours || Number(catedrasHours) <= 0 || isCreating} className={`w-full px-4 py-2 rounded-md font-semibold transition-all ${(selectedCourse && selectedSubject && selectedTimeSlots.size > 0 && areSchedulesValid() && catedrasHours && Number(catedrasHours) > 0 && !isCreating) ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}>
                             {isCreating ? 'Creando...' : 'Crear Materia'}
                         </button>
                     </div>
                 </div>
 
                 {/* Selector visual de horarios */}
-                {selectedCourse && selectedDivision && selectedSubject && (
+                {selectedCourse && selectedSubject && (
                     <div className="mt-4 pt-4 border-t border-gray-300">
                         <div className="mb-4">
                             <h3 className="text-sm font-medium text-gray-700 mb-1">Selecciona los Horarios de Clase <span className="text-red-500">*</span></h3>
