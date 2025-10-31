@@ -160,7 +160,9 @@ service cloud.firestore {
                        request.resource.data.audience is string &&
                        request.resource.data.createdByUid is string;
       
-      allow update, delete: if false; // Los anuncios no se editan, solo se eliminan desde el cliente
+      allow delete: if true; // Permitir eliminar (validación de permisos en el cliente)
+      
+      allow update: if false; // Los anuncios no se editan
     }
     
     // ==========================================

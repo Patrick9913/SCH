@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { addDoc, collection, onSnapshot, orderBy, query, where, doc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../config';
 import { AttendanceRecord } from '../types/attendance';
@@ -23,9 +23,25 @@ export const useAttendance = () => {
 };
 
 export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { uid } = useAuthContext();
+  const { uid, user } = useAuthContext();
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // Usar useRef para mantener siempre el uid más reciente, incluso en funciones async
+  const currentUidRef = useRef<string | null>(null);
+  
+  // Actualizar el ref cada vez que cambie user o uid
+  useEffect(() => {
+    if (user?.id) {
+      currentUidRef.current = user.id;
+    } else if (user?.uid) {
+      currentUidRef.current = user.uid;
+    } else if (uid) {
+      currentUidRef.current = uid;
+    } else {
+      currentUidRef.current = null;
+    }
+  }, [user, uid]);
 
   useEffect(() => {
     const col = collection(db, 'attendance');
@@ -55,18 +71,38 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const markAttendance = async (data: Omit<AttendanceRecord, 'id' | 'createdAt' | 'createdByUid'>) => {
-    if (!uid) return;
+    const latestUid = currentUidRef.current;
+    if (!latestUid) return;
     await addDoc(collection(db, 'attendance'), {
       ...data,
-      createdByUid: uid,
+      createdByUid: latestUid,
       createdAt: Date.now(),
     });
   };
 
   const addMultipleAttendances = async (attendancesToAdd: Omit<AttendanceRecord, 'id' | 'createdAt' | 'createdByUid'>[]) => {
-    if (!uid) {
-      console.error('No hay usuario autenticado');
-      throw new Error('No hay usuario autenticado');
+    // Obtener el uid más reciente del ref (siempre actualizado)
+    const latestUid = currentUidRef.current;
+    
+    // También intentar obtener de localStorage como respaldo
+    let fallbackUid: string | null = null;
+    try {
+      const SESSION_STORAGE_KEY = 'sch_user_session';
+      const sessionData = localStorage.getItem(SESSION_STORAGE_KEY);
+      if (sessionData) {
+        const { userId } = JSON.parse(sessionData);
+        fallbackUid = userId;
+      }
+    } catch (e) {
+      console.warn('Error al leer localStorage:', e);
+    }
+    
+    // Usar latestUid del ref primero, sino fallbackUid
+    const userIdToUse = latestUid || fallbackUid;
+    
+    if (!userIdToUse) {
+      console.error('No hay userId disponible en addMultipleAttendances:', { latestUid, fallbackUid, uid });
+      throw new Error('No hay usuario autenticado. Por favor, cierra sesión e inicia sesión nuevamente.');
     }
     
     if (attendancesToAdd.length === 0) {
@@ -96,9 +132,9 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           date: attendance.date,
           courseLevel: attendance.courseLevel,
           status: attendance.status,
-          createdByUid: uid,
+          createdByUid: userIdToUse,
           createdAt: Date.now(),
-          updatedByUid: uid,
+          updatedByUid: userIdToUse,
         }, { merge: true });
         
         console.log(`Asistencia guardada para estudiante ${attendance.studentUid} en fecha ${attendance.date}`);

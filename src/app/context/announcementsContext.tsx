@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '../config';
 import { addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { Announcement } from '../types/announcement';
@@ -22,7 +22,23 @@ export const useAnnouncements = () => {
 
 export const AnnouncementsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const { user } = useAuthContext();
+  const { user, uid } = useAuthContext();
+  
+  // Usar useRef para mantener siempre el uid más reciente, incluso en funciones async
+  const currentUidRef = useRef<string | null>(null);
+  
+  // Actualizar el ref cada vez que cambie user o uid
+  useEffect(() => {
+    if (user?.id) {
+      currentUidRef.current = user.id;
+    } else if (user?.uid) {
+      currentUidRef.current = user.uid;
+    } else if (uid) {
+      currentUidRef.current = uid;
+    } else {
+      currentUidRef.current = null;
+    }
+  }, [user, uid]);
 
   useEffect(() => {
     const col = collection(db, 'announcements');
@@ -47,13 +63,32 @@ export const AnnouncementsProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const createAnnouncement = async (data: { title: string; body?: string; audience: Announcement['audience']; }) => {
+    // Obtener el uid más reciente del ref (siempre actualizado)
+    const latestUid = currentUidRef.current;
+    
+    // También intentar obtener de localStorage como respaldo
+    let fallbackUid: string | null = null;
+    try {
+      const SESSION_STORAGE_KEY = 'sch_user_session';
+      const sessionData = localStorage.getItem(SESSION_STORAGE_KEY);
+      if (sessionData) {
+        const { userId } = JSON.parse(sessionData);
+        fallbackUid = userId;
+      }
+    } catch (e) {
+      console.warn('Error al leer localStorage:', e);
+    }
+    
+    // Usar latestUid del ref primero, sino fallbackUid
+    const userIdToUse = latestUid || fallbackUid || 'unknown';
+    
     const col = collection(db, 'announcements');
     await addDoc(col, {
       title: data.title.trim(),
       body: data.body?.trim() ?? '',
       audience: data.audience,
       createdAt: Date.now(),
-      createdByUid: user?.id ?? 'unknown',
+      createdByUid: userIdToUse,
       createdByName: user?.name ?? 'Sistema',
     });
   };
