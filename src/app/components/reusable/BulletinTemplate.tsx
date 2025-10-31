@@ -33,20 +33,32 @@ export const BulletinTemplate: React.FC<BulletinTemplateProps> = ({
   const { users } = useTriskaContext();
 
   // Obtener calificaciones del estudiante para el período específico
-  const studentGrades = grades.filter(g => 
-    g.studentUid === student.uid && 
-    g.courseLevel === courseLevel &&
-    g.published
-  );
+  const studentGrades = grades
+    .filter(g => 
+      g.studentUid === student.uid && 
+      g.courseLevel === courseLevel &&
+      g.published
+    )
+    .sort((a, b) => b.createdAt - a.createdAt); // Ordenar por fecha descendente (más reciente primero)
 
-  // Agrupar calificaciones por materia
+  // Agrupar calificaciones por materia - usando solo la más reciente si hay duplicados
   const gradesBySubject = studentGrades.reduce((acc, grade) => {
     if (!acc[grade.subjectId]) {
       acc[grade.subjectId] = {} as Partial<Record<Period, GradeValue>>;
     }
-    acc[grade.subjectId][grade.period] = grade.grade;
+    
+    // Solo agregar si no existe ya una para este período (primera = más reciente por el sort)
+    if (!acc[grade.subjectId][grade.period]) {
+      acc[grade.subjectId][grade.period] = grade.grade;
+    }
     return acc;
   }, {} as Record<number, Partial<Record<Period, GradeValue>>>);
+  
+  // Función helper para obtener la calificación
+  const getGradeValue = (subjectId: number, period: Period): GradeValue | string => {
+    const value = gradesBySubject[subjectId]?.[period];
+    return value || '-';
+  };
 
   // Obtener estadísticas de asistencia del estudiante
   const studentAttendance = records.filter(r => r.studentUid === student.uid);
@@ -91,7 +103,7 @@ export const BulletinTemplate: React.FC<BulletinTemplateProps> = ({
 
   // Función para obtener la calificación de un período específico
   const getGradeForPeriod = (subjectId: number, period: Period): GradeValue | string => {
-    return gradesBySubject[subjectId]?.[period] || '-';
+    return getGradeValue(subjectId, period);
   };
 
   return (

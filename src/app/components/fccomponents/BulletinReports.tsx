@@ -197,20 +197,31 @@ export const BulletinReports: React.FC = () => {
 
   // Función para generar el boletín de un estudiante específico
   const generateStudentBulletin = (student: User) => {
-    const studentGrades = grades.filter(g => g.studentUid === student.uid);
+    const studentGrades = grades
+      .filter(g => g.studentUid === student.uid)
+      .sort((a, b) => b.createdAt - a.createdAt); // Ordenar por fecha descendente (más reciente primero)
 
-    // Agrupar por materia
+    // Agrupar por materia - solo guardar la más reciente por período
     const groupedBySubject: Record<number, Record<Period, typeof studentGrades>> = {};
+    const gradeKeys = new Set<string>(); // Para trackear si ya agregamos una calificación para subjectId+period
     
     studentGrades.forEach(grade => {
-      if (!groupedBySubject[grade.subjectId]) {
-        groupedBySubject[grade.subjectId] = {
-          primer_cuatrimestre: [],
-          segundo_cuatrimestre: [],
-          tercer_cuatrimestre: []
-        };
+      // Crear una clave única para subjectId + period
+      const key = `${grade.subjectId}_${grade.period}`;
+      
+      // Solo procesar si no hemos visto esta combinación antes (primera = más reciente por el sort)
+      if (!gradeKeys.has(key)) {
+        gradeKeys.add(key);
+        
+        if (!groupedBySubject[grade.subjectId]) {
+          groupedBySubject[grade.subjectId] = {
+            primer_cuatrimestre: [],
+            segundo_cuatrimestre: [],
+            tercer_cuatrimestre: []
+          };
+        }
+        groupedBySubject[grade.subjectId][grade.period].push(grade);
       }
-      groupedBySubject[grade.subjectId][grade.period].push(grade);
     });
 
     const courseName = student.level ? Object.keys(UserCurses).find(key => UserCurses[key as keyof typeof UserCurses] === student.level) || 'Sin curso' : 'Sin curso';
@@ -266,18 +277,32 @@ export const BulletinReports: React.FC = () => {
     return users.filter(u => u.role === 3 && enrolledUids.has(u.uid));
   }, [users, selectedAdminCourse, subjects]);
 
-  // Calificaciones de estudiantes del curso seleccionado
+  // Calificaciones de estudiantes del curso seleccionado - deduplicadas
   const courseGradesByStudent = useMemo(() => {
     if (!selectedAdminCourse) return {};
     
-    const courseGrades = grades.filter(g => g.courseLevel === selectedAdminCourse);
+    const courseGrades = grades
+      .filter(g => g.courseLevel === selectedAdminCourse)
+      .sort((a, b) => b.createdAt - a.createdAt); // Ordenar por fecha descendente (más reciente primero)
+    
     const grouped: Record<string, typeof courseGrades> = {};
+    const gradeKeys = new Map<string, Set<string>>(); // Map de studentUid -> Set de keys (subjectId_period)
     
     courseGrades.forEach(grade => {
       if (!grouped[grade.studentUid]) {
         grouped[grade.studentUid] = [];
+        gradeKeys.set(grade.studentUid, new Set());
       }
-      grouped[grade.studentUid].push(grade);
+      
+      // Crear una clave única para subjectId + period
+      const key = `${grade.subjectId}_${grade.period}`;
+      const studentKeys = gradeKeys.get(grade.studentUid)!;
+      
+      // Solo agregar si no hemos visto esta combinación antes (primera = más reciente por el sort)
+      if (!studentKeys.has(key)) {
+        studentKeys.add(key);
+        grouped[grade.studentUid].push(grade);
+      }
     });
     
     return grouped;
@@ -287,20 +312,31 @@ export const BulletinReports: React.FC = () => {
   const studentView = useMemo(() => {
     if (!targetStudent?.uid) return null;
 
-    const studentGrades = visibleGrades.filter(g => g.studentUid === targetStudent.uid);
+    const studentGrades = visibleGrades
+      .filter(g => g.studentUid === targetStudent.uid)
+      .sort((a, b) => b.createdAt - a.createdAt); // Ordenar por fecha descendente (más reciente primero)
 
-    // Agrupar por materia
+    // Agrupar por materia - solo guardar la más reciente por período
     const groupedBySubject: Record<number, Record<Period, typeof studentGrades>> = {};
+    const gradeKeys = new Set<string>(); // Para trackear si ya agregamos una calificación para subjectId+period
     
     studentGrades.forEach(grade => {
-      if (!groupedBySubject[grade.subjectId]) {
-        groupedBySubject[grade.subjectId] = {
-          primer_cuatrimestre: [],
-          segundo_cuatrimestre: [],
-          tercer_cuatrimestre: []
-        };
+      // Crear una clave única para subjectId + period
+      const key = `${grade.subjectId}_${grade.period}`;
+      
+      // Solo procesar si no hemos visto esta combinación antes (primera = más reciente por el sort)
+      if (!gradeKeys.has(key)) {
+        gradeKeys.add(key);
+        
+        if (!groupedBySubject[grade.subjectId]) {
+          groupedBySubject[grade.subjectId] = {
+            primer_cuatrimestre: [],
+            segundo_cuatrimestre: [],
+            tercer_cuatrimestre: []
+          };
+        }
+        groupedBySubject[grade.subjectId][grade.period].push(grade);
       }
-      groupedBySubject[grade.subjectId][grade.period].push(grade);
     });
 
     const handlePrint = () => {
@@ -374,18 +410,17 @@ export const BulletinReports: React.FC = () => {
                             <td key={periodKey} className="px-6 py-4 text-center border-r border-gray-200 last:border-r-0">
                               {periodGrades.length > 0 ? (
                                 <div className="flex flex-col items-center gap-1">
-                                  {periodGrades.map((grade, idx) => (
-                                    <div key={idx} className="flex items-center gap-2">
-                                      <span className={`grade-badge ${
-                                        grade.grade === 'S' ? 's' :
-                                        grade.grade === 'AL' ? 'al' :
-                                        grade.grade === 'L' ? 'l' :
-                                        'ep'
-                                      }`}>
-                                        {grade.grade}
-                                      </span>
-                                    </div>
-                                  ))}
+                                  {/* Mostrar solo la primera calificación (más reciente) */}
+                                  <div className="flex items-center gap-2">
+                                    <span className={`grade-badge ${
+                                      periodGrades[0].grade === 'S' ? 's' :
+                                      periodGrades[0].grade === 'AL' ? 'al' :
+                                      periodGrades[0].grade === 'L' ? 'l' :
+                                      'ep'
+                                    }`}>
+                                      {periodGrades[0].grade}
+                                    </span>
+                                  </div>
                                   <span className="text-xs text-gray-500 mt-1">
                                     {GradeLabels[periodGrades[0].grade]}
                                   </span>
@@ -510,13 +545,25 @@ export const BulletinReports: React.FC = () => {
                   {/* Resumen de calificaciones por período */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {Object.entries(PeriodLabels).map(([periodKey, periodLabel]) => {
-                      const periodGrades = studentGrades.filter(g => g.period === periodKey);
+                      const periodGrades = studentGrades
+                        .filter(g => g.period === periodKey)
+                        .sort((a, b) => b.createdAt - a.createdAt); // Ordenar por fecha descendente
+                      
+                      // Deduplicar por subjectId, manteniendo solo el más reciente
+                      const uniqueGrades = new Map<number, (typeof studentGrades[0])>();
+                      periodGrades.forEach(grade => {
+                        if (!uniqueGrades.has(grade.subjectId)) {
+                          uniqueGrades.set(grade.subjectId, grade);
+                        }
+                      });
+                      const finalGrades = Array.from(uniqueGrades.values());
+                      
                       return (
                         <div key={periodKey} className="bg-white p-3 rounded border">
                           <h4 className="font-medium text-sm text-gray-700 mb-2">{periodLabel}</h4>
-                          {periodGrades.length > 0 ? (
+                          {finalGrades.length > 0 ? (
                             <div className="space-y-1">
-                              {periodGrades.map((grade) => {
+                              {finalGrades.map((grade) => {
                                 const assignmentKey = Object.keys(Assignments).find(
                                   key => Assignments[key as keyof typeof Assignments] === grade.subjectId
                                 ) as keyof typeof Assignments | undefined;
@@ -870,18 +917,17 @@ export const BulletinReports: React.FC = () => {
                                     <td key={periodKey} className="px-6 py-4 text-center border-r border-gray-200 last:border-r-0">
                                       {periodGrades.length > 0 ? (
                                         <div className="flex flex-col items-center gap-1">
-                                          {periodGrades.map((grade, idx) => (
-                                            <div key={idx} className="flex items-center gap-2">
-                                              <span className={`grade-badge ${
-                                                grade.grade === 'S' ? 's' :
-                                                grade.grade === 'AL' ? 'al' :
-                                                grade.grade === 'L' ? 'l' :
-                                                'ep'
-                                              }`}>
-                                                {grade.grade}
-                                              </span>
-                                            </div>
-                                          ))}
+                                          {/* Mostrar solo la primera calificación (más reciente) */}
+                                          <div className="flex items-center gap-2">
+                                            <span className={`grade-badge ${
+                                              periodGrades[0].grade === 'S' ? 's' :
+                                              periodGrades[0].grade === 'AL' ? 'al' :
+                                              periodGrades[0].grade === 'L' ? 'l' :
+                                              'ep'
+                                            }`}>
+                                              {periodGrades[0].grade}
+                                            </span>
+                                          </div>
                                           <span className="text-xs text-gray-500 mt-1">
                                             {GradeLabels[periodGrades[0].grade]}
                                           </span>
