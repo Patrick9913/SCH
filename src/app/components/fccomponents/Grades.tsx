@@ -236,6 +236,27 @@ export const Grades: React.FC = () => {
 
   const handleSave = async () => {
     if (!selectedCourse || !selectedSubject || !selectedPeriod) return;
+    
+    // Log para debugging
+    console.log('handleSave llamado:', {
+      user: user ? { id: user.id, uid: user.uid, role: user.role, name: user.name } : null,
+      selectedCourse,
+      selectedSubject,
+      selectedPeriod,
+      gradesCount: Object.keys(studentGrades).filter(k => studentGrades[k]).length
+    });
+    
+    // Verificar que el usuario esté autenticado
+    if (!user || (!user.id && !user.uid)) {
+      console.error('Usuario no autenticado en handleSave:', user);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error de autenticación',
+        text: 'No hay usuario autenticado. Por favor, inicia sesión nuevamente.',
+        confirmButtonColor: '#dc2626',
+      });
+      return;
+    }
 
     const gradesToSave = Object.entries(studentGrades)
       .filter(([_, grade]) => grade) // Solo incluir si hay una calificación

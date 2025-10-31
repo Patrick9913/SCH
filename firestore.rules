@@ -8,8 +8,7 @@ service cloud.firestore {
     
     // Verificar que un userId existe y obtener su rol
     function getUserRole(userId) {
-      let userDoc = get(/databases/$(database)/documents/users/$(userId));
-      return userDoc != null && userDoc.exists() ? userDoc.data.role : null;
+      return (exists(/databases/$(database)/documents/users/$(userId)) && 'role' in get(/databases/$(database)/documents/users/$(userId)).data) ? get(/databases/$(database)/documents/users/$(userId)).data.role : null;
     }
     
     // Verificar si es administrador (role == 1)
@@ -34,20 +33,24 @@ service cloud.firestore {
     
     // Verificar si gradesLoadingEnabled está habilitado
     function isGradesLoadingEnabled() {
-      let settings = get(/databases/$(database)/documents/system/settings);
-      return settings != null && settings.exists() && 'gradesLoadingEnabled' in settings.data && settings.data.gradesLoadingEnabled == true;
+      return exists(/databases/$(database)/documents/system/settings) &&
+             'gradesLoadingEnabled' in get(/databases/$(database)/documents/system/settings).data &&
+             get(/databases/$(database)/documents/system/settings).data.gradesLoadingEnabled == true;
     }
     
     // Verificar si el usuario puede crear calificaciones
     // Permite Admin siempre, o Docente si gradesLoadingEnabled está habilitado
     // Si gradesLoadingEnabled no está configurado, también permite a docentes (fallback)
     function canCreateGrade(userId) {
+      // Si no hay userId, rechazar
       return userId != null && (
+        // Admin siempre puede crear
         isAdmin(userId) || 
+        // Docente puede crear si:
         (isTeacher(userId) && (
-          // Si el documento de settings no existe, permitir por defecto (modo permisivo)
-          // O si existe y gradesLoadingEnabled está habilitado
+          // El documento de settings no existe (modo permisivo por defecto)
           !exists(/databases/$(database)/documents/system/settings) ||
+          // O si existe y gradesLoadingEnabled está habilitado
           isGradesLoadingEnabled()
         ))
       );
@@ -208,7 +211,7 @@ service cloud.firestore {
       // Lectura: Todos pueden leer, el filtrado se hace en el cliente
       allow read: if true;
       
-      // Crear: Admin siempre puede crear, Docente solo si gradesLoadingEnabled está habilitado
+      // Crear: Admin siempre puede crear, Docente puede crear cuando gradesLoadingEnabled está habilitado
       allow create: if request.resource.data.keys().hasAll(['studentUid', 'subjectId', 'courseLevel', 'period', 'grade', 'createdByUid', 'createdAt', 'published']) &&
                        request.resource.data.studentUid is string &&
                        request.resource.data.subjectId is int &&
@@ -218,7 +221,18 @@ service cloud.firestore {
                        request.resource.data.createdByUid is string &&
                        request.resource.data.createdAt is number &&
                        request.resource.data.published is bool &&
-                       canCreateGrade(getRequestUserId());
+                       // Verificar que el usuario existe
+                       request.resource.data.createdByUid != null &&
+                       exists(/databases/$(database)/documents/users/$(request.resource.data.createdByUid)) &&
+                       // Verificar permisos: Admin (role 1) siempre puede crear
+                       (getUserRole(request.resource.data.createdByUid) == 1 ||
+                        // O Docente (role 4) - cuando es docente, verificar si puede crear
+                        (getUserRole(request.resource.data.createdByUid) == 4 && (
+                          // Si el documento de settings no existe, permitir por defecto (modo permisivo)
+                          !exists(/databases/$(database)/documents/system/settings) ||
+                          // O si existe y gradesLoadingEnabled está habilitado, permitir
+                          (exists(/databases/$(database)/documents/system/settings) && isGradesLoadingEnabled())
+                        )));
       
       // Actualizar: Solo Admin puede cambiar published (para publicar boletines)
       // Se permite actualizar updatedByUid junto con published

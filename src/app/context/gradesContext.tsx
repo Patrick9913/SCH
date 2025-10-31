@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { addDoc, collection, doc, getDocs, onSnapshot, orderBy, query, updateDoc, where, Timestamp, writeBatch } from 'firebase/firestore';
 import { db } from '../config';
 import { Grade, Period } from '../types/grade';
@@ -28,9 +28,33 @@ export const useGrades = () => {
 };
 
 export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { uid } = useAuthContext();
+  const { uid, user } = useAuthContext();
   const [grades, setGrades] = useState<Grade[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // Usar useRef para mantener siempre el uid más reciente, incluso en funciones async
+  const currentUidRef = useRef<string | null>(null);
+  
+  // Actualizar el ref cada vez que cambie user o uid
+  useEffect(() => {
+    if (user?.id) {
+      currentUidRef.current = user.id;
+    } else if (user?.uid) {
+      currentUidRef.current = user.uid;
+    } else if (uid) {
+      currentUidRef.current = uid;
+    } else {
+      currentUidRef.current = null;
+    }
+  }, [user, uid]);
+  
+  // También calcular currentUid para uso inmediato (no async)
+  const currentUid = useMemo(() => {
+    if (user?.id) return user.id;
+    if (user?.uid) return user.uid;
+    if (uid) return uid;
+    return null;
+  }, [user, uid]);
 
   useEffect(() => {
     const col = collection(db, 'grades');
@@ -62,17 +86,56 @@ export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addGrade = async (data: Omit<Grade, 'id' | 'createdAt' | 'createdByUid'>) => {
-    if (!uid) return;
+    if (!currentUid) return;
     await addDoc(collection(db, 'grades'), {
       ...data,
-      createdByUid: uid,
+      createdByUid: currentUid,
       createdAt: Date.now(),
     });
   };
 
   const addMultipleGrades = async (gradesToAdd: Omit<Grade, 'id' | 'createdAt' | 'createdByUid'>[]) => {
-    if (!uid) {
-      throw new Error('No hay usuario autenticado');
+    // Obtener el uid más reciente del ref (siempre actualizado)
+    const latestUid = currentUidRef.current;
+    
+    // También intentar obtener de localStorage como respaldo
+    let fallbackUid: string | null = null;
+    try {
+      const SESSION_STORAGE_KEY = 'sch_user_session';
+      const sessionData = localStorage.getItem(SESSION_STORAGE_KEY);
+      if (sessionData) {
+        const { userId } = JSON.parse(sessionData);
+        fallbackUid = userId;
+      }
+    } catch (e) {
+      console.warn('Error al leer localStorage:', e);
+    }
+    
+    // Usar latestUid del ref primero, sino fallbackUid
+    const userIdToUse = latestUid || fallbackUid;
+    
+    // Log para debugging
+    console.log('addMultipleGrades llamado:', {
+      latestUid,
+      fallbackUid,
+      userIdToUse,
+      currentUid,
+      uid,
+      userId: user?.id,
+      userUid: user?.uid,
+      userRole: user?.role,
+      gradesCount: gradesToAdd.length
+    });
+    
+    if (!userIdToUse) {
+      console.error('No hay userId disponible:', { 
+        latestUid, 
+        fallbackUid, 
+        currentUid, 
+        uid, 
+        user: user ? { id: user.id, uid: user.uid, role: user.role } : null 
+      });
+      throw new Error('No hay usuario autenticado. Por favor, cierra sesión e inicia sesión nuevamente.');
     }
     
     if (gradesToAdd.length === 0) {
@@ -89,12 +152,14 @@ export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         batch.set(gradeRef, {
           ...grade,
           published: false, // Por defecto no publicadas
-          createdByUid: uid,
+          createdByUid: userIdToUse,
           createdAt: Date.now(),
         });
       });
       
+      console.log('Intentando guardar', gradesToAdd.length, 'calificaciones con createdByUid:', userIdToUse);
       await batch.commit();
+      console.log('Calificaciones guardadas exitosamente');
     } catch (error: any) {
       console.error('Error al guardar calificaciones:', error);
       throw new Error(`Error al guardar calificaciones: ${error.message || 'Error desconocido'}`);
@@ -102,7 +167,7 @@ export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const publishGrades = async (courseLevel: number, period: Period) => {
-    if (!uid) {
+    if (!currentUid) {
       throw new Error('No hay usuario autenticado');
     }
     // Buscar todas las calificaciones del curso y período
@@ -116,7 +181,7 @@ export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const updatePromises = snapshot.docs.map(docSnap => 
       updateDoc(doc(db, 'grades', docSnap.id), { 
         published: true,
-        updatedByUid: uid 
+        updatedByUid: currentUid 
       })
     );
     
@@ -124,7 +189,7 @@ export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const publishBulletins = async (courseLevel: number, period: Period): Promise<{ success: boolean; message: string; publishedCount: number }> => {
-    if (!uid) {
+    if (!currentUid) {
       return {
         success: false,
         message: 'No hay usuario autenticado',
@@ -153,7 +218,7 @@ export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const updatePromises = snapshot.docs.map(docSnap => 
         updateDoc(doc(db, 'grades', docSnap.id), { 
           published: true,
-          updatedByUid: uid 
+          updatedByUid: currentUid 
         })
       );
       
