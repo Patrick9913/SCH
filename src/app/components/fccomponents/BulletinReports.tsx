@@ -26,6 +26,7 @@ export const BulletinReports: React.FC = () => {
   
   // Estados para la publicación de boletines
   const [selectedCourse, setSelectedCourse] = useState<number | null>(null);
+  const [selectedCourseDivision, setSelectedCourseDivision] = useState<string | null>(null); // División del curso seleccionado
   const [selectedPeriod, setSelectedPeriod] = useState<Period | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   
@@ -56,7 +57,13 @@ export const BulletinReports: React.FC = () => {
   // Estado computado basado en alumnos asignados a materias del curso (fuente real de inscriptos)
   const computedStatus = useMemo(() => {
     if (!selectedCourse || !selectedPeriod) return null;
-    const courseSubjects = subjects.filter(s => s.courseLevel === selectedCourse);
+    let courseSubjects = subjects.filter(s => s.courseLevel === selectedCourse);
+    
+    // Si hay división seleccionada, filtrar también por división
+    if (selectedCourseDivision && courseSubjects.length > 0) {
+      courseSubjects = courseSubjects.filter(s => s.courseDivision === selectedCourseDivision);
+    }
+    
     const enrolledUids = new Set<string>();
     courseSubjects.forEach(s => (s.studentUids || []).forEach(uid => enrolledUids.add(uid)));
     const totalStudents = enrolledUids.size;
@@ -67,7 +74,7 @@ export const BulletinReports: React.FC = () => {
       return sg.length > 0 && sg.every(g => g.published);
     }).length;
     return { totalStudents, gradedStudents, publishedStudents, isComplete: gradedStudents === totalStudents && totalStudents > 0 };
-  }, [subjects, grades, selectedCourse, selectedPeriod]);
+  }, [subjects, grades, selectedCourse, selectedCourseDivision, selectedPeriod]);
 
   // Función para manejar la publicación de boletines
   const handlePublishBulletins = async () => {
@@ -663,7 +670,11 @@ export const BulletinReports: React.FC = () => {
               </label>
               <select
                 value={selectedCourse || ''}
-                onChange={(e) => setSelectedCourse(Number(e.target.value) || null)}
+                onChange={(e) => {
+                  const courseData = courses.find(c => c.level === Number(e.target.value));
+                  setSelectedCourse(Number(e.target.value) || null);
+                  setSelectedCourseDivision(courseData?.division || null);
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 <option value="">Selecciona un curso</option>
