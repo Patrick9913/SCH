@@ -167,9 +167,30 @@ export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const publishGrades = async (courseLevel: number, period: Period) => {
-    if (!currentUid) {
-      throw new Error('No hay usuario autenticado');
+    // Obtener el uid más reciente del ref (siempre actualizado)
+    const latestUid = currentUidRef.current;
+    
+    // También intentar obtener de localStorage como respaldo
+    let fallbackUid: string | null = null;
+    try {
+      const SESSION_STORAGE_KEY = 'sch_user_session';
+      const sessionData = localStorage.getItem(SESSION_STORAGE_KEY);
+      if (sessionData) {
+        const { userId } = JSON.parse(sessionData);
+        fallbackUid = userId;
+      }
+    } catch (e) {
+      console.warn('Error al leer localStorage:', e);
     }
+    
+    // Usar latestUid del ref primero, sino fallbackUid
+    const userIdToUse = latestUid || fallbackUid;
+    
+    if (!userIdToUse) {
+      console.error('No hay userId disponible en publishGrades:', { latestUid, fallbackUid, currentUid, uid });
+      throw new Error('No hay usuario autenticado. Por favor, cierra sesión e inicia sesión nuevamente.');
+    }
+    
     // Buscar todas las calificaciones del curso y período
     const q = query(
       collection(db, 'grades'),
@@ -181,7 +202,7 @@ export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const updatePromises = snapshot.docs.map(docSnap => 
       updateDoc(doc(db, 'grades', docSnap.id), { 
         published: true,
-        updatedByUid: currentUid 
+        updatedByUid: userIdToUse 
       })
     );
     
@@ -189,10 +210,30 @@ export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const publishBulletins = async (courseLevel: number, period: Period): Promise<{ success: boolean; message: string; publishedCount: number }> => {
-    if (!currentUid) {
+    // Obtener el uid más reciente del ref (siempre actualizado)
+    const latestUid = currentUidRef.current;
+    
+    // También intentar obtener de localStorage como respaldo
+    let fallbackUid: string | null = null;
+    try {
+      const SESSION_STORAGE_KEY = 'sch_user_session';
+      const sessionData = localStorage.getItem(SESSION_STORAGE_KEY);
+      if (sessionData) {
+        const { userId } = JSON.parse(sessionData);
+        fallbackUid = userId;
+      }
+    } catch (e) {
+      console.warn('Error al leer localStorage:', e);
+    }
+    
+    // Usar latestUid del ref primero, sino fallbackUid
+    const userIdToUse = latestUid || fallbackUid;
+    
+    if (!userIdToUse) {
+      console.error('No hay userId disponible en publishBulletins:', { latestUid, fallbackUid, currentUid, uid });
       return {
         success: false,
-        message: 'No hay usuario autenticado',
+        message: 'No hay usuario autenticado. Por favor, cierra sesión e inicia sesión nuevamente.',
         publishedCount: 0
       };
     }
@@ -218,7 +259,7 @@ export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const updatePromises = snapshot.docs.map(docSnap => 
         updateDoc(doc(db, 'grades', docSnap.id), { 
           published: true,
-          updatedByUid: currentUid 
+          updatedByUid: userIdToUse 
         })
       );
       
