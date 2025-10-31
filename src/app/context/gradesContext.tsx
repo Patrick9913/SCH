@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { addDoc, collection, doc, getDocs, onSnapshot, orderBy, query, updateDoc, where, Timestamp } from 'firebase/firestore';
+import { addDoc, collection, doc, getDocs, onSnapshot, orderBy, query, updateDoc, where, Timestamp, writeBatch } from 'firebase/firestore';
 import { db } from '../config';
 import { Grade, Period } from '../types/grade';
 import { useAuthContext } from './authContext';
@@ -71,17 +71,34 @@ export const GradesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addMultipleGrades = async (gradesToAdd: Omit<Grade, 'id' | 'createdAt' | 'createdByUid'>[]) => {
-    if (!uid) return;
-    // Firestore batch write
-    const batch = gradesToAdd.map(grade => 
-      addDoc(collection(db, 'grades'), {
-        ...grade,
-        published: false, // Por defecto no publicadas
-        createdByUid: uid,
-        createdAt: Date.now(),
-      })
-    );
-    await Promise.all(batch);
+    if (!uid) {
+      throw new Error('No hay usuario autenticado');
+    }
+    
+    if (gradesToAdd.length === 0) {
+      return; // No hay nada que guardar
+    }
+
+    try {
+      // Usar batch write de Firestore (más eficiente y atómico)
+      const batch = writeBatch(db);
+      const gradesCollection = collection(db, 'grades');
+      
+      gradesToAdd.forEach(grade => {
+        const gradeRef = doc(gradesCollection);
+        batch.set(gradeRef, {
+          ...grade,
+          published: false, // Por defecto no publicadas
+          createdByUid: uid,
+          createdAt: Date.now(),
+        });
+      });
+      
+      await batch.commit();
+    } catch (error: any) {
+      console.error('Error al guardar calificaciones:', error);
+      throw new Error(`Error al guardar calificaciones: ${error.message || 'Error desconocido'}`);
+    }
   };
 
   const publishGrades = async (courseLevel: number, period: Period) => {

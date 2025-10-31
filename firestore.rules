@@ -8,7 +8,8 @@ service cloud.firestore {
     
     // Verificar que un userId existe y obtener su rol
     function getUserRole(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.role;
+      let userDoc = get(/databases/$(database)/documents/users/$(userId));
+      return userDoc != null && userDoc.exists() ? userDoc.data.role : null;
     }
     
     // Verificar si es administrador (role == 1)
@@ -16,7 +17,7 @@ service cloud.firestore {
       return userId != null && getUserRole(userId) == 1;
     }
     
-    // Verificar si es staff (role == 1 o 4)
+    // Verificar si es staff (role == 1, 2 o 4)
     function isStaff(userId) {
       return userId != null && getUserRole(userId) in [1, 2, 4];
     }
@@ -38,8 +39,18 @@ service cloud.firestore {
     }
     
     // Verificar si el usuario puede crear calificaciones
+    // Permite Admin siempre, o Docente si gradesLoadingEnabled está habilitado
+    // Si gradesLoadingEnabled no está configurado, también permite a docentes (fallback)
     function canCreateGrade(userId) {
-      return isAdmin(userId) || (isTeacher(userId) && isGradesLoadingEnabled());
+      return userId != null && (
+        isAdmin(userId) || 
+        (isTeacher(userId) && (
+          // Si el documento de settings no existe, permitir por defecto (modo permisivo)
+          // O si existe y gradesLoadingEnabled está habilitado
+          !exists(/databases/$(database)/documents/system/settings) ||
+          isGradesLoadingEnabled()
+        ))
+      );
     }
     
     // Extraer userId del request (asumiendo que se pasa como campo en el documento)
@@ -198,13 +209,14 @@ service cloud.firestore {
       allow read: if true;
       
       // Crear: Admin siempre puede crear, Docente solo si gradesLoadingEnabled está habilitado
-      allow create: if request.resource.data.keys().hasAll(['studentUid', 'subjectId', 'courseLevel', 'period', 'grade', 'createdByUid', 'createdAt']) &&
+      allow create: if request.resource.data.keys().hasAll(['studentUid', 'subjectId', 'courseLevel', 'period', 'grade', 'createdByUid', 'createdAt', 'published']) &&
                        request.resource.data.studentUid is string &&
                        request.resource.data.subjectId is int &&
                        request.resource.data.courseLevel is int &&
                        request.resource.data.period is string &&
                        request.resource.data.grade is string &&
                        request.resource.data.createdByUid is string &&
+                       request.resource.data.createdAt is number &&
                        request.resource.data.published is bool &&
                        canCreateGrade(getRequestUserId());
       

@@ -272,12 +272,13 @@ export const Grades: React.FC = () => {
       setSelectedSubjectFirestoreId(null);
       setSelectedPeriod('');
       setStudentGrades({});
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al guardar calificaciones:', error);
+      const errorMessage = error?.message || 'Error desconocido al guardar las calificaciones';
       await Swal.fire({
         icon: 'error',
-        title: 'Error',
-        text: 'Error al guardar las calificaciones',
+        title: 'Error al guardar',
+        text: errorMessage,
         confirmButtonColor: '#dc2626',
       });
     }
