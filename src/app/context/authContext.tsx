@@ -200,7 +200,8 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
         await updateDoc(doc(db, "users", uid), { online: false, lastOnlineAt: Date.now() });
       }
     } catch {}
-    localStorage.removeItem(SESSION_STORAGE_KEY);
+    // Limpiar todo el localStorage para no dejar referencias de la cuenta anterior
+    localStorage.clear();
     setUser(null);
     setUid(null);
   };

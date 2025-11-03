@@ -5,7 +5,7 @@ import { useAuthContext } from "@/app/context/authContext";
 import { useCourses } from "@/app/context/courseContext";
 import { UserCurses, UserRole, Assignments, User } from "@/app/types/user";
 import { IoPeople } from "react-icons/io5";
-import { HiPlus, HiX } from "react-icons/hi";
+import { HiPlus, HiX, HiChevronDown, HiChevronUp } from "react-icons/hi";
 import { RefreshButton } from "../reusable/RefreshButton";
 import toast from "react-hot-toast";
 import Swal from 'sweetalert2';
@@ -22,6 +22,14 @@ export const Personal: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [isEditMode, setIsEditMode] = useState(false);
+    
+    // Estados para secciones desplegables
+    const [showAdmins, setShowAdmins] = useState(true);
+    const [showTeachers, setShowTeachers] = useState(true);
+    const [showStaff, setShowStaff] = useState(true);
+    const [showStudents, setShowStudents] = useState(true);
+    const [showFamilies, setShowFamilies] = useState(true);
+    const [showSecurity, setShowSecurity] = useState(true);
 
     // Cursos ordenados para mostrar
     const sortedCourses = useMemo(() => {
@@ -36,6 +44,8 @@ export const Personal: React.FC = () => {
     const teachers = users.filter(u => u.role === 4)
     const students = users.filter(u => u.role === 3)
     const staff = users.filter(u => u.role === 2)
+    const families = users.filter(u => u.role === 5)
+    const security = users.filter(u => u.role === 6)
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
@@ -275,33 +285,49 @@ export const Personal: React.FC = () => {
                 </div>
 
                 <div className="mb-8">
-                    <h2 className="text-lg font-medium text-gray-900 mb-4">Administradores ({admins.length})</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {admins.map(u => (
-                            <Personalview
-                                key={u.id}
-                                name={u.name}
-                                role={UserRole[u.role]}
-                                showActions={isAdmin}
-                                isSuspended={u.status === 'suspended'}
-                                onEdit={isAdmin ? () => handleEdit(u) : undefined}
-                                onDelete={undefined}
-                                onSuspend={undefined}
-                                onActivate={isAdmin && u.status === 'suspended' && u.id !== currentUser?.id ? () => handleActivate(u) : undefined}
-                            />
-                        ))}
-                    </div>
+                    <button 
+                        onClick={() => setShowAdmins(!showAdmins)}
+                        className="w-full flex items-center justify-between text-lg font-medium text-gray-900 mb-4 hover:text-gray-700 transition-all group p-3 -mx-3 rounded-lg hover:bg-gray-50"
+                    >
+                        <span>Administradores ({admins.length})</span>
+                        <div className="transition-transform group-hover:scale-110">
+                            {showAdmins ? <HiChevronUp className="w-5 h-5" /> : <HiChevronDown className="w-5 h-5" />}
+                        </div>
+                    </button>
+                    {showAdmins && (
+                        admins.length === 0 ? (
+                            <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
+                                <p className="text-gray-400 text-sm">No hay administradores registrados</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {admins.map(u => (
+                                    <Personalview
+                                        key={u.id}
+                                        name={u.name}
+                                        role={UserRole[u.role]}
+                                        showActions={isAdmin}
+                                        isSuspended={u.status === 'suspended'}
+                                        onEdit={isAdmin ? () => handleEdit(u) : undefined}
+                                        onDelete={undefined}
+                                        onSuspend={undefined}
+                                        onActivate={isAdmin && u.status === 'suspended' && u.id !== currentUser?.id ? () => handleActivate(u) : undefined}
+                                    />
+                                ))}
+                            </div>
+                        )
+                    )}
                     
                     {/* Formulario de edición */}
                     {isEditMode && editingUser && (
                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                                <div className="p-6 border-b border-gray-200">
+                            <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                                <div className="p-6 border-b border-gray-200 bg-gray-50">
                                     <div className="flex justify-between items-center">
                                         <h2 className="text-xl font-semibold text-gray-900">Editar Usuario</h2>
                                         <button
                                             onClick={handleCancelEdit}
-                                            className="text-gray-400 hover:text-gray-600"
+                                            className="text-gray-400 hover:text-gray-600 transition-colors"
                                         >
                                             <HiX className="w-6 h-6" />
                                         </button>
@@ -392,18 +418,18 @@ export const Personal: React.FC = () => {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="flex gap-3 justify-end pt-4 border-t border-gray-200">
+                                    <div className="flex gap-3 justify-end pt-4 border-t border-gray-200 bg-gray-50 -mx-6 -mb-6 px-6 py-4 mt-6 rounded-b-xl">
                                         <button
                                             type="button"
                                             onClick={handleCancelEdit}
-                                            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                                            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors font-medium text-sm"
                                         >
                                             Cancelar
                                         </button>
                                         <button
                                             type="submit"
                                             disabled={isLoading}
-                                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                                            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors font-medium text-sm"
                                         >
                                             {isLoading ? 'Guardando...' : 'Guardar Cambios'}
                                         </button>
@@ -415,62 +441,180 @@ export const Personal: React.FC = () => {
             </div>
 
                 <div className="mb-8">
-                    <h2 className="text-lg font-medium text-gray-900 mb-4">Docentes ({teachers.length})</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {teachers.map(u => (
-                        <Personalview
-                            key={u.id}
-                            name={u.name}
-                            role={UserRole[u.role]}
-                            showActions={isAdmin}
-                            isSuspended={u.status === 'suspended'}
-                            onEdit={isAdmin ? () => handleEdit(u) : undefined}
-                            onDelete={isAdmin ? () => handleDelete(u) : undefined}
-                            onSuspend={isAdmin && u.status !== 'suspended' ? () => handleSuspend(u) : undefined}
-                            onActivate={isAdmin && u.status === 'suspended' ? () => handleActivate(u) : undefined}
-                        />
-                    ))}
-                </div>
+                    <button 
+                        onClick={() => setShowTeachers(!showTeachers)}
+                        className="w-full flex items-center justify-between text-lg font-medium text-gray-900 mb-4 hover:text-gray-700 transition-all group p-3 -mx-3 rounded-lg hover:bg-gray-50"
+                    >
+                        <span>Docentes ({teachers.length})</span>
+                        <div className="transition-transform group-hover:scale-110">
+                            {showTeachers ? <HiChevronUp className="w-5 h-5" /> : <HiChevronDown className="w-5 h-5" />}
+                        </div>
+                    </button>
+                    {showTeachers && (
+                        teachers.length === 0 ? (
+                            <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
+                                <p className="text-gray-400 text-sm">No hay docentes registrados</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {teachers.map(u => (
+                                    <Personalview
+                                        key={u.id}
+                                        name={u.name}
+                                        role={UserRole[u.role]}
+                                        showActions={isAdmin}
+                                        isSuspended={u.status === 'suspended'}
+                                        onEdit={isAdmin ? () => handleEdit(u) : undefined}
+                                        onDelete={isAdmin ? () => handleDelete(u) : undefined}
+                                        onSuspend={isAdmin && u.status !== 'suspended' ? () => handleSuspend(u) : undefined}
+                                        onActivate={isAdmin && u.status === 'suspended' ? () => handleActivate(u) : undefined}
+                                    />
+                                ))}
+                            </div>
+                        )
+                    )}
             </div>
 
                 <div className="mb-8">
-                    <h2 className="text-lg font-medium text-gray-900 mb-4">Staff ({staff.length})</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {staff.map(u => (
-                        <Personalview
-                            key={u.id}
-                            name={u.name}
-                            role={UserRole[u.role]}
-                            showActions={isAdmin}
-                            isSuspended={u.status === 'suspended'}
-                            onEdit={isAdmin ? () => handleEdit(u) : undefined}
-                            onDelete={isAdmin ? () => handleDelete(u) : undefined}
-                            onSuspend={isAdmin && u.status !== 'suspended' ? () => handleSuspend(u) : undefined}
-                            onActivate={isAdmin && u.status === 'suspended' ? () => handleActivate(u) : undefined}
-                        />
-                    ))}
-                </div>
+                    <button 
+                        onClick={() => setShowStaff(!showStaff)}
+                        className="w-full flex items-center justify-between text-lg font-medium text-gray-900 mb-4 hover:text-gray-700 transition-all group p-3 -mx-3 rounded-lg hover:bg-gray-50"
+                    >
+                        <span>Staff ({staff.length})</span>
+                        <div className="transition-transform group-hover:scale-110">
+                            {showStaff ? <HiChevronUp className="w-5 h-5" /> : <HiChevronDown className="w-5 h-5" />}
+                        </div>
+                    </button>
+                    {showStaff && (
+                        staff.length === 0 ? (
+                            <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
+                                <p className="text-gray-400 text-sm">No hay miembros del staff registrados</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {staff.map(u => (
+                                    <Personalview
+                                        key={u.id}
+                                        name={u.name}
+                                        role={UserRole[u.role]}
+                                        showActions={isAdmin}
+                                        isSuspended={u.status === 'suspended'}
+                                        onEdit={isAdmin ? () => handleEdit(u) : undefined}
+                                        onDelete={isAdmin ? () => handleDelete(u) : undefined}
+                                        onSuspend={isAdmin && u.status !== 'suspended' ? () => handleSuspend(u) : undefined}
+                                        onActivate={isAdmin && u.status === 'suspended' ? () => handleActivate(u) : undefined}
+                                    />
+                                ))}
+                            </div>
+                        )
+                    )}
             </div>
 
                 <div className="mb-8">
-                    <h2 className="text-lg font-medium text-gray-900 mb-4">Estudiantes ({students.length})</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {students.map((student) => (
-                        <Personalview
-                            key={student.uid}
-                            name={student.name}
-                            role={userRoleToString(student.role)}
-                            level={student.level ? getCourseName(student.level) : undefined}
-                            division={student.division}
-                            showActions={isAdmin}
-                            isSuspended={student.status === 'suspended'}
-                            onEdit={isAdmin ? () => handleEdit(student) : undefined}
-                            onDelete={isAdmin ? () => handleDelete(student) : undefined}
-                            onSuspend={isAdmin && student.status !== 'suspended' ? () => handleSuspend(student) : undefined}
-                            onActivate={isAdmin && student.status === 'suspended' ? () => handleActivate(student) : undefined}
-                        />
-                    ))}
-                </div>
+                    <button 
+                        onClick={() => setShowStudents(!showStudents)}
+                        className="w-full flex items-center justify-between text-lg font-medium text-gray-900 mb-4 hover:text-gray-700 transition-all group p-3 -mx-3 rounded-lg hover:bg-gray-50"
+                    >
+                        <span>Estudiantes ({students.length})</span>
+                        <div className="transition-transform group-hover:scale-110">
+                            {showStudents ? <HiChevronUp className="w-5 h-5" /> : <HiChevronDown className="w-5 h-5" />}
+                        </div>
+                    </button>
+                    {showStudents && (
+                        students.length === 0 ? (
+                            <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
+                                <p className="text-gray-400 text-sm">No hay estudiantes registrados</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {students.map((student) => (
+                                    <Personalview
+                                        key={student.uid}
+                                        name={student.name}
+                                        role={userRoleToString(student.role)}
+                                        level={student.level ? getCourseName(student.level) : undefined}
+                                        division={student.division}
+                                        showActions={isAdmin}
+                                        isSuspended={student.status === 'suspended'}
+                                        onEdit={isAdmin ? () => handleEdit(student) : undefined}
+                                        onDelete={isAdmin ? () => handleDelete(student) : undefined}
+                                        onSuspend={isAdmin && student.status !== 'suspended' ? () => handleSuspend(student) : undefined}
+                                        onActivate={isAdmin && student.status === 'suspended' ? () => handleActivate(student) : undefined}
+                                    />
+                                ))}
+                            </div>
+                        )
+                    )}
+            </div>
+
+                <div className="mb-8">
+                    <button 
+                        onClick={() => setShowFamilies(!showFamilies)}
+                        className="w-full flex items-center justify-between text-lg font-medium text-gray-900 mb-4 hover:text-gray-700 transition-all group p-3 -mx-3 rounded-lg hover:bg-gray-50"
+                    >
+                        <span>Familias ({families.length})</span>
+                        <div className="transition-transform group-hover:scale-110">
+                            {showFamilies ? <HiChevronUp className="w-5 h-5" /> : <HiChevronDown className="w-5 h-5" />}
+                        </div>
+                    </button>
+                    {showFamilies && (
+                        families.length === 0 ? (
+                            <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
+                                <p className="text-gray-400 text-sm">No hay familias registradas</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {families.map(u => (
+                                    <Personalview
+                                        key={u.id}
+                                        name={u.name}
+                                        role={UserRole[u.role]}
+                                        showActions={isAdmin}
+                                        isSuspended={u.status === 'suspended'}
+                                        onEdit={isAdmin ? () => handleEdit(u) : undefined}
+                                        onDelete={isAdmin ? () => handleDelete(u) : undefined}
+                                        onSuspend={isAdmin && u.status !== 'suspended' ? () => handleSuspend(u) : undefined}
+                                        onActivate={isAdmin && u.status === 'suspended' ? () => handleActivate(u) : undefined}
+                                    />
+                                ))}
+                            </div>
+                        )
+                    )}
+            </div>
+
+                <div className="mb-8">
+                    <button 
+                        onClick={() => setShowSecurity(!showSecurity)}
+                        className="w-full flex items-center justify-between text-lg font-medium text-gray-900 mb-4 hover:text-gray-700 transition-all group p-3 -mx-3 rounded-lg hover:bg-gray-50"
+                    >
+                        <span>Seguridad ({security.length})</span>
+                        <div className="transition-transform group-hover:scale-110">
+                            {showSecurity ? <HiChevronUp className="w-5 h-5" /> : <HiChevronDown className="w-5 h-5" />}
+                        </div>
+                    </button>
+                    {showSecurity && (
+                        security.length === 0 ? (
+                            <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
+                                <p className="text-gray-400 text-sm">No hay personal de seguridad registrado</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {security.map(u => (
+                                    <Personalview
+                                        key={u.id}
+                                        name={u.name}
+                                        role={UserRole[u.role]}
+                                        showActions={isAdmin}
+                                        isSuspended={u.status === 'suspended'}
+                                        onEdit={isAdmin ? () => handleEdit(u) : undefined}
+                                        onDelete={isAdmin ? () => handleDelete(u) : undefined}
+                                        onSuspend={isAdmin && u.status !== 'suspended' ? () => handleSuspend(u) : undefined}
+                                        onActivate={isAdmin && u.status === 'suspended' ? () => handleActivate(u) : undefined}
+                                    />
+                                ))}
+                            </div>
+                        )
+                    )}
             </div>
         </section>
     )

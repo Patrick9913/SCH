@@ -319,7 +319,10 @@ export const Navbar: React.FC = () => {
                 )}
                 <button 
                     className="text-sm text-gray-600 hover:text-gray-900 mb-2" 
-                    onClick={logout}
+                    onClick={() => {
+                        setMenu(1);
+                        logout();
+                    }}
                 >
                     Cerrar Sesión
                 </button>
