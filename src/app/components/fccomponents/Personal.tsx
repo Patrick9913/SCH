@@ -23,6 +23,11 @@ export const Personal: React.FC = () => {
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [isEditMode, setIsEditMode] = useState(false);
     
+    // Estados para gestión de hijos (Familia)
+    const [childrenIds, setChildrenIds] = useState<string[]>([]);
+    const [searchDni, setSearchDni] = useState<string>('');
+    const [foundStudent, setFoundStudent] = useState<User | null>(null);
+    
     // Estados para secciones desplegables
     const [showAdmins, setShowAdmins] = useState(true);
     const [showTeachers, setShowTeachers] = useState(true);
@@ -100,6 +105,11 @@ export const Personal: React.FC = () => {
                     updateData.division = selectedCourse.division;
                 }
 
+                // Si es familia, actualizar childrenIds
+                if (role === 5) {
+                    updateData.childrenIds = childrenIds;
+                }
+
                 // Actualizar el usuario
                 await updateUser(editingUser.id, updateData);
                 
@@ -164,10 +174,55 @@ export const Personal: React.FC = () => {
         setRole(0);
         setAsignatura('');
         setSelectedCourseId('');
+        setChildrenIds([]);
+        setSearchDni('');
+        setFoundStudent(null);
         setNUser(false);
         setIsEditMode(false);
         setEditingUser(null);
     }
+
+    // Funciones para gestionar hijos (Familia)
+    const handleSearchStudent = () => {
+        if (!searchDni || searchDni.trim() === '') {
+            toast.error('Ingresa un DNI para buscar');
+            return;
+        }
+
+        // Buscar estudiante por DNI
+        const student = students.find(s => String(s.dni) === searchDni.trim());
+        
+        if (!student) {
+            toast.error('No se encontró ningún estudiante con ese DNI');
+            setFoundStudent(null);
+            return;
+        }
+
+        // Verificar que no esté ya agregado
+        if (childrenIds.includes(student.id) || childrenIds.includes(student.uid)) {
+            toast.error('Este estudiante ya está asociado a esta familia');
+            setFoundStudent(null);
+            return;
+        }
+
+        setFoundStudent(student);
+        toast.success('Estudiante encontrado');
+    };
+
+    const handleAddFoundStudent = () => {
+        if (!foundStudent) return;
+        
+        const studentId = foundStudent.id || foundStudent.uid;
+        setChildrenIds(prev => [...prev, studentId]);
+        setSearchDni('');
+        setFoundStudent(null);
+        toast.success('Estudiante agregado a la familia');
+    };
+
+    const handleRemoveChild = (childId: string) => {
+        setChildrenIds(prev => prev.filter(id => id !== childId));
+        toast.success('Estudiante removido');
+    };
 
     const getCourseName = (level: number): string => {
         const course = Object.entries(UserCurses).find(([_, value]) => value === level);
@@ -185,6 +240,21 @@ export const Personal: React.FC = () => {
         // Si tiene courseId, usarlo; si no, usar level como fallback (compatibilidad)
         setSelectedCourseId(user.courseId || '');
         setPassword(''); // No mostrar la contraseña actual
+        
+        // Si es usuario Familia, cargar los hijos asociados
+        if (user.role === 5) {
+            if (user.childrenIds && user.childrenIds.length > 0) {
+                setChildrenIds([...user.childrenIds]);
+            } else if (user.childId) {
+                // Compatibilidad con el sistema antiguo de un solo hijo
+                setChildrenIds([user.childId]);
+            } else {
+                setChildrenIds([]);
+            }
+        } else {
+            setChildrenIds([]);
+        }
+        
         setNUser(true);
     }
 
@@ -418,6 +488,106 @@ export const Personal: React.FC = () => {
                                             </div>
                                         )}
                                     </div>
+
+                                    {/* Sección de Gestión de Hijos para usuarios Familia */}
+                                    {role === 5 && (
+                                        <div className="mt-6 pt-6 border-t border-gray-200">
+                                            <h3 className="text-lg font-medium text-gray-900 mb-4">Estudiantes Asociados (Hijos)</h3>
+                                            
+                                            {/* Lista de hijos actuales */}
+                                            {childrenIds.length > 0 ? (
+                                                <div className="space-y-2 mb-4">
+                                                    {childrenIds.map(childId => {
+                                                        const child = students.find(s => s.id === childId || s.uid === childId);
+                                                        if (!child) return null;
+                                                        
+                                                        return (
+                                                            <div key={childId} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold">
+                                                                        {child.name.charAt(0).toUpperCase()}
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="font-medium text-gray-900">{child.name}</p>
+                                                                        <p className="text-sm text-gray-600">
+                                                                            {child.level ? getCourseName(child.level) : 'Sin curso'}
+                                                                            {child.division && ` - División ${child.division}`}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleRemoveChild(childId)}
+                                                                    className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                >
+                                                                    Eliminar
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <div className="text-center py-6 bg-gray-50 rounded-lg border border-gray-200 mb-4">
+                                                    <p className="text-gray-500 text-sm">No hay estudiantes asociados</p>
+                                                </div>
+                                            )}
+
+                                            {/* Buscar y agregar nuevo hijo por DNI */}
+                                            <div className="space-y-3">
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="number"
+                                                        value={searchDni}
+                                                        onChange={(e) => setSearchDni(e.target.value)}
+                                                        placeholder="Ingrese DNI del estudiante..."
+                                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                handleSearchStudent();
+                                                            }
+                                                        }}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleSearchStudent}
+                                                        disabled={!searchDni}
+                                                        className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                    >
+                                                        Buscar
+                                                    </button>
+                                                </div>
+
+                                                {/* Estudiante encontrado */}
+                                                {foundStudent && (
+                                                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-semibold">
+                                                                    {foundStudent.name.charAt(0).toUpperCase()}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-medium text-gray-900">{foundStudent.name}</p>
+                                                                    <p className="text-sm text-gray-600">
+                                                                        DNI: {foundStudent.dni} • {foundStudent.level ? getCourseName(foundStudent.level) : 'Sin curso'}
+                                                                        {foundStudent.division && ` - División ${foundStudent.division}`}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleAddFoundStudent}
+                                                                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                                                            >
+                                                                <HiPlus className="w-4 h-4" />
+                                                                Agregar
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="flex gap-3 justify-end pt-4 border-t border-gray-200 bg-gray-50 -mx-6 -mb-6 px-6 py-4 mt-6 rounded-b-xl">
                                         <button
                                             type="button"

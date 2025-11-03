@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { IoPeople } from "react-icons/io5";
-import { HiArrowLeft } from "react-icons/hi";
+import { HiArrowLeft, HiPlus } from "react-icons/hi";
 import { useTriskaContext } from "@/app/context/triskaContext";
 import { useAuthContext } from "@/app/context/authContext";
 import { useCourses } from "@/app/context/courseContext";
@@ -26,6 +26,10 @@ export const UserCreator: React.FC = () => {
     const [selectedCourseId, setSelectedCourseId] = useState<string>('');
     const [selectedChildrenIds, setSelectedChildrenIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    
+    // Estados para búsqueda de hijos por DNI
+    const [searchDni, setSearchDni] = useState('');
+    const [foundStudent, setFoundStudent] = useState<any>(null);
 
     // Cursos ordenados para mostrar
     const sortedCourses = useMemo(() => {
@@ -69,12 +73,63 @@ export const UserCreator: React.FC = () => {
     }
 
     const resetForm = () => {
-        setFirstName(''); setMail(''); setDni(''); setPassword(''); setRole(0); setAsignatura(''); setSelectedCourseId(''); setSelectedChildrenIds([]);
+        setFirstName(''); 
+        setMail(''); 
+        setDni(''); 
+        setPassword(''); 
+        setRole(0); 
+        setAsignatura(''); 
+        setSelectedCourseId(''); 
+        setSelectedChildrenIds([]);
+        setSearchDni('');
+        setFoundStudent(null);
     };
 
     const getCourseName = (level: number): string => {
         const course = Object.entries(UserCurses).find(([_, value]) => value === level);
         return course ? course[0] : `${level}°`;
+    };
+
+    // Funciones para gestionar hijos por DNI
+    const handleSearchStudent = () => {
+        if (!searchDni || searchDni.trim() === '') {
+            toast.error('Ingresa un DNI para buscar');
+            return;
+        }
+
+        // Buscar estudiante por DNI
+        const student = availableStudents.find(s => String(s.dni) === searchDni.trim());
+        
+        if (!student) {
+            toast.error('No se encontró ningún estudiante con ese DNI');
+            setFoundStudent(null);
+            return;
+        }
+
+        // Verificar que no esté ya agregado
+        if (selectedChildrenIds.includes(student.id || student.uid)) {
+            toast.error('Este estudiante ya está asociado a esta familia');
+            setFoundStudent(null);
+            return;
+        }
+
+        setFoundStudent(student);
+        toast.success('Estudiante encontrado');
+    };
+
+    const handleAddFoundStudent = () => {
+        if (!foundStudent) return;
+        
+        const studentId = foundStudent.id || foundStudent.uid;
+        setSelectedChildrenIds([...selectedChildrenIds, studentId]);
+        setSearchDni('');
+        setFoundStudent(null);
+        toast.success('Estudiante agregado a la familia');
+    };
+
+    const handleRemoveChild = (childId: string) => {
+        setSelectedChildrenIds(selectedChildrenIds.filter(id => id !== childId));
+        toast.success('Estudiante removido');
     };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -251,10 +306,11 @@ export const UserCreator: React.FC = () => {
                         </div>
                     )}
                     {role === 5 && (
-                        <div className="flex flex-col gap-y-2 md:col-span-2">
+                        <div className="flex flex-col gap-y-3 md:col-span-2">
                             <label className="text-sm font-medium text-gray-700">
-                                Hijos <span className="text-xs text-gray-500">(Selecciona los alumnos asociados a este familiar)</span>
+                                Estudiantes Asociados (Hijos)
                             </label>
+                            
                             {availableStudents.length === 0 ? (
                                 <div className="p-3 border border-yellow-300 rounded-lg bg-yellow-50">
                                     <p className="text-sm text-yellow-800">
@@ -263,38 +319,99 @@ export const UserCreator: React.FC = () => {
                                 </div>
                             ) : (
                                 <>
-                                    <div className="p-3 border border-gray-300 rounded-lg max-h-60 overflow-y-auto bg-gray-50">
-                                        {availableStudents.map(student => (
-                                            <label 
-                                                key={student.id} 
-                                                className="flex items-center gap-3 p-2 hover:bg-white rounded cursor-pointer transition-colors"
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedChildrenIds.includes(student.id || student.uid)}
-                                                    onChange={(e) => {
-                                                        const studentId = student.id || student.uid;
-                                                        if (e.target.checked) {
-                                                            setSelectedChildrenIds([...selectedChildrenIds, studentId]);
-                                                        } else {
-                                                            setSelectedChildrenIds(selectedChildrenIds.filter(id => id !== studentId));
-                                                        }
-                                                    }}
-                                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                                />
-                                                <div className="flex-1">
-                                                    <p className="text-sm font-medium text-gray-900">{student.name}</p>
-                                                    <p className="text-xs text-gray-500">
-                                                        DNI: {student.dni || 'Sin DNI'} 
-                                                        {student.level && ` • Curso: ${getCourseName(student.level)}${student.division ? ` ${student.division}` : ''}`}
-                                                    </p>
-                                                </div>
-                                            </label>
-                                        ))}
-                                    </div>
+                                    {/* Lista de hijos agregados */}
                                     {selectedChildrenIds.length > 0 && (
-                                        <p className="text-xs text-green-600 mt-1">
-                                            ✓ {selectedChildrenIds.length} {selectedChildrenIds.length === 1 ? 'hijo seleccionado' : 'hijos seleccionados'}
+                                        <div className="space-y-2 mb-3">
+                                            {selectedChildrenIds.map(childId => {
+                                                const child = availableStudents.find(s => s.id === childId || s.uid === childId);
+                                                if (!child) return null;
+                                                
+                                                return (
+                                                    <div key={childId} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold">
+                                                                {child.name.charAt(0).toUpperCase()}
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-medium text-gray-900 text-sm">{child.name}</p>
+                                                                <p className="text-xs text-gray-600">
+                                                                    {child.level ? getCourseName(child.level) : 'Sin curso'}
+                                                                    {child.division && ` - División ${child.division}`}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveChild(childId)}
+                                                            className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                        >
+                                                            Eliminar
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+
+                                    {/* Buscar y agregar nuevo hijo por DNI */}
+                                    <div className="space-y-3 p-4 border border-gray-300 rounded-lg bg-gray-50">
+                                        <p className="text-xs font-medium text-gray-700">Buscar estudiante por DNI:</p>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="number"
+                                                value={searchDni}
+                                                onChange={(e) => setSearchDni(e.target.value)}
+                                                placeholder="Ingrese DNI del estudiante..."
+                                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        handleSearchStudent();
+                                                    }
+                                                }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleSearchStudent}
+                                                disabled={!searchDni}
+                                                className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                                Buscar
+                                            </button>
+                                        </div>
+
+                                        {/* Estudiante encontrado */}
+                                        {foundStudent && (
+                                            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-semibold">
+                                                            {foundStudent.name.charAt(0).toUpperCase()}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-medium text-gray-900 text-sm">{foundStudent.name}</p>
+                                                            <p className="text-xs text-gray-600">
+                                                                DNI: {foundStudent.dni} • {foundStudent.level ? getCourseName(foundStudent.level) : 'Sin curso'}
+                                                                {foundStudent.division && ` - División ${foundStudent.division}`}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleAddFoundStudent}
+                                                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                                                    >
+                                                        <HiPlus className="w-4 h-4" />
+                                                        Agregar
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {selectedChildrenIds.length > 0 && (
+                                        <p className="text-xs text-green-600">
+                                            ✓ {selectedChildrenIds.length} {selectedChildrenIds.length === 1 ? 'hijo agregado' : 'hijos agregados'}
                                         </p>
                                     )}
                                 </>

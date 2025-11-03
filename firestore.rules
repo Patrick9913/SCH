@@ -5,6 +5,14 @@
       // ==========================================
       // FUNCIONES AUXILIARES
       // ==========================================
+      // Roles del sistema:
+      // 1 = Administrador (control total)
+      // 2 = Staff/Preceptor (gestión de asistencias y cursos)
+      // 3 = Estudiante (solo lectura de sus datos)
+      // 4 = Docente (gestión de calificaciones y asistencias)
+      // 5 = Familia (lectura de datos de hijos, crea retiros)
+      // 6 = Seguridad (valida retiros)
+      // ==========================================
       
       // Verificar que un userId existe y obtener su rol
       function getUserRole(userId) {
@@ -16,8 +24,13 @@
         return userId != null && getUserRole(userId) == 1;
       }
       
-      // Verificar si es staff (role == 1, 2 o 4)
-      function isStaff(userId) {
+      // Verificar si es staff/preceptor (role == 2)
+      function isStaffOnly(userId) {
+        return userId != null && getUserRole(userId) == 2;
+      }
+      
+      // Verificar si puede gestionar asistencias (Admin, Staff o Docente)
+      function canManageAttendance(userId) {
         return userId != null && getUserRole(userId) in [1, 2, 4];
       }
       
@@ -82,11 +95,18 @@
       // COLECCIÓN DE USUARIOS
       // ==========================================
       match /users/{userId} {
-        // Permitir lectura: todos los usuarios autenticados pueden leer
-        // (Nota: sin auth, validamos estructura de datos)
-        allow read: if true; // Temporalmente permisivo, se validará en el cliente
+        // Lectura: Todos pueden leer (filtrado en cliente según contexto)
+        // - Admin: puede ver todos
+        // - Staff: puede ver todos
+        // - Docente: puede ver estudiantes de sus materias
+        // - Estudiante: puede ver su perfil y profesores
+        // - Familia: puede ver sus hijos
+        // - Seguridad: puede ver su perfil
+        allow read: if true;
         
-        // Permitir crear usuarios nuevos (el uid debe coincidir con el documentId desde el inicio)
+        // Crear: Solo Admin puede crear usuarios
+        // La validación de permisos se hace en el cliente
+        // El uid debe coincidir con el documentId
         allow create: if request.resource.data.keys().hasAll(['name', 'role', 'mail', 'password', 'uid']) &&
                         request.resource.data.role is int &&
                         request.resource.data.name is string &&
@@ -95,11 +115,9 @@
                         request.resource.data.uid is string &&
                         request.resource.data.uid == userId;
         
-        // Permitir actualización si:
-        // - El uid siempre debe coincidir con userId (protección de integridad)
-        // - Los campos actualizados son válidos
-        // Nota: La validación de permisos (solo admin puede actualizar) se hace en el cliente
-        // Los campos son opcionales en updates, pero si están presentes deben tener el tipo correcto
+        // Actualizar: Solo Admin puede actualizar usuarios
+        // La validación de permisos se hace en el cliente
+        // Los campos son opcionales pero si están presentes deben tener el tipo correcto
         allow update: if (!('uid' in request.resource.data) || request.resource.data.uid == userId) &&
                         (!('uid' in request.resource.data) || request.resource.data.uid is string) &&
                         (!('role' in request.resource.data) || request.resource.data.role is int) &&
@@ -115,7 +133,8 @@
                         (!('division' in request.resource.data) || request.resource.data.division is string) &&
                         (!('status' in request.resource.data) || request.resource.data.status in ['pending', 'active', 'suspended']);
         
-        // Permitir eliminación (validación de permisos en el cliente)
+        // Eliminar: Solo Admin puede eliminar usuarios
+        // La validación de permisos se hace en el cliente
         allow delete: if true;
       }
       
@@ -167,16 +186,22 @@
       // ANUNCIOS
       // ==========================================
       match /announcements/{announcementId} {
-        allow read: if true; // Todos pueden leer (el filtrado se hace en el cliente)
+        // Lectura: Todos pueden leer (filtrado por audience en el cliente)
+        allow read: if true;
         
+        // Crear: Solo Admin (1) puede crear anuncios
+        // La validación de permisos se hace en el cliente
         allow create: if request.resource.data.keys().hasAll(['title', 'audience', 'createdAt', 'createdByUid']) &&
                         request.resource.data.title is string &&
                         request.resource.data.audience is string &&
                         request.resource.data.createdByUid is string;
         
-        allow delete: if true; // Permitir eliminar (validación de permisos en el cliente)
+        // Actualizar: Los anuncios no se pueden editar (solo crear y eliminar)
+        allow update: if false;
         
-        allow update: if false; // Los anuncios no se editan
+        // Eliminar: Solo Admin (1) puede eliminar anuncios
+        // La validación de permisos se hace en el cliente
+        allow delete: if true;
       }
       
       // ==========================================
@@ -200,23 +225,25 @@
       // ASISTENCIA
       // ==========================================
       match /attendance/{attendanceId} {
+        // Lectura: Todos los usuarios autenticados (filtrado en cliente)
         allow read: if true;
         
-        // Crear: Solo Admin o Docente pueden crear asistencias
+        // Crear: Admin (1), Staff (2) o Docente (4) pueden crear asistencias
         allow create: if request.resource.data.keys().hasAll(['date', 'studentUid', 'courseLevel', 'status', 'createdByUid', 'createdAt']) &&
                         request.resource.data.date is string &&
                         request.resource.data.studentUid is string &&
                         request.resource.data.courseLevel is int &&
                         request.resource.data.status is string &&
                         request.resource.data.createdByUid is string &&
-                        (isAdmin(getRequestUserId()) || isTeacher(getRequestUserId()));
+                        canManageAttendance(getRequestUserId());
         
-        // Actualizar: Solo Admin o Docente pueden actualizar asistencias
-        // Se permite actualizar updatedByUid junto con status
+        // Actualizar: Admin (1), Staff (2) o Docente (4) pueden actualizar asistencias
+        // Solo se permite actualizar status, updatedAt y updatedByUid
         allow update: if (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'updatedByUid']) ||
                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])) &&
-                        (isAdmin(getRequestUserId()) || isTeacher(getRequestUserId()));
+                        canManageAttendance(getRequestUserId());
         
+        // Eliminar: Deshabilitado
         allow delete: if false;
       }
       
@@ -224,10 +251,15 @@
       // CALIFICACIONES
       // ==========================================
       match /grades/{gradeId} {
-        // Lectura: Todos pueden leer, el filtrado se hace en el cliente
+        // Lectura: Todos pueden leer (filtrado en cliente)
+        // - Admin: puede ver todas
+        // - Docente: puede ver de sus materias
+        // - Estudiante: puede ver sus propias (solo published=true)
+        // - Familia: puede ver de sus hijos (solo published=true)
         allow read: if true;
         
-        // Crear: Admin siempre puede crear, Docente puede crear cuando gradesLoadingEnabled está habilitado
+        // Crear: Admin (1) siempre, Docente (4) si gradesLoadingEnabled=true
+        // Staff (2), Estudiante (3), Familia (5), Seguridad (6) NO pueden crear
         allow create: if request.resource.data.keys().hasAll(['studentUid', 'subjectId', 'courseLevel', 'period', 'grade', 'createdByUid', 'createdAt', 'published']) &&
                         request.resource.data.studentUid is string &&
                         request.resource.data.subjectId is int &&
@@ -250,13 +282,14 @@
                             (exists(/databases/$(database)/documents/system/settings) && isGradesLoadingEnabled())
                           )));
         
-        // Actualizar: Solo Admin puede cambiar published (para publicar boletines)
-        // Se permite actualizar updatedByUid junto con published
+        // Actualizar: Solo Admin (1) puede cambiar published (publicar boletines)
+        // Solo se permite actualizar published y updatedByUid
+        // Docentes NO pueden publicar boletines
         allow update: if (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['published', 'updatedByUid']) ||
                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['published'])) &&
                         isAdmin(getRequestUserId());
         
-        // Eliminar: Deshabilitado
+        // Eliminar: Deshabilitado para todos
         allow delete: if false;
       }
       
@@ -264,8 +297,11 @@
       // MATERIAS (SUBJECTS)
       // ==========================================
       match /subjects/{subjectId} {
+        // Lectura: Todos pueden leer (necesario para horarios, asignaciones, etc)
         allow read: if true;
         
+        // Crear: Solo Admin (1) puede crear materias
+        // La validación de permisos se hace en el cliente
         allow create: if request.resource.data.keys().hasAll(['name', 'subjectId', 'courseLevel', 'teacherUid', 'createdByUid']) &&
                         request.resource.data.name is string &&
                         request.resource.data.subjectId is int &&
@@ -274,12 +310,14 @@
                         request.resource.data.createdByUid is string &&
                         request.resource.data.studentUids is list;
         
+        // Actualizar: Admin (1) y Docente (4) pueden actualizar
+        // Admin puede cambiar todo, Docente solo puede actualizar estudiantes asignados
+        // La validación de permisos se hace en el cliente
         allow update: if request.resource.data.diff(resource.data).affectedKeys().hasAny(['teacherUid', 'studentUids', 'updatedAt']) ||
-                        // Permitir actualización completa si los campos requeridos están presentes
                         (request.resource.data.keys().hasAll(['name', 'subjectId', 'courseLevel', 'teacherUid']));
         
-        // Nota: No estamos usando Auth; el control de permisos se valida en el cliente.
-        // Permitimos delete para evitar bloqueos por falta de request.auth.
+        // Eliminar: Solo Admin (1) puede eliminar materias
+        // La validación de permisos se hace en el cliente
         allow delete: if true;
       }
       
@@ -319,8 +357,10 @@
       // CURSOS (COURSES)
       // ==========================================
       match /courses/{courseId} {
+        // Lectura: Todos pueden leer (necesario para asignaciones)
         allow read: if true;
         
+        // Crear: Solo Admin (1) puede crear cursos
         allow create: if request.resource.data.keys().hasAll(['level', 'division', 'createdByUid', 'createdAt']) &&
                         request.resource.data.level is int &&
                         request.resource.data.division is string &&
@@ -332,9 +372,12 @@
                         // Verificar permisos: Admin (role 1)
                         getUserRole(request.resource.data.createdByUid) == 1;
         
+        // Actualizar: Admin (1) puede actualizar cursos
+        // Puede cambiar studentUids, preceptorUid, division
         allow update: if request.resource.data.diff(resource.data).affectedKeys().hasAny(['studentUids', 'preceptorUid', 'division', 'updatedAt']);
         
-      // Permitir eliminar (validación de permisos en el cliente)
+      // Eliminar: Solo Admin (1) puede eliminar cursos
+      // La validación de permisos se hace en el cliente
       allow delete: if true;
     }
     
@@ -342,11 +385,13 @@
     // RETIROS ANTICIPADOS (EARLY WITHDRAWALS)
     // ==========================================
     match /early_withdrawals/{withdrawalId} {
-      // Lectura: Todos los usuarios autenticados pueden leer (filtrado en cliente)
+      // Lectura: Todos pueden leer (filtrado en cliente)
+      // - Admin: puede ver todos
+      // - Familia: puede ver los de sus hijos
+      // - Seguridad: puede ver todos (para validar)
       allow read: if true;
       
-      // Crear: Solo Familia y Admin pueden crear retiros
-      // Los campos studentCourse y studentDivision son opcionales
+      // Crear: Solo Familia (5) y Admin (1) pueden crear retiros
       allow create: if request.resource.data.keys().hasAll([
                       'authorizerUid', 'authorizerName', 'studentUid', 'studentName',
                       'pickerName', 'pickerDni', 'pickerRelationship', 'withdrawalDate',
@@ -373,10 +418,14 @@
                     (isFamily(request.resource.data.authorizerUid) || 
                      isAdmin(request.resource.data.authorizerUid));
       
-      // Actualizar: Admin, Seguridad puede validar, Familia puede cancelar
-      allow update: if true; // Validación simplificada - control en el cliente
+      // Actualizar: 
+      // - Admin (1) puede actualizar todo
+      // - Seguridad (6) puede validar retiros (cambiar status)
+      // - Familia (5) puede cancelar sus propios retiros
+      // La validación de permisos específicos se hace en el cliente
+      allow update: if true;
       
-    // No se permite eliminar
+    // Eliminar: Deshabilitado para todos
     allow delete: if false;
   }
   }

@@ -331,7 +331,7 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
 
     // Función para actualizar un usuario
-    const updateUser = async (userId: string, data: Partial<NewUserData & { asignatura?: number, curso?: number, division?: string, courseId?: string, level?: number }>) => {
+    const updateUser = async (userId: string, data: Partial<NewUserData & { asignatura?: number, curso?: number, division?: string, courseId?: string, level?: number, childrenIds?: string[] }>) => {
         try {
             // Validar permisos - solo admin puede actualizar usuarios
             if (!user || user.role !== 1) {
@@ -389,6 +389,11 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             // Sistema antiguo: mantener compatibilidad con curso
             if (data.curso !== undefined) {
                 updateData.level = data.curso;
+            }
+
+            // Gestión de hijos para usuarios Familia
+            if (data.childrenIds !== undefined) {
+                updateData.childrenIds = data.childrenIds;
             }
 
             // Asegurar que uid siempre coincida con el id del documento
