@@ -72,8 +72,7 @@ export const Attendance: React.FC = () => {
 
   // Estados para el flujo de registro
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [selectedCourse, setSelectedCourse] = useState<number | ''>('');
-  const [selectedCourseDivision, setSelectedCourseDivision] = useState<string | null>(null); // División del curso seleccionado
+  const [selectedCourseUniqueId, setSelectedCourseUniqueId] = useState<string>(''); // Almacena uniqueId (ej: "5-A")
   const [studentAttendances, setStudentAttendances] = useState<Record<string, AttendanceStatus>>({});
   
   // Estado para estudiantes: mes seleccionado
@@ -84,19 +83,33 @@ export const Attendance: React.FC = () => {
     if (isAdminUser || isStaffUser) {
       // Admin y Staff pueden ver todos los cursos creados
       return courses.map(course => ({
-        id: course.level,
+        uniqueId: `${course.level}-${course.division || ''}`, // ID único para el select
+        level: course.level,
         name: getCourseName(course.level),
         division: course.division,
         courseId: course.id
       }));
     } else if (isTeacherUser && user) {
-      // Docente solo ve sus cursos asignados usando el nuevo sistema
+      // Docente solo ve los cursos (nivel + división) exactos a los que está asignado
       const teacherSubjects = getSubjectsByTeacher(user.uid);
-      const assignedCourseLevels = [...new Set(teacherSubjects.map(ts => ts.courseLevel))];
+      
+      // Crear un Set de combinaciones únicas de courseLevel + courseDivision
+      const assignedCourses = new Set<string>();
+      teacherSubjects.forEach(subject => {
+        // Crear clave única: "nivel-division"
+        const key = `${subject.courseLevel}-${subject.courseDivision || ''}`;
+        assignedCourses.add(key);
+      });
+      
+      // Filtrar los cursos por las combinaciones asignadas al docente
       return courses
-        .filter(course => assignedCourseLevels.includes(course.level))
+        .filter(course => {
+          const key = `${course.level}-${course.division || ''}`;
+          return assignedCourses.has(key);
+        })
         .map(course => ({
-          id: course.level,
+          uniqueId: `${course.level}-${course.division || ''}`, // ID único para el select
+          level: course.level,
           name: getCourseName(course.level),
           division: course.division,
           courseId: course.id
@@ -105,14 +118,22 @@ export const Attendance: React.FC = () => {
     return [];
   }, [isAdminUser, isStaffUser, isTeacherUser, user, courses, getSubjectsByTeacher]);
 
+  // Extraer level y división del curso seleccionado
+  const selectedCourseData = useMemo(() => {
+    if (!selectedCourseUniqueId) return null;
+    const courseData = availableCourses.find(c => c.uniqueId === selectedCourseUniqueId);
+    return courseData || null;
+  }, [selectedCourseUniqueId, availableCourses]);
+
   // Estudiantes filtrados por curso seleccionado
   const studentsInCourse = useMemo(() => {
-    if (!selectedCourse) return [];
-    let filtered = users.filter(u => u.role === 3 && u.level === selectedCourse);
+    if (!selectedCourseData) return [];
     
-    // Si hay división seleccionada, filtrar también por división
-    if (selectedCourseDivision) {
-      filtered = filtered.filter(u => u.division === selectedCourseDivision);
+    let filtered = users.filter(u => u.role === 3 && u.level === selectedCourseData.level);
+    
+    // Filtrar también por división
+    if (selectedCourseData.division) {
+      filtered = filtered.filter(u => u.division === selectedCourseData.division);
     }
     
     return filtered.map(u => ({
@@ -121,11 +142,11 @@ export const Attendance: React.FC = () => {
       // Usar id como identificador principal ya que es el documentId de Firestore
       uid: u.id || u.uid,
     }));
-  }, [users, selectedCourse, selectedCourseDivision]);
+  }, [users, selectedCourseData]);
 
   // Cargar asistencias existentes cuando se selecciona fecha y curso
   const initialAttendances = useMemo(() => {
-    if (!selectedDate || !selectedCourse) {
+    if (!selectedDate || !selectedCourseUniqueId) {
       return {};
     }
 
@@ -146,7 +167,7 @@ export const Attendance: React.FC = () => {
       }
     });
     return initial;
-  }, [selectedDate, selectedCourse, studentsInCourse, records]);
+  }, [selectedDate, selectedCourseUniqueId, studentsInCourse, records]);
 
   // Actualizar studentAttendances cuando cambien las asistencias iniciales
   useEffect(() => {
@@ -161,7 +182,7 @@ export const Attendance: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!selectedDate || !selectedCourse) {
+    if (!selectedDate || !selectedCourseUniqueId || !selectedCourseData) {
       await Swal.fire({
         icon: 'warning',
         title: 'Faltan datos',
@@ -174,6 +195,12 @@ export const Attendance: React.FC = () => {
     // Normalizar la fecha a formato YYYY-MM-DD por si acaso
     const normalizedDate = selectedDate.split('T')[0];
 
+    console.log('📅 DEBUG Fecha:', {
+      selectedDate,
+      normalizedDate,
+      fechaSeleccionadaEnInput: selectedDate,
+      fechaNormalizadaParaGuardar: normalizedDate
+    });
     console.log('Intentando guardar asistencias...');
     console.log('Estudiantes en curso:', studentsInCourse);
     console.log('Asistencias seleccionadas:', studentAttendances);
@@ -210,7 +237,7 @@ export const Attendance: React.FC = () => {
         return {
           studentUid: finalStudentUid,
           date: normalizedDate,
-          courseLevel: Number(selectedCourse),
+          courseLevel: Number(selectedCourseData.level),
           status: status as AttendanceStatus
         };
       })
@@ -242,8 +269,7 @@ export const Attendance: React.FC = () => {
       });
       // Resetear el formulario
       setSelectedDate('');
-      setSelectedCourse('');
-      setSelectedCourseDivision(null);
+      setSelectedCourseUniqueId('');
       setStudentAttendances({});
     } catch (error) {
       console.error('Error al guardar asistencias:', error);
@@ -259,8 +285,7 @@ export const Attendance: React.FC = () => {
 
   const handleReset = () => {
     setSelectedDate('');
-    setSelectedCourse('');
-    setSelectedCourseDivision(null);
+    setSelectedCourseUniqueId('');
     setStudentAttendances({});
   };
 
@@ -595,8 +620,7 @@ export const Attendance: React.FC = () => {
               value={selectedDate}
               onChange={(e) => {
                 setSelectedDate(e.target.value);
-                setSelectedCourse('');
-                setSelectedCourseDivision(null);
+                setSelectedCourseUniqueId('');
                 setStudentAttendances({});
               }}
               className="w-full border rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -609,11 +633,9 @@ export const Attendance: React.FC = () => {
               2. Selecciona el Curso
             </label>
             <select
-              value={selectedCourse}
+              value={selectedCourseUniqueId}
               onChange={(e) => {
-                const courseData = availableCourses.find(c => c.id === Number(e.target.value));
-                setSelectedCourse(Number(e.target.value));
-                setSelectedCourseDivision(courseData?.division || null);
+                setSelectedCourseUniqueId(e.target.value);
                 setStudentAttendances({});
               }}
               disabled={!selectedDate}
@@ -621,7 +643,7 @@ export const Attendance: React.FC = () => {
             >
               <option value="">Seleccionar curso...</option>
               {availableCourses.map((course) => (
-                <option key={course.courseId || course.id} value={course.id}>
+                <option key={course.uniqueId} value={course.uniqueId}>
                   {course.name}{course.division ? ` - División ${course.division}` : ''}
                 </option>
               ))}
@@ -629,7 +651,7 @@ export const Attendance: React.FC = () => {
           </div>
 
           {/* Paso 3: Lista de Estudiantes y Asistencias */}
-          {selectedDate && selectedCourse && (
+          {selectedDate && selectedCourseUniqueId && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-4">
                 3. Marca la asistencia de cada Estudiante
@@ -679,7 +701,7 @@ export const Attendance: React.FC = () => {
           )}
 
           {/* Botones de Acción */}
-          {selectedDate && selectedCourse && (
+          {selectedDate && selectedCourseUniqueId && (
             <div className="flex gap-3 justify-end border-t pt-4">
               <button
                 type="button"

@@ -73,10 +73,20 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
               
               // Asegurar que uid sea igual a id (para compatibilidad)
               if (!userData.uid || userData.uid !== userData.id) {
+                console.log('🔧 Corrigiendo uid del usuario:', {
+                  documentId: userData.id,
+                  uidAnterior: userData.uid,
+                  uidNuevo: userData.id
+                });
                 userData.uid = userData.id;
                 // Actualizar en Firestore si es necesario
                 const { updateDoc } = await import("firebase/firestore");
-                await updateDoc(doc(db, "users", userId), { uid: userId });
+                try {
+                  await updateDoc(doc(db, "users", userId), { uid: userId });
+                  console.log('✅ Campo uid actualizado en Firestore correctamente');
+                } catch (error) {
+                  console.error('❌ Error al actualizar campo uid en Firestore:', error);
+                }
               }
               setUser(userData);
               setUid(userData.id);
@@ -159,19 +169,27 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
         
         if (needsPasswordUpdate) {
           updateData.password = hashPassword(password);
+          console.log('🔐 Actualizando password hasheado');
         }
         
         if (needsStatusUpdate) {
           updateData.status = 'active';
           userData.status = 'active';
+          console.log('✅ Activando usuario (status: pending → active)');
         }
         
         if (needsUidUpdate) {
           updateData.uid = userData.id;
           userData.uid = userData.id;
+          console.log('🔧 Corrigiendo uid en login:', {
+            documentId: userData.id,
+            uidAnterior: userData.uid,
+            uidNuevo: userData.id
+          });
         }
         
         await updateDoc(doc(db, "users", userData.id), updateData);
+        console.log('✅ Usuario actualizado correctamente en Firestore');
       }
 
       // Marcar usuario online

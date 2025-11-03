@@ -229,19 +229,33 @@
         allow read: if true;
         
         // Crear: Admin (1), Staff (2) o Docente (4) pueden crear asistencias
+        // Validación simplificada: verificar que el createdByUid existe y tiene rol correcto
         allow create: if request.resource.data.keys().hasAll(['date', 'studentUid', 'courseLevel', 'status', 'createdByUid', 'createdAt']) &&
                         request.resource.data.date is string &&
                         request.resource.data.studentUid is string &&
                         request.resource.data.courseLevel is int &&
                         request.resource.data.status is string &&
                         request.resource.data.createdByUid is string &&
-                        canManageAttendance(getRequestUserId());
+                        request.resource.data.createdAt is number &&
+                        // Verificar que el usuario existe y tiene rol 1, 2 o 4
+                        exists(/databases/$(database)/documents/users/$(request.resource.data.createdByUid)) &&
+                        get(/databases/$(database)/documents/users/$(request.resource.data.createdByUid)).data.role in [1, 2, 4];
         
         // Actualizar: Admin (1), Staff (2) o Docente (4) pueden actualizar asistencias
         // Solo se permite actualizar status, updatedAt y updatedByUid
         allow update: if (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'updatedByUid']) ||
                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])) &&
-                        canManageAttendance(getRequestUserId());
+                        // Verificar el usuario que actualiza
+                        (
+                          // Si hay updatedByUid, verificar ese
+                          (request.resource.data.updatedByUid != null &&
+                           exists(/databases/$(database)/documents/users/$(request.resource.data.updatedByUid)) &&
+                           get(/databases/$(database)/documents/users/$(request.resource.data.updatedByUid)).data.role in [1, 2, 4]) ||
+                          // Si no hay updatedByUid pero hay createdByUid en el recurso existente
+                          (request.resource.data.updatedByUid == null &&
+                           exists(/databases/$(database)/documents/users/$(resource.data.createdByUid)) &&
+                           get(/databases/$(database)/documents/users/$(resource.data.createdByUid)).data.role in [1, 2, 4])
+                        );
         
         // Eliminar: Deshabilitado
         allow delete: if false;

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { addDoc, collection, onSnapshot, orderBy, query, where, doc, setDoc, Timestamp } from 'firebase/firestore';
+import { addDoc, collection, onSnapshot, orderBy, query, where, doc, setDoc, Timestamp, getDoc } from 'firebase/firestore';
 import { db } from '../config';
 import { AttendanceRecord } from '../types/attendance';
 import { useAuthContext } from './authContext';
@@ -100,6 +100,16 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     // Usar latestUid del ref primero, sino fallbackUid
     const userIdToUse = latestUid || fallbackUid;
     
+    console.log('🔍 DEBUG addMultipleAttendances:', {
+      userFromContext: user,
+      userIdFromContext: user?.id,
+      userUidFromContext: user?.uid,
+      userRoleFromContext: user?.role,
+      latestUidFromRef: latestUid,
+      fallbackUidFromLocalStorage: fallbackUid,
+      userIdToUse,
+    });
+    
     if (!userIdToUse) {
       console.error('No hay userId disponible en addMultipleAttendances:', { latestUid, fallbackUid, uid });
       throw new Error('No hay usuario autenticado. Por favor, cierra sesión e inicia sesión nuevamente.');
@@ -127,7 +137,6 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
 
         // Verificar si el documento ya existe
-        const { getDoc } = await import("firebase/firestore");
         const docSnap = await getDoc(attendanceRef);
         
         if (docSnap.exists()) {
@@ -140,15 +149,38 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           console.log(`Asistencia actualizada para estudiante ${attendance.studentUid} en fecha ${attendance.date}`);
         } else {
           // Si no existe, crear con todos los campos
-          await setDoc(attendanceRef, {
+          const dataToCreate = {
             studentUid: attendance.studentUid,
             date: attendance.date,
             courseLevel: attendance.courseLevel,
             status: attendance.status,
             createdByUid: userIdToUse,
             createdAt: Date.now(),
-          });
-          console.log(`Asistencia creada para estudiante ${attendance.studentUid} en fecha ${attendance.date}`);
+          };
+          
+          console.log('📝 Creando asistencia con datos:', dataToCreate);
+          
+          // Verificar que el usuario existe en Firestore antes de intentar crear
+          try {
+            const userDocCheck = await getDoc(doc(db, 'users', userIdToUse));
+            if (!userDocCheck.exists()) {
+              console.error('❌ ERROR CRÍTICO: El documento del usuario NO EXISTE en Firestore:', userIdToUse);
+              throw new Error(`El documento del usuario ${userIdToUse} no existe en Firestore. Las reglas de seguridad rechazarán esta operación.`);
+            } else {
+              const userDataCheck = userDocCheck.data();
+              console.log('✅ Usuario verificado en Firestore:', {
+                documentId: userDocCheck.id,
+                role: userDataCheck?.role,
+                uid: userDataCheck?.uid,
+                name: userDataCheck?.name
+              });
+            }
+          } catch (verifyError) {
+            console.error('❌ Error al verificar usuario:', verifyError);
+          }
+          
+          await setDoc(attendanceRef, dataToCreate);
+          console.log(`✅ Asistencia creada para estudiante ${attendance.studentUid} en fecha ${attendance.date}`);
         }
       });
 
