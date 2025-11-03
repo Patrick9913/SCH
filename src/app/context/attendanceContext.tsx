@@ -126,18 +126,30 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           throw new Error(`UID de estudiante inválido para fecha ${attendance.date}`);
         }
 
-        // Usar setDoc con merge: true para actualizar si existe o crear si no existe
-        await setDoc(attendanceRef, {
-          studentUid: attendance.studentUid,
-          date: attendance.date,
-          courseLevel: attendance.courseLevel,
-          status: attendance.status,
-          createdByUid: userIdToUse,
-          createdAt: Date.now(),
-          updatedByUid: userIdToUse,
-        }, { merge: true });
+        // Verificar si el documento ya existe
+        const { getDoc } = await import("firebase/firestore");
+        const docSnap = await getDoc(attendanceRef);
         
-        console.log(`Asistencia guardada para estudiante ${attendance.studentUid} en fecha ${attendance.date}`);
+        if (docSnap.exists()) {
+          // Si existe, solo actualizar campos permitidos por las reglas de Firestore
+          await setDoc(attendanceRef, {
+            status: attendance.status,
+            updatedByUid: userIdToUse,
+            updatedAt: Date.now(),
+          }, { merge: true });
+          console.log(`Asistencia actualizada para estudiante ${attendance.studentUid} en fecha ${attendance.date}`);
+        } else {
+          // Si no existe, crear con todos los campos
+          await setDoc(attendanceRef, {
+            studentUid: attendance.studentUid,
+            date: attendance.date,
+            courseLevel: attendance.courseLevel,
+            status: attendance.status,
+            createdByUid: userIdToUse,
+            createdAt: Date.now(),
+          });
+          console.log(`Asistencia creada para estudiante ${attendance.studentUid} en fecha ${attendance.date}`);
+        }
       });
 
       await Promise.all(promises);
