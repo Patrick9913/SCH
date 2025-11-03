@@ -87,6 +87,22 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 });
 
                 return unsubscribe;
+            } else if (user.role === 2) {
+                // Staff/Preceptor: obtener todos los usuarios (necesita ver estudiantes de sus cursos asignados)
+                const unsubscribe = onSnapshot(userRef, (snapshot) => {
+                    const usersData = snapshot.docs.map((doc) => {
+                        const data = doc.data() as Omit<User, 'id'>;
+                        return {
+                            ...data,
+                            id: doc.id,
+                            // Asegurar que uid sea igual a id para compatibilidad
+                            uid: data.uid || doc.id,
+                        } as User;
+                    });
+                    setUsers(usersData);
+                });
+
+                return unsubscribe;
             } else if (user.role === 3) {
                 // Estudiante: obtener su propio documento Y los profesores asignados a sus materias
                 const userDocRef = doc(db, "users", user.id);

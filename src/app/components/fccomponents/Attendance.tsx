@@ -27,6 +27,12 @@ export const Attendance: React.FC = () => {
   const { courses } = useCourses();
   const { getSubjectsByTeacher } = useSubjects();
 
+  // Función para parsear fecha YYYY-MM-DD como fecha local (sin conversión de zona horaria)
+  const parseLocalDate = (dateString: string): Date => {
+    const [year, month, day] = dateString.split('-').map(Number);
+    return new Date(year, month - 1, day); // mes es 0-indexed en JavaScript
+  };
+
   const isStaffUser = isStaff(user);
   const isAdminUser = isAdmin(user);
   const isTeacherUser = isTeacher(user);
@@ -146,7 +152,19 @@ export const Attendance: React.FC = () => {
     // Buscar el curso completo para obtener el array de studentUids
     const fullCourse = courses.find(c => c.id === selectedCourseData.courseId);
     
+    console.log('🔍 DEBUG studentsInCourse:', {
+      selectedCourseData,
+      fullCourse,
+      totalUsers: users.length,
+      studentsInUsers: users.filter(u => u.role === 3).length,
+      userRole: user?.role,
+    });
+    
     if (!fullCourse || !fullCourse.studentUids || fullCourse.studentUids.length === 0) {
+      console.warn('⚠️ No se encontró el curso o no tiene studentUids:', {
+        fullCourse,
+        studentUids: fullCourse?.studentUids
+      });
       return [];
     }
     
@@ -158,13 +176,19 @@ export const Attendance: React.FC = () => {
       )
     );
     
+    console.log('✅ Estudiantes filtrados:', {
+      studentUidsEnCurso: fullCourse.studentUids,
+      estudiantesEncontrados: filtered.length,
+      estudiantes: filtered.map(s => ({ id: s.id, uid: s.uid, name: s.name }))
+    });
+    
     return filtered.map(u => ({
       ...u,
       // Asegurar que uid sea igual a id para compatibilidad
       // Usar id como identificador principal ya que es el documentId de Firestore
       uid: u.id || u.uid,
     }));
-  }, [users, selectedCourseData, courses]);
+  }, [users, selectedCourseData, courses, user]);
 
   // Cargar asistencias existentes cuando se selecciona fecha y curso
   const initialAttendances = useMemo(() => {
@@ -382,7 +406,7 @@ export const Attendance: React.FC = () => {
     const monthsSet = new Set<string>();
     
     studentRecords.forEach(record => {
-      const date = new Date(record.date);
+      const date = parseLocalDate(record.date);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       monthsSet.add(monthKey);
     });
@@ -397,7 +421,7 @@ export const Attendance: React.FC = () => {
     const studentRecords = records.filter(r => r.studentUid === targetStudent.id || r.studentUid === targetStudent.uid);
     
     return studentRecords.filter(record => {
-      const date = new Date(record.date);
+      const date = parseLocalDate(record.date);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       return monthKey === selectedMonth;
     });
@@ -497,14 +521,14 @@ export const Attendance: React.FC = () => {
 
             <div className="space-y-3">
               {monthlyRecords
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
                 .map((record) => (
                   <div key={record.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       {getStatusIcon(record.status)}
                       <div>
                         <p className="font-medium text-gray-800">
-                          {new Date(record.date).toLocaleDateString('es-ES', {
+                          {parseLocalDate(record.date).toLocaleDateString('es-ES', {
                             weekday: 'long',
                             year: 'numeric',
                             month: 'long',
