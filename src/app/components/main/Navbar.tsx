@@ -205,15 +205,6 @@ export const Navbar: React.FC = () => {
                             </li>
                             <li>
                                 <button 
-                                    onClick={() => setMenu(12)} 
-                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
-                                >
-                                    <HiBookOpen className="w-5 h-5" />
-                                    <span>Mis Cursos</span>
-                                </button>
-                            </li>
-                            <li>
-                                <button 
                                     onClick={() => setMenu(5)} 
                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
                                 >

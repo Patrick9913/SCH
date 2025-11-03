@@ -80,8 +80,8 @@ export const Attendance: React.FC = () => {
 
   // Obtener cursos disponibles según permisos
   const availableCourses = useMemo(() => {
-    if (isAdminUser || isStaffUser) {
-      // Admin y Staff pueden ver todos los cursos creados
+    if (isAdminUser) {
+      // Admin puede ver todos los cursos creados
       return courses.map(course => ({
         uniqueId: `${course.level}-${course.division || ''}`, // ID único para el select
         level: course.level,
@@ -89,6 +89,20 @@ export const Attendance: React.FC = () => {
         division: course.division,
         courseId: course.id
       }));
+    } else if (isStaffUser && user) {
+      // Staff/Preceptor solo ve los cursos donde es el preceptor asignado
+      return courses
+        .filter(course => {
+          // Verificar si el usuario es el preceptor asignado a este curso
+          return course.preceptorUid === user.id || course.preceptorUid === user.uid;
+        })
+        .map(course => ({
+          uniqueId: `${course.level}-${course.division || ''}`, // ID único para el select
+          level: course.level,
+          name: getCourseName(course.level),
+          division: course.division,
+          courseId: course.id
+        }));
     } else if (isTeacherUser && user) {
       // Docente solo ve los cursos (nivel + división) exactos a los que está asignado
       const teacherSubjects = getSubjectsByTeacher(user.uid);
@@ -127,14 +141,22 @@ export const Attendance: React.FC = () => {
 
   // Estudiantes filtrados por curso seleccionado
   const studentsInCourse = useMemo(() => {
-    if (!selectedCourseData) return [];
+    if (!selectedCourseData || !selectedCourseData.courseId) return [];
     
-    let filtered = users.filter(u => u.role === 3 && u.level === selectedCourseData.level);
+    // Buscar el curso completo para obtener el array de studentUids
+    const fullCourse = courses.find(c => c.id === selectedCourseData.courseId);
     
-    // Filtrar también por división
-    if (selectedCourseData.division) {
-      filtered = filtered.filter(u => u.division === selectedCourseData.division);
+    if (!fullCourse || !fullCourse.studentUids || fullCourse.studentUids.length === 0) {
+      return [];
     }
+    
+    // Filtrar usuarios que estén en el array studentUids del curso
+    const filtered = users.filter(u => 
+      u.role === 3 && (
+        fullCourse.studentUids.includes(u.id) || 
+        fullCourse.studentUids.includes(u.uid)
+      )
+    );
     
     return filtered.map(u => ({
       ...u,
@@ -142,7 +164,7 @@ export const Attendance: React.FC = () => {
       // Usar id como identificador principal ya que es el documentId de Firestore
       uid: u.id || u.uid,
     }));
-  }, [users, selectedCourseData]);
+  }, [users, selectedCourseData, courses]);
 
   // Cargar asistencias existentes cuando se selecciona fecha y curso
   const initialAttendances = useMemo(() => {
@@ -648,6 +670,13 @@ export const Attendance: React.FC = () => {
                 </option>
               ))}
             </select>
+            {isStaffUser && availableCourses.length === 0 && (
+              <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  No tienes cursos asignados. Contacta con el administrador para que te asigne como preceptor de uno o más cursos.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Paso 3: Lista de Estudiantes y Asistencias */}
@@ -723,32 +752,6 @@ export const Attendance: React.FC = () => {
         </div>
       )}
 
-      {/* Vista de registros anteriores (solo para staff) */}
-      {isStaffUser && records.length > 0 && (
-        <div className="mt-8 border-t pt-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Registros Recientes</h3>
-          <div className="space-y-2">
-            {records.slice(0, 10).map((record) => {
-              const student = users.find(u => u.uid === record.studentUid);
-              return (
-                <div key={record.id} className="bg-gray-50 border rounded p-3 flex justify-between">
-                  <div>
-                    <p className="font-semibold text-gray-800">{student?.name || record.studentUid}</p>
-                    <p className="text-sm text-gray-600">{record.date}</p>
-                  </div>
-                  <span className={`text-sm font-medium ${
-                    record.status === 'present' ? 'text-green-600' :
-                    record.status === 'absent' ? 'text-red-600' :
-                    'text-yellow-600'
-                  }`}>
-                    {getStatusLabel(record.status)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </section>
   );
 };
