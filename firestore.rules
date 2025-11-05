@@ -130,6 +130,7 @@
         // SuperAdmin puede editar/suspender otros admins, Admin regular no puede
         // La validación de permisos específicos se hace en el cliente
         // Los campos son opcionales pero si están presentes deben tener el tipo correcto
+        // NOTA: Para pase de año, courseId puede ser null al eliminar curso de egresados
         allow update: if (!('uid' in request.resource.data) || request.resource.data.uid == userId) &&
                         (!('uid' in request.resource.data) || request.resource.data.uid is string) &&
                         (!('role' in request.resource.data) || request.resource.data.role is int) &&
@@ -141,10 +142,11 @@
                         (!('level' in request.resource.data) || request.resource.data.level is int) &&
                         (!('childId' in request.resource.data) || request.resource.data.childId is string) &&
                         (!('childrenIds' in request.resource.data) || request.resource.data.childrenIds is list) &&
-                        (!('courseId' in request.resource.data) || request.resource.data.courseId is string) &&
+                        (!('courseId' in request.resource.data) || request.resource.data.courseId is string || request.resource.data.courseId == null) &&
                         (!('division' in request.resource.data) || request.resource.data.division is string) &&
                         (!('status' in request.resource.data) || request.resource.data.status in ['pending', 'active', 'suspended', 'egresado']) &&
-                        (!('egresadoDate' in request.resource.data) || request.resource.data.egresadoDate is number);
+                        (!('egresadoDate' in request.resource.data) || request.resource.data.egresadoDate is number) &&
+                        (!('egresadoYear' in request.resource.data) || request.resource.data.egresadoYear is int);
         
         // Eliminar: SuperAdmin y Admin pueden eliminar usuarios
         // SuperAdmin puede eliminar otros admins, Admin regular no puede

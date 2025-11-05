@@ -57,10 +57,10 @@ export const UserCreator: React.FC = () => {
         return Array.from(subjectMap.values()).sort((a, b) => a.name.localeCompare(b.name));
     }, [subjects]);
 
-    // Estudiantes disponibles para asignar como hijos
+    // Estudiantes disponibles para asignar como hijos (excluir egresados)
     const availableStudents = useMemo(() => {
         return users
-            .filter(u => u.role === 3) // Solo estudiantes
+            .filter(u => u.role === 3 && u.status !== 'egresado') // Solo estudiantes activos
             .sort((a, b) => a.name.localeCompare(b.name));
     }, [users]);
 

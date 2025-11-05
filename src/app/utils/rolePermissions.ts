@@ -106,7 +106,7 @@ type PermissionKey = keyof typeof RolePermissions;
  */
 export function hasPermission(userRole: number | undefined | null, permission: PermissionKey): boolean {
   if (!userRole) return false;
-  const allowedRoles = RolePermissions[permission];
+  const allowedRoles = RolePermissions[permission] as readonly UserRole[];
   return allowedRoles.includes(userRole as UserRole);
 }
 
@@ -117,14 +117,16 @@ export function hasPermission(userRole: number | undefined | null, permission: P
 export function canManageUser(currentUserRole: number | undefined | null, targetUserRole: number): boolean {
   if (!currentUserRole) return false;
   
-  // SuperAdmin puede gestionar a todos
+  // SuperAdmin puede gestionar a TODOS sin restricción
   if (currentUserRole === UserRole.SuperAdmin) return true;
   
-  // Admin regular NO puede gestionar SuperAdmins ni otros Admins
+  // Admin regular puede gestionar a todos EXCEPTO SuperAdmins y otros Admins
   if (currentUserRole === UserRole.Administrador) {
+    // Puede gestionar: Staff (2), Estudiante (3), Docente (4), Familia (5), Seguridad (6)
     return targetUserRole !== UserRole.SuperAdmin && targetUserRole !== UserRole.Administrador;
   }
   
+  // Otros roles no pueden gestionar usuarios
   return false;
 }
 
@@ -250,6 +252,7 @@ export function useUserPermissions(userRole: number | undefined | null) {
   return {
     // Permisos básicos
     canViewAllUsers: hasPermission(userRole, 'canViewAllUsers'),
+    canViewStatistics: hasPermission(userRole, 'canViewStatistics'),
     canCreateUsers: hasPermission(userRole, 'canCreateUsers'),
     canEditUsers: hasPermission(userRole, 'canEditUsers'),
     canDeleteUsers: hasPermission(userRole, 'canDeleteUsers'),

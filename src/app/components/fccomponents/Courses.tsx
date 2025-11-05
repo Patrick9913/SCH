@@ -19,7 +19,7 @@ export const Courses: React.FC = () => {
 
   // Usar el nuevo sistema de permisos
   const permissions = useUserPermissions(user?.role);
-  const isAdmin = permissions.isAnyAdmin;
+  const isAdmin = permissions.isAnyAdmin; // Incluye tanto Admin como SuperAdmin
 
   // Estados para creación
   const [selectedLevel, setSelectedLevel] = useState<number | ''>('');

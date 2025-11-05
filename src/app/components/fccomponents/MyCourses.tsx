@@ -53,9 +53,9 @@ export const MyCourses: React.FC = () => {
       }
     });
     
-    // Si no hay divisiones en las materias, buscar en los estudiantes
+    // Si no hay divisiones en las materias, buscar en los estudiantes activos
     if (divisions.size === 0) {
-      const courseStudents = users.filter(u => u.role === 3 && u.level === selectedCourse);
+      const courseStudents = users.filter(u => u.role === 3 && u.status !== 'egresado' && u.level === selectedCourse);
       courseStudents.forEach(student => {
         if (student.division) {
           divisions.add(student.division);
@@ -70,7 +70,7 @@ export const MyCourses: React.FC = () => {
   const studentsInCourse = useMemo(() => {
     if (!selectedCourse) return [];
     
-    let filtered = users.filter(u => u.role === 3 && u.level === selectedCourse);
+    let filtered = users.filter(u => u.role === 3 && u.status !== 'egresado' && u.level === selectedCourse);
     
     // Filtrar por división si está seleccionada
     if (selectedDivision) {

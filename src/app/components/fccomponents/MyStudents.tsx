@@ -49,7 +49,7 @@ export const MyStudents: React.FC = () => {
     const subj = subjects.find(s => s.id === selectedSubjectId);
     if (!subj) return [];
     const uids = new Set(subj.studentUids || []);
-    return users.filter(u => u.role === 3 && uids.has(u.uid));
+    return users.filter(u => u.role === 3 && u.status !== 'egresado' && uids.has(u.uid));
   }, [selectedSubjectId, allStudents, subjects, users]);
 
   const getCourseName = (courseLevel?: number) => {

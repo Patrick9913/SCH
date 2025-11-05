@@ -29,7 +29,7 @@ export const Attendance: React.FC = () => {
   // Usar el nuevo sistema de permisos
   const permissions = useUserPermissions(user?.role);
   const isStaffUser = permissions.isStaff;
-  const isAdminUser = permissions.isAdmin;
+  const isAdminUser = permissions.isAnyAdmin; // Incluye tanto Admin como SuperAdmin
   const isTeacherUser = permissions.isTeacher;
   const isStudent = permissions.isStudent;
   const isFamily = permissions.isFamily;
@@ -151,7 +151,7 @@ export const Attendance: React.FC = () => {
       selectedCourseData,
       fullCourse,
       totalUsers: users.length,
-      studentsInUsers: users.filter(u => u.role === 3).length,
+      studentsInUsers: users.filter(u => u.role === 3 && u.status !== 'egresado').length,
       userRole: user?.role,
     });
     
@@ -163,9 +163,10 @@ export const Attendance: React.FC = () => {
       return [];
     }
     
-    // Filtrar usuarios que estén en el array studentUids del curso
+    // Filtrar usuarios que estén en el array studentUids del curso (excluir egresados)
     const filtered = users.filter(u => 
-      u.role === 3 && (
+      u.role === 3 && 
+      u.status !== 'egresado' && (
         fullCourse.studentUids.includes(u.id) || 
         fullCourse.studentUids.includes(u.uid)
       )

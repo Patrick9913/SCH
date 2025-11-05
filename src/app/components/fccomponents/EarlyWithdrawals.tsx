@@ -33,7 +33,7 @@ export const EarlyWithdrawals: React.FC = () => {
 
   // Obtener estudiantes relacionados (solo para familiares)
   const relatedStudents = useMemo(() => {
-    if (permissions.isFamily) {
+    if (permissions.isFamily && user) {
       // Priorizar childrenIds (múltiples hijos)
       if (user.childrenIds && user.childrenIds.length > 0) {
         return users.filter(u => user.childrenIds?.includes(u.id) || user.childrenIds?.includes(u.uid));
@@ -43,11 +43,11 @@ export const EarlyWithdrawals: React.FC = () => {
         return users.filter(u => u.id === user.childId || u.uid === user.childId);
       }
     } else if (permissions.isAnyAdmin) {
-      // Admin puede ver todos los estudiantes
-      return users.filter(u => u.role === 3);
+      // Admin puede ver todos los estudiantes activos (excluir egresados)
+      return users.filter(u => u.role === 3 && u.status !== 'egresado');
     }
     return [];
-  }, [user, users]);
+  }, [user, users, permissions]);
 
   // Validar formulario
   const isFormValid = useMemo(() => {

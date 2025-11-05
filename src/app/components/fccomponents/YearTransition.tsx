@@ -193,12 +193,14 @@ export const YearTransition: React.FC = () => {
           const userRef = doc(db, 'users', student.uid);
           
           if (student.isEgresado) {
-            // Marcar como egresado
+            // Marcar como egresado con el año actual
+            const currentYear = new Date().getFullYear();
             batch.update(userRef, {
               status: 'egresado',
-              courseId: null, // Ya no tiene curso
               level: student.currentLevel,
-              egresadoDate: Date.now()
+              egresadoDate: Date.now(),
+              egresadoYear: currentYear, // Año de egreso para agrupar
+              uid: student.uid // Mantener uid consistente
             });
           } else {
             // Buscar o crear curso de destino
@@ -212,7 +214,8 @@ export const YearTransition: React.FC = () => {
               batch.update(userRef, {
                 courseId: nextCourse.id,
                 level: student.nextLevel,
-                division: student.nextDivision
+                division: student.nextDivision,
+                uid: student.uid // Mantener uid consistente
               });
 
               // Agregar estudiante al curso
@@ -221,7 +224,8 @@ export const YearTransition: React.FC = () => {
                 new Set([...nextCourse.studentUids, student.uid])
               );
               batch.update(courseRef, {
-                studentUids: updatedStudentUids
+                studentUids: updatedStudentUids,
+                updatedAt: Date.now()
               });
 
               // Remover del curso anterior
@@ -232,7 +236,8 @@ export const YearTransition: React.FC = () => {
                   uid => uid !== student.uid
                 );
                 batch.update(prevCourseRef, {
-                  studentUids: updatedPrevStudentUids
+                  studentUids: updatedPrevStudentUids,
+                  updatedAt: Date.now()
                 });
               }
             }

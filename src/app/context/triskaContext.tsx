@@ -248,8 +248,8 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Función para crear un nuevo usuario (solo en Firestore)
     const newUser = async ({ firstName, mail, dni, role, password, asignatura, curso, division, courseId, level, childId, childrenIds }: NewUserData & { asignatura?: number, curso?: number, division?: string, courseId?: string, level?: number, childId?: string, childrenIds?: string[] }): Promise<User | undefined> => {
         try {
-                // Validar permisos - solo admin puede crear usuarios
-                if (!user || user.role !== 1) {
+                // Validar permisos - SuperAdmin (7) y Admin (1) pueden crear usuarios
+                if (!user || !isAnyAdmin(user.role)) {
                     throw new Error("No tienes permisos para crear usuarios");
                 }
             
@@ -350,9 +350,22 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Función para actualizar un usuario
     const updateUser = async (userId: string, data: Partial<NewUserData & { asignatura?: number, curso?: number, division?: string, courseId?: string, level?: number, childrenIds?: string[] }>) => {
         try {
-            // Validar permisos - solo admin puede actualizar usuarios
-            if (!user || user.role !== 1) {
+            // Validar permisos - SuperAdmin (7) y Admin (1) pueden actualizar usuarios
+            if (!user || !isAnyAdmin(user.role)) {
                 throw new Error("No tienes permisos para actualizar usuarios");
+            }
+            
+            // Verificar el usuario objetivo antes de actualizar
+            const targetUserDoc = await getDoc(doc(db, "users", userId));
+            if (!targetUserDoc.exists()) {
+                throw new Error("El usuario no existe");
+            }
+            
+            const targetUserData = targetUserDoc.data();
+            
+            // Solo SuperAdmin puede actualizar a Admins y otros SuperAdmins
+            if ((targetUserData.role === 1 || targetUserData.role === 7) && user.role !== 7) {
+                throw new Error("Solo el Super Administrador puede editar a Administradores");
             }
 
             const userDocRef = doc(db, "users", userId);
@@ -431,8 +444,8 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Función para eliminar un usuario
     const deleteUser = async (userId: string) => {
         try {
-            // Validar permisos - solo admin puede eliminar usuarios
-            if (!user || user.role !== 1) {
+            // Validar permisos - SuperAdmin (7) y Admin (1) pueden eliminar usuarios
+            if (!user || !isAnyAdmin(user.role)) {
                 throw new Error("No tienes permisos para eliminar usuarios");
             }
 
@@ -441,15 +454,17 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 throw new Error("No puedes eliminar tu propia cuenta");
             }
 
-            // Verificar que el usuario objetivo no sea un administrador
+            // Verificar el usuario objetivo
             const targetUserDoc = await getDoc(doc(db, "users", userId));
             if (!targetUserDoc.exists()) {
                 throw new Error("El usuario no existe");
             }
 
             const targetUserData = targetUserDoc.data();
-            if (targetUserData.role === 1) {
-                throw new Error("No puedes eliminar a otro administrador");
+            
+            // Solo SuperAdmin puede eliminar a Admins y otros SuperAdmins
+            if ((targetUserData.role === 1 || targetUserData.role === 7) && user.role !== 7) {
+                throw new Error("Solo el Super Administrador puede eliminar a Administradores");
             }
 
             const userDocRef = doc(db, "users", userId);
@@ -468,8 +483,8 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Función para suspender un usuario
     const suspendUser = async (userId: string) => {
         try {
-            // Validar permisos - solo admin puede suspender usuarios
-            if (!user || user.role !== 1) {
+            // Validar permisos - SuperAdmin (7) y Admin (1) pueden suspender usuarios
+            if (!user || !isAnyAdmin(user.role)) {
                 throw new Error("No tienes permisos para suspender usuarios");
             }
 
@@ -478,15 +493,17 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 throw new Error("No puedes suspender tu propia cuenta");
             }
 
-            // Verificar que el usuario objetivo no sea un administrador
+            // Verificar el usuario objetivo
             const targetUserDoc = await getDoc(doc(db, "users", userId));
             if (!targetUserDoc.exists()) {
                 throw new Error("El usuario no existe");
             }
 
             const targetUserData = targetUserDoc.data();
-            if (targetUserData.role === 1) {
-                throw new Error("No puedes suspender a otro administrador");
+            
+            // Solo SuperAdmin puede suspender a Admins y otros SuperAdmins
+            if ((targetUserData.role === 1 || targetUserData.role === 7) && user.role !== 7) {
+                throw new Error("Solo el Super Administrador puede suspender a Administradores");
             }
 
             const userDocRef = doc(db, "users", userId);
@@ -510,9 +527,22 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Función para reactivar un usuario suspendido
     const activateUser = async (userId: string) => {
         try {
-            // Validar permisos - solo admin puede reactivar usuarios
-            if (!user || user.role !== 1) {
+            // Validar permisos - SuperAdmin (7) y Admin (1) pueden reactivar usuarios
+            if (!user || !isAnyAdmin(user.role)) {
                 throw new Error("No tienes permisos para reactivar usuarios");
+            }
+            
+            // Verificar el usuario objetivo
+            const targetUserDoc = await getDoc(doc(db, "users", userId));
+            if (!targetUserDoc.exists()) {
+                throw new Error("El usuario no existe");
+            }
+            
+            const targetUserData = targetUserDoc.data();
+            
+            // Solo SuperAdmin puede reactivar a Admins y otros SuperAdmins
+            if ((targetUserData.role === 1 || targetUserData.role === 7) && user.role !== 7) {
+                throw new Error("Solo el Super Administrador puede reactivar a Administradores");
             }
 
             const userDocRef = doc(db, "users", userId);

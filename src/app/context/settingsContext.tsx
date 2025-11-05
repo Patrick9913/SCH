@@ -152,8 +152,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [canManageGrades, user?.uid, user?.role]);
 
   const toggleGradeLoading = async () => {
-    // Verificar que es administrador (role === 1)
-    if (!uid || user?.role !== 1) {
+    // Verificar que es administrador - SuperAdmin (7) o Admin (1)
+    if (!uid || !hasPermission(user?.role, 'canManageSettings')) {
       console.warn('No se tiene permiso para cambiar el estado:', { uid, role: user?.role });
       toast.error('No tienes permisos para realizar esta acción');
       return;

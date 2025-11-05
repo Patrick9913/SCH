@@ -253,7 +253,7 @@ export const SubjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         teacherName: teacher?.name || 'Sin asignar',
         teacherUid: subject.teacherUid,
         assignedStudents: subject.studentUids.length,
-        totalStudentsInCourse: users.filter(u => u.role === 3 && u.level === subject.courseLevel).length,
+        totalStudentsInCourse: users.filter(u => u.role === 3 && u.status !== 'egresado' && u.level === subject.courseLevel).length,
       };
     });
   };

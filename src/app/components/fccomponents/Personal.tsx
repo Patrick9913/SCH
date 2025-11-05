@@ -39,6 +39,7 @@ export const Personal: React.FC = () => {
     const [showStudents, setShowStudents] = useState(true);
     const [showFamilies, setShowFamilies] = useState(true);
     const [showSecurity, setShowSecurity] = useState(true);
+    const [showEgresadosByYear, setShowEgresadosByYear] = useState<{ [year: number]: boolean }>({});
 
     // Cursos ordenados para mostrar
     const sortedCourses = useMemo(() => {
@@ -52,10 +53,24 @@ export const Personal: React.FC = () => {
     const superAdmins = users.filter(u => u.role === 7)
     const admins = users.filter(u => u.role === 1)
     const teachers = users.filter(u => u.role === 4)
-    const students = users.filter(u => u.role === 3)
+    const students = users.filter(u => u.role === 3 && u.status !== 'egresado')
     const staff = users.filter(u => u.role === 2)
     const families = users.filter(u => u.role === 5)
     const security = users.filter(u => u.role === 6)
+    
+    // Egresados agrupados por año
+    const egresadosByYear = useMemo(() => {
+        const egresados = users.filter(u => u.status === 'egresado');
+        const grouped: { [year: number]: User[] } = {};
+        
+        egresados.forEach(egresado => {
+            const year = egresado.egresadoYear || new Date().getFullYear();
+            if (!grouped[year]) grouped[year] = [];
+            grouped[year].push(egresado);
+        });
+        
+        return grouped;
+    }, [users]);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
@@ -879,6 +894,49 @@ export const Personal: React.FC = () => {
                         )
                     )}
             </div>
+
+            {/* Egresados - Agrupados por Año */}
+            {Object.keys(egresadosByYear).length > 0 && (
+                <div className="space-y-6">
+                    {Object.keys(egresadosByYear)
+                        .map(Number)
+                        .sort((a, b) => b - a) // Años más recientes primero
+                        .map(year => {
+                            const egresadosDelAnio = egresadosByYear[year];
+                            const isExpanded = showEgresadosByYear[year] ?? false;
+                            
+                            return (
+                                <div key={year} className="mb-8">
+                                    <button 
+                                        onClick={() => setShowEgresadosByYear(prev => ({ ...prev, [year]: !isExpanded }))}
+                                        className="w-full flex items-center justify-between text-lg font-medium text-purple-900 mb-4 hover:text-purple-700 transition-all group p-3 -mx-3 rounded-lg hover:bg-purple-50"
+                                    >
+                                        <span>🎓 Egresados {year} ({egresadosDelAnio.length})</span>
+                                        <div className="transition-transform group-hover:scale-110">
+                                            {isExpanded ? <HiChevronUp className="w-5 h-5" /> : <HiChevronDown className="w-5 h-5" />}
+                                        </div>
+                                    </button>
+                                    {isExpanded && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            {egresadosDelAnio.map(egresado => (
+                                                <Personalview
+                                                    key={egresado.id}
+                                                    name={egresado.name}
+                                                    role="Egresado"
+                                                    level={egresado.level ? `${getCourseName(egresado.level)} - ${year}` : undefined}
+                                                    showActions={permissions.canEditUsers}
+                                                    isSuspended={false}
+                                                    onEdit={permissions.canEditUsers ? () => handleEdit(egresado) : undefined}
+                                                    onDelete={permissions.canDeleteUsers ? () => handleDelete(egresado) : undefined}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                </div>
+            )}
         </section>
     )
 }

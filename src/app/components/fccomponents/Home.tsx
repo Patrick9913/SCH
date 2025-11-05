@@ -23,7 +23,7 @@ export const Home: React.FC = () => {
     // Usar el nuevo sistema de permisos
     const permissions = useUserPermissions(user?.role);
 
-    const students = users.filter( s => s.role === 3)
+    const students = users.filter( s => s.role === 3 && s.status !== 'egresado')
     const teachers = users.filter( t => t.role === 4)
     const totalUsers = users.length
     

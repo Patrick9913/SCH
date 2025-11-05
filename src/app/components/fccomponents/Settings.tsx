@@ -31,7 +31,7 @@ export const Settings: React.FC = () => {
 
     // Usar el nuevo sistema de permisos
     const permissions = useUserPermissions(user?.role);
-    const isAdmin = permissions.isAnyAdmin;
+    const isAdmin = permissions.isAnyAdmin; // Incluye tanto Admin como SuperAdmin
 
     // Estados para el panel de materias
     const [activeTab, setActiveTab] = useState<'subjects' | 'assignments'>('subjects');

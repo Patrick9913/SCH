@@ -28,8 +28,8 @@ export default function VerifyUsersPage() {
     fixed: number;
   } | null>(null);
 
-  // Verificar que el usuario sea Admin
-  if (!user || user.role !== 1) {
+  // Verificar que el usuario sea Admin o SuperAdmin
+  if (!user || (user.role !== 1 && user.role !== 7)) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center p-6">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md">

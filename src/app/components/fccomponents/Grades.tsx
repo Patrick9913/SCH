@@ -32,7 +32,7 @@ export const Grades: React.FC = () => {
   // Usar el nuevo sistema de permisos
   const permissions = useUserPermissions(user?.role);
   const isStaffUser = permissions.isStaff;
-  const isAdminUser = permissions.isAdmin || permissions.isSuperAdmin;
+  const isAdminUser = permissions.isAnyAdmin; // Incluye tanto Admin como SuperAdmin
   const isTeacherUser = permissions.isTeacher;
   const isStudent = permissions.isStudent;
   const isFamily = permissions.isFamily;
@@ -147,8 +147,8 @@ export const Grades: React.FC = () => {
     if (!selectedCourse || !selectedSubject) return [];
     
     if (isAdminUser || isStaffUser) {
-      // Admin y Staff ven todos los estudiantes del curso (y división si está seleccionada)
-      let filtered = users.filter(u => u.role === 3 && u.level === selectedCourse);
+      // Admin y Staff ven todos los estudiantes activos del curso (excluir egresados)
+      let filtered = users.filter(u => u.role === 3 && u.status !== 'egresado' && u.level === selectedCourse);
       if (selectedCourseDivision) {
         filtered = filtered.filter(u => u.division === selectedCourseDivision);
       }
@@ -419,7 +419,7 @@ export const Grades: React.FC = () => {
         {isTeacherUser && user && (
           <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
             <p className="text-xs text-gray-600">
-              <span className="font-medium">Materias asignadas:</span> {getAvailableSubjects(user).map(s => s.name).join(', ')}
+              <span className="font-medium">Materias asignadas:</span> {availableSubjects.map(s => s.name).join(', ')}
             </p>
           </div>
         )}

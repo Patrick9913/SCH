@@ -303,7 +303,7 @@ export const BulletinReports: React.FC = () => {
     const courseSubjects = subjects.filter(s => s.courseLevel === selectedAdminCourse);
     const enrolledUids = new Set<string>();
     courseSubjects.forEach(s => (s.studentUids || []).forEach(uid => enrolledUids.add(uid)));
-    return users.filter(u => u.role === 3 && enrolledUids.has(u.uid));
+    return users.filter(u => u.role === 3 && u.status !== 'egresado' && enrolledUids.has(u.uid));
   }, [users, selectedAdminCourse, subjects]);
 
   // Calificaciones de estudiantes del curso seleccionado - deduplicadas
