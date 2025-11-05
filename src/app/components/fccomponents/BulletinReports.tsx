@@ -13,6 +13,7 @@ import { RefreshButton } from '../reusable/RefreshButton';
 import { BulletinTemplate } from '../reusable/BulletinTemplate';
 import { useSettings } from '@/app/context/settingsContext';
 import { useSubjects } from '@/app/context/subjectContext';
+import { useUserPermissions } from '@/app/utils/rolePermissions';
 import Swal from 'sweetalert2';
 import toast from 'react-hot-toast';
 
@@ -40,9 +41,11 @@ export const BulletinReports: React.FC = () => {
   // Estado para seleccionar qué hijo ver (para familias con múltiples hijos)
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
 
-  const isStaff = user?.role === 1 || user?.role === 4 || user?.role === 2;
-  const isStudent = user?.role === 3;
-  const isFamily = user?.role === 5;
+  // Usar el nuevo sistema de permisos
+  const permissions = useUserPermissions(user?.role);
+  const isStaff = permissions.canViewAllGrades;
+  const isStudent = permissions.isStudent;
+  const isFamily = permissions.isFamily;
   
   // Obtener todos los estudiantes relacionados si es Familia
   const relatedStudents = useMemo(() => {
@@ -656,8 +659,8 @@ export const BulletinReports: React.FC = () => {
         </p>
       </div>
 
-      {/* Panel de Control para Administradores (role === 1) */}
-      {user?.role === 1 && (
+      {/* Panel de Control para Administradores */}
+      {permissions.canAccessAdminPanel && (
         <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -722,8 +725,8 @@ export const BulletinReports: React.FC = () => {
         </div>
       )}
 
-      {/* Panel de Publicación de Boletines para Administradores (role === 1) */}
-      {user?.role === 1 && (
+      {/* Panel de Publicación de Boletines para Administradores */}
+      {permissions.canPublishBulletins && (
         <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex items-center gap-3 mb-4">
             <HiDocumentText className="w-8 h-8 text-green-600" />

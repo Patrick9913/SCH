@@ -9,6 +9,7 @@ import { useSchedule } from '@/app/context/scheduleContext';
 import { Assignments, UserCurses, UserRole } from '@/app/types/user';
 import { SubjectInput } from '@/app/types/subject';
 import { DayLabels } from '@/app/types/schedule';
+import { useUserPermissions } from '@/app/utils/rolePermissions';
 import Swal from 'sweetalert2';
 import toast from 'react-hot-toast';
 
@@ -28,7 +29,9 @@ export const Settings: React.FC = () => {
     } = useSubjects();
     const { addSchedule, getSchedulesBySubject } = useSchedule();
 
-    const isAdmin = user?.role === UserRole.Administrador;
+    // Usar el nuevo sistema de permisos
+    const permissions = useUserPermissions(user?.role);
+    const isAdmin = permissions.isAnyAdmin;
 
     // Estados para el panel de materias
     const [activeTab, setActiveTab] = useState<'subjects' | 'assignments'>('subjects');

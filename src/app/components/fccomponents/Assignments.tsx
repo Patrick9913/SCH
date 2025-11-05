@@ -8,6 +8,7 @@ import { useSubjects } from '@/app/context/subjectContext';
 import { useSchedule } from '@/app/context/scheduleContext';
 import { useCourses } from '@/app/context/courseContext';
 import { Assignments as AssignmentEnum, UserCurses, UserRole, CourseDivision } from '@/app/types/user';
+import { useUserPermissions } from '@/app/utils/rolePermissions';
 import { DayLabels } from '@/app/types/schedule';
 import Swal from 'sweetalert2';
 import toast from 'react-hot-toast';
@@ -34,8 +35,10 @@ export const Assignments: React.FC = () => {
     const { addSchedule, getSchedulesBySubject } = useSchedule();
     const { courses } = useCourses();
 
-    const isAdmin = user?.role === UserRole.Administrador;
-    const isStudent = user?.role === UserRole.Estudiante;
+    // Usar el nuevo sistema de permisos
+    const permissions = useUserPermissions(user?.role);
+    const isAdmin = permissions.isAnyAdmin;
+    const isStudent = permissions.isStudent;
 
     // Estados para el panel de materias
     const [activeTab, setActiveTab] = useState<'subjects' | 'assignments'>('subjects');

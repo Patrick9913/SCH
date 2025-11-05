@@ -4,6 +4,7 @@ import { useTriskaContext } from "@/app/context/triskaContext";
 import { useAuthContext } from "@/app/context/authContext";
 import { useCourses } from "@/app/context/courseContext";
 import { UserCurses, UserRole, Assignments, User } from "@/app/types/user";
+import { useUserPermissions } from "@/app/utils/rolePermissions";
 import { IoPeople } from "react-icons/io5";
 import { HiPlus, HiX, HiChevronDown, HiChevronUp } from "react-icons/hi";
 import { RefreshButton } from "../reusable/RefreshButton";
@@ -14,7 +15,9 @@ export const Personal: React.FC = () => {
     const { users, firstName, dni, mail, role, nUser, setNUser, setFirstName, setDni, setMail, setRole, newUser, updateUser, deleteUser, suspendUser, activateUser, password, setPassword, refreshUsers, setMenu } = useTriskaContext();
     const { user: currentUser } = useAuthContext();
     const { courses, assignStudentToCourse, removeStudentFromCourse } = useCourses();
-    const isAdmin = currentUser?.role === 1;
+    
+    // Usar el nuevo sistema de permisos
+    const permissions = useUserPermissions(currentUser?.role);
 
     // Estados adicionales para campos específicos
     const [asignatura, setAsignatura] = useState<number | ''>('');
@@ -29,6 +32,7 @@ export const Personal: React.FC = () => {
     const [foundStudent, setFoundStudent] = useState<User | null>(null);
     
     // Estados para secciones desplegables
+    const [showSuperAdmins, setShowSuperAdmins] = useState(true);
     const [showAdmins, setShowAdmins] = useState(true);
     const [showTeachers, setShowTeachers] = useState(true);
     const [showStaff, setShowStaff] = useState(true);
@@ -45,6 +49,7 @@ export const Personal: React.FC = () => {
         });
     }, [courses]);
 
+    const superAdmins = users.filter(u => u.role === 7)
     const admins = users.filter(u => u.role === 1)
     const teachers = users.filter(u => u.role === 4)
     const students = users.filter(u => u.role === 3)
@@ -65,6 +70,20 @@ export const Personal: React.FC = () => {
         // Si es modo edición, la contraseña es opcional
         if (!isEditMode && !password) {
             toast.error("La contraseña es requerida");
+            setIsLoading(false);
+            return;
+        }
+        
+        // Validar permisos para crear/editar SuperAdmin o Admin
+        if ((role === 1 || role === 7) && !permissions.canManageAdmins) {
+            toast.error('Solo el Super Administrador puede gestionar Administradores y Super Administradores');
+            setIsLoading(false);
+            return;
+        }
+        
+        // Si está editando un Admin o SuperAdmin, verificar permisos
+        if (isEditMode && editingUser && !permissions.canManageUser(editingUser.role)) {
+            toast.error('No tienes permisos para editar este usuario');
             setIsLoading(false);
             return;
         }
@@ -230,6 +249,12 @@ export const Personal: React.FC = () => {
     };
 
     const handleEdit = (user: User) => {
+        // Validar permisos para editar
+        if (!permissions.canManageUser(user.role)) {
+            toast.error('No tienes permisos para editar este usuario');
+            return;
+        }
+        
         setEditingUser(user);
         setIsEditMode(true);
         setFirstName(user.name);
@@ -242,7 +267,7 @@ export const Personal: React.FC = () => {
         setPassword(''); // No mostrar la contraseña actual
         
         // Si es usuario Familia, cargar los hijos asociados
-        if (user.role === 5) {
+        if (user.role === 5) { // Esto es correcto, es del objeto 'user' del parámetro, no del currentUser
             if (user.childrenIds && user.childrenIds.length > 0) {
                 setChildrenIds([...user.childrenIds]);
             } else if (user.childId) {
@@ -263,6 +288,12 @@ export const Personal: React.FC = () => {
     }
 
     const handleDelete = async (user: User) => {
+        // Validar permisos para eliminar
+        if (!permissions.canManageUser(user.role)) {
+            toast.error('No tienes permisos para eliminar este usuario');
+            return;
+        }
+        
         const result = await Swal.fire({
             title: '¿Estás seguro?',
             text: `¿Estás seguro de que deseas eliminar a ${user.name}? Esta acción no se puede deshacer.`,
@@ -288,6 +319,12 @@ export const Personal: React.FC = () => {
     }
 
     const handleSuspend = async (user: User) => {
+        // Validar permisos para suspender
+        if (!permissions.canManageUser(user.role)) {
+            toast.error('No tienes permisos para suspender este usuario');
+            return;
+        }
+        
         const result = await Swal.fire({
             title: '¿Suspender usuario?',
             text: `¿Estás seguro de que deseas suspender a ${user.name}? No podrá iniciar sesión hasta que sea reactivado.`,
@@ -313,6 +350,12 @@ export const Personal: React.FC = () => {
     }
 
     const handleActivate = async (user: User) => {
+        // Validar permisos para activar
+        if (!permissions.canManageUser(user.role)) {
+            toast.error('No tienes permisos para activar este usuario');
+            return;
+        }
+        
         try {
             await activateUser(user.id);
             toast.success("Usuario reactivado exitosamente");
@@ -325,6 +368,17 @@ export const Personal: React.FC = () => {
     const userRoleToString = (role: number) => {
         return UserRole[role];
     };
+    
+    // Validar que los permisos estén cargados
+    if (!currentUser) {
+        return (
+            <section className="flex-1 p-6 overflow-y-auto max-h-screen h-full bg-white">
+                <div className="text-center py-12">
+                    <p className="text-gray-500">Cargando...</p>
+                </div>
+            </section>
+        );
+    }
 
         return (
             <section className="relative flex-1 flex flex-col p-6 overflow-y-auto max-h-screen h-full bg-white">
@@ -354,6 +408,45 @@ export const Personal: React.FC = () => {
                     </p>
                 </div>
 
+                {/* Super Administradores - Solo visible para SuperAdmin */}
+                {permissions.isSuperAdmin && (
+                    <div className="mb-8">
+                        <button 
+                            onClick={() => setShowSuperAdmins(!showSuperAdmins)}
+                            className="w-full flex items-center justify-between text-lg font-medium text-purple-900 mb-4 hover:text-purple-700 transition-all group p-3 -mx-3 rounded-lg hover:bg-purple-50"
+                        >
+                            <span>Super Administradores ({superAdmins.length})</span>
+                            <div className="transition-transform group-hover:scale-110">
+                                {showSuperAdmins ? <HiChevronUp className="w-5 h-5" /> : <HiChevronDown className="w-5 h-5" />}
+                            </div>
+                        </button>
+                        {showSuperAdmins && (
+                            superAdmins.length === 0 ? (
+                                <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
+                                    <p className="text-gray-400 text-sm">No hay super administradores registrados</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {superAdmins.map(u => (
+                                        <Personalview
+                                            key={u.id}
+                                            name={u.name}
+                                            role={UserRole[u.role]}
+                                            showActions={true}
+                                            isSuspended={u.status === 'suspended'}
+                                            onEdit={() => handleEdit(u)}
+                                            onDelete={u.id !== currentUser?.id ? () => handleDelete(u) : undefined}
+                                            onSuspend={u.id !== currentUser?.id && u.status !== 'suspended' ? () => handleSuspend(u) : undefined}
+                                            onActivate={u.status === 'suspended' && u.id !== currentUser?.id ? () => handleActivate(u) : undefined}
+                                        />
+                                    ))}
+                                </div>
+                            )
+                        )}
+                    </div>
+                )}
+
+                {/* Administradores */}
                 <div className="mb-8">
                     <button 
                         onClick={() => setShowAdmins(!showAdmins)}
@@ -372,16 +465,16 @@ export const Personal: React.FC = () => {
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {admins.map(u => (
-                                    <Personalview
-                                        key={u.id}
-                                        name={u.name}
-                                        role={UserRole[u.role]}
-                                        showActions={isAdmin}
-                                        isSuspended={u.status === 'suspended'}
-                                        onEdit={isAdmin ? () => handleEdit(u) : undefined}
-                                        onDelete={undefined}
-                                        onSuspend={undefined}
-                                        onActivate={isAdmin && u.status === 'suspended' && u.id !== currentUser?.id ? () => handleActivate(u) : undefined}
+                                        <Personalview
+                                            key={u.id}
+                                            name={u.name}
+                                            role={UserRole[u.role]}
+                                            showActions={permissions.canEditUsers}
+                                            isSuspended={u.status === 'suspended'}
+                                            onEdit={permissions.canManageUser(u.role) ? () => handleEdit(u) : undefined}
+                                            onDelete={permissions.canManageUser(u.role) ? () => handleDelete(u) : undefined}
+                                            onSuspend={permissions.canManageUser(u.role) && u.status !== 'suspended' ? () => handleSuspend(u) : undefined}
+                                            onActivate={permissions.canManageUser(u.role) && u.status === 'suspended' ? () => handleActivate(u) : undefined}
                                     />
                                 ))}
                             </div>
@@ -632,12 +725,12 @@ export const Personal: React.FC = () => {
                                         key={u.id}
                                         name={u.name}
                                         role={UserRole[u.role]}
-                                        showActions={isAdmin}
+                                        showActions={permissions.canEditUsers}
                                         isSuspended={u.status === 'suspended'}
-                                        onEdit={isAdmin ? () => handleEdit(u) : undefined}
-                                        onDelete={isAdmin ? () => handleDelete(u) : undefined}
-                                        onSuspend={isAdmin && u.status !== 'suspended' ? () => handleSuspend(u) : undefined}
-                                        onActivate={isAdmin && u.status === 'suspended' ? () => handleActivate(u) : undefined}
+                                        onEdit={permissions.canEditUsers ? () => handleEdit(u) : undefined}
+                                        onDelete={permissions.canDeleteUsers ? () => handleDelete(u) : undefined}
+                                        onSuspend={permissions.canSuspendUsers && u.status !== 'suspended' ? () => handleSuspend(u) : undefined}
+                                        onActivate={permissions.canSuspendUsers && u.status === 'suspended' ? () => handleActivate(u) : undefined}
                                     />
                                 ))}
                             </div>
@@ -667,12 +760,12 @@ export const Personal: React.FC = () => {
                                         key={u.id}
                                         name={u.name}
                                         role={UserRole[u.role]}
-                                        showActions={isAdmin}
+                                        showActions={permissions.canEditUsers}
                                         isSuspended={u.status === 'suspended'}
-                                        onEdit={isAdmin ? () => handleEdit(u) : undefined}
-                                        onDelete={isAdmin ? () => handleDelete(u) : undefined}
-                                        onSuspend={isAdmin && u.status !== 'suspended' ? () => handleSuspend(u) : undefined}
-                                        onActivate={isAdmin && u.status === 'suspended' ? () => handleActivate(u) : undefined}
+                                        onEdit={permissions.canEditUsers ? () => handleEdit(u) : undefined}
+                                        onDelete={permissions.canDeleteUsers ? () => handleDelete(u) : undefined}
+                                        onSuspend={permissions.canSuspendUsers && u.status !== 'suspended' ? () => handleSuspend(u) : undefined}
+                                        onActivate={permissions.canSuspendUsers && u.status === 'suspended' ? () => handleActivate(u) : undefined}
                                     />
                                 ))}
                             </div>
@@ -704,12 +797,12 @@ export const Personal: React.FC = () => {
                                         role={userRoleToString(student.role)}
                                         level={student.level ? getCourseName(student.level) : undefined}
                                         division={student.division}
-                                        showActions={isAdmin}
+                                        showActions={permissions.canEditUsers}
                                         isSuspended={student.status === 'suspended'}
-                                        onEdit={isAdmin ? () => handleEdit(student) : undefined}
-                                        onDelete={isAdmin ? () => handleDelete(student) : undefined}
-                                        onSuspend={isAdmin && student.status !== 'suspended' ? () => handleSuspend(student) : undefined}
-                                        onActivate={isAdmin && student.status === 'suspended' ? () => handleActivate(student) : undefined}
+                                        onEdit={permissions.canEditUsers ? () => handleEdit(student) : undefined}
+                                        onDelete={permissions.canDeleteUsers ? () => handleDelete(student) : undefined}
+                                        onSuspend={permissions.canSuspendUsers && student.status !== 'suspended' ? () => handleSuspend(student) : undefined}
+                                        onActivate={permissions.canSuspendUsers && student.status === 'suspended' ? () => handleActivate(student) : undefined}
                                     />
                                 ))}
                             </div>
@@ -739,12 +832,12 @@ export const Personal: React.FC = () => {
                                         key={u.id}
                                         name={u.name}
                                         role={UserRole[u.role]}
-                                        showActions={isAdmin}
+                                        showActions={permissions.canEditUsers}
                                         isSuspended={u.status === 'suspended'}
-                                        onEdit={isAdmin ? () => handleEdit(u) : undefined}
-                                        onDelete={isAdmin ? () => handleDelete(u) : undefined}
-                                        onSuspend={isAdmin && u.status !== 'suspended' ? () => handleSuspend(u) : undefined}
-                                        onActivate={isAdmin && u.status === 'suspended' ? () => handleActivate(u) : undefined}
+                                        onEdit={permissions.canEditUsers ? () => handleEdit(u) : undefined}
+                                        onDelete={permissions.canDeleteUsers ? () => handleDelete(u) : undefined}
+                                        onSuspend={permissions.canSuspendUsers && u.status !== 'suspended' ? () => handleSuspend(u) : undefined}
+                                        onActivate={permissions.canSuspendUsers && u.status === 'suspended' ? () => handleActivate(u) : undefined}
                                     />
                                 ))}
                             </div>
@@ -774,12 +867,12 @@ export const Personal: React.FC = () => {
                                         key={u.id}
                                         name={u.name}
                                         role={UserRole[u.role]}
-                                        showActions={isAdmin}
+                                        showActions={permissions.canEditUsers}
                                         isSuspended={u.status === 'suspended'}
-                                        onEdit={isAdmin ? () => handleEdit(u) : undefined}
-                                        onDelete={isAdmin ? () => handleDelete(u) : undefined}
-                                        onSuspend={isAdmin && u.status !== 'suspended' ? () => handleSuspend(u) : undefined}
-                                        onActivate={isAdmin && u.status === 'suspended' ? () => handleActivate(u) : undefined}
+                                        onEdit={permissions.canEditUsers ? () => handleEdit(u) : undefined}
+                                        onDelete={permissions.canDeleteUsers ? () => handleDelete(u) : undefined}
+                                        onSuspend={permissions.canSuspendUsers && u.status !== 'suspended' ? () => handleSuspend(u) : undefined}
+                                        onActivate={permissions.canSuspendUsers && u.status === 'suspended' ? () => handleActivate(u) : undefined}
                                     />
                                 ))}
                             </div>

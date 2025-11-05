@@ -5,6 +5,7 @@ import { useCourses } from '@/app/context/courseContext';
 import { useTriskaContext } from '@/app/context/triskaContext';
 import { useAuthContext } from '@/app/context/authContext';
 import { UserCurses, UserRole, CourseDivision } from '@/app/types/user';
+import { useUserPermissions } from '@/app/utils/rolePermissions';
 import { HiAcademicCap, HiPlus, HiTrash, HiUsers, HiUserGroup, HiCheck, HiX } from 'react-icons/hi';
 import Swal from 'sweetalert2';
 import toast from 'react-hot-toast';
@@ -16,7 +17,9 @@ export const Courses: React.FC = () => {
   const { users } = useTriskaContext();
   const { user } = useAuthContext();
 
-  const isAdmin = user?.role === UserRole.Administrador;
+  // Usar el nuevo sistema de permisos
+  const permissions = useUserPermissions(user?.role);
+  const isAdmin = permissions.isAnyAdmin;
 
   // Estados para creación
   const [selectedLevel, setSelectedLevel] = useState<number | ''>('');

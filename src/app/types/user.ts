@@ -5,6 +5,7 @@ export enum UserRole {
   Docente = 4,
   Familia  = 5,
   Seguridad = 6,
+  SuperAdmin = 7,
 }
 
 export enum UserCurses {
@@ -52,7 +53,8 @@ export interface User {
   asig?: number;
   password?: string; // Para usuarios pendientes
   createdAt?: Date;
-  status?: 'pending' | 'active' | 'suspended'; // Estado del usuario
+  status?: 'pending' | 'active' | 'suspended' | 'egresado'; // Estado del usuario
+  egresadoDate?: number; // Timestamp cuando se egresó
 }
 
 export interface PersonalView {

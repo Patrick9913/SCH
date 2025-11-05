@@ -6,6 +6,7 @@ import { useSubjects } from "@/app/context/subjectContext";
 import { useGrades } from "@/app/context/gradesContext";
 import { Assignments, UserCurses} from "@/app/types/user";
 import { DayLabels, DayLabelsShort } from "@/app/types/schedule";
+import { useUserPermissions } from "@/app/utils/rolePermissions";
 import { HiHome, HiClock, HiUser, HiBookOpen, HiAcademicCap, HiUsers, HiDocumentText, HiClipboardCheck } from "react-icons/hi";
 
 import React, { useMemo, useCallback } from "react";
@@ -18,14 +19,17 @@ export const Home: React.FC = () => {
     const { schedules, getSchedulesByCourse } = useSchedule()
     const { getSubjectsByStudent, getSubjectsByTeacher, subjects } = useSubjects()
     const { grades } = useGrades()
+    
+    // Usar el nuevo sistema de permisos
+    const permissions = useUserPermissions(user?.role);
 
     const students = users.filter( s => s.role === 3)
     const teachers = users.filter( t => t.role === 4)
     const totalUsers = users.length
     
-    // Calcular estadísticas para el administrador
+    // Calcular estadísticas para administradores
     const statistics = useMemo(() => {
-        if (user?.role !== 1) return null;
+        if (!permissions.canViewStatistics) return null;
         
         // Cantidad de boletines publicados (calificaciones con published: true)
         const publishedGrades = grades.filter(g => g.published === true).length;
@@ -71,7 +75,7 @@ export const Home: React.FC = () => {
             if (a.audience === 'all') return true;
             
             // Si el usuario es admin, ve todos los avisos
-            if (user.role === 1) return true;
+            if (permissions.isAnyAdmin) return true;
             
             // Filtrar según el rol del usuario
             switch (a.audience) {
@@ -334,7 +338,7 @@ export const Home: React.FC = () => {
                 {/* Avisos dinámicos */}
                 <div className="mb-8">
                     <h2 className="text-lg font-medium text-gray-900 mb-4">Avisos</h2>
-                    {user?.role === 1 && (
+                    {permissions.canCreateAnnouncements && (
                         <form
                             className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200"
                             onSubmit={async (e) => {
@@ -394,7 +398,7 @@ export const Home: React.FC = () => {
                                         {a.body && <p className="text-sm text-gray-600 mb-2">{a.body}</p>}
                                         <p className="text-xs text-gray-400">Para: {a.audience} • {new Date(a.createdAt).toLocaleString()}</p>
                                     </div>
-                                    {user?.role === 1 && (
+                                    {permissions.canDeleteAnnouncements && (
                                         <button
                                             className="text-xs text-red-600 hover:text-red-700 font-medium"
                                             onClick={() => deleteAnnouncement(a.id)}
@@ -503,7 +507,7 @@ export const Home: React.FC = () => {
                     </div>
                 )}
                 {/* Vista docente: materias y horarios asignados */}
-                {user?.role === 4 && user?.uid && (
+                {permissions.isTeacher && user?.uid && (
                     <div className="mb-8">
                         <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
                             <HiBookOpen className="w-5 h-5 text-gray-700" />
@@ -565,7 +569,7 @@ export const Home: React.FC = () => {
                     </div>
                 )}
                 {/* Horarios semanal para estudiantes - Vista tipo cuadrícula */}
-                {user?.role === 3 && (
+                {permissions.isStudent && (
                     <div className="mb-8">
                         <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
                             <HiClock className="w-5 h-5 text-gray-700" />

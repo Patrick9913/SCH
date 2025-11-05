@@ -10,15 +10,8 @@ import { UserCurses } from '@/app/types/user';
 import { AttendanceStatus, AttendanceRecord } from '@/app/types/attendance';
 import { HiUserGroup, HiCheck, HiXCircle, HiClock } from 'react-icons/hi';
 import { RefreshButton } from '../reusable/RefreshButton';
+import { useUserPermissions, getCourseName } from '@/app/utils/rolePermissions';
 import Swal from 'sweetalert2';
-import { 
-  isAdmin, 
-  isStaff, 
-  isTeacher, 
-  canManageGrades, 
-  getAvailableCourses,
-  getCourseName
-} from '@/app/utils/permissions';
 
 export const Attendance: React.FC = () => {
   const { records, addMultipleAttendances, getAttendanceForStudent, refreshAttendance } = useAttendance();
@@ -33,12 +26,14 @@ export const Attendance: React.FC = () => {
     return new Date(year, month - 1, day); // mes es 0-indexed en JavaScript
   };
 
-  const isStaffUser = isStaff(user);
-  const isAdminUser = isAdmin(user);
-  const isTeacherUser = isTeacher(user);
-  const isStudent = user?.role === 3;
-  const isFamily = user?.role === 5;
-  const canManage = canManageGrades(user);
+  // Usar el nuevo sistema de permisos
+  const permissions = useUserPermissions(user?.role);
+  const isStaffUser = permissions.isStaff;
+  const isAdminUser = permissions.isAdmin;
+  const isTeacherUser = permissions.isTeacher;
+  const isStudent = permissions.isStudent;
+  const isFamily = permissions.isFamily;
+  const canManage = permissions.canCreateAttendance;
   
   // Estado para seleccionar qué hijo ver (para familias con múltiples hijos)
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
@@ -590,10 +585,10 @@ export const Attendance: React.FC = () => {
             ? 'Registra asistencias seleccionando el día y curso' 
             : 'Consulta tus registros de asistencia por mes'}
         </p>
-        {isTeacherUser && user && (
+        {isTeacherUser && user && availableCourses.length > 0 && (
           <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
             <p className="text-xs text-gray-600">
-              <span className="font-medium">Cursos asignados:</span> {getAvailableCourses(user).map(c => c.name).join(', ')}
+              <span className="font-medium">Cursos asignados:</span> {availableCourses.map(c => c.name).join(', ')}
             </p>
           </div>
         )}

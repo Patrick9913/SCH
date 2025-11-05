@@ -6,13 +6,16 @@ import { useAuthContext } from '@/app/context/authContext';
 import { useSubjects } from '@/app/context/subjectContext';
 import { useTriskaContext } from '@/app/context/triskaContext';
 import { UserCurses } from '@/app/types/user';
+import { useUserPermissions } from '@/app/utils/rolePermissions';
 
 export const MyStudents: React.FC = () => {
   const { user } = useAuthContext();
   const { getStudentsByTeacher, getSubjectsByTeacher } = useSubjects();
   const { users } = useTriskaContext();
 
-  const isTeacher = user?.role === 4;
+  // Usar el nuevo sistema de permisos
+  const permissions = useUserPermissions(user?.role);
+  const isTeacher = permissions.isTeacher;
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | 'all'>('all'); // Cambiar a string para usar ID de Firestore
 
   const subjects = useMemo(() => {

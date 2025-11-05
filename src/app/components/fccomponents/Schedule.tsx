@@ -6,6 +6,7 @@ import { useTriskaContext } from '@/app/context/triskaContext';
 import { useAuthContext } from '@/app/context/authContext';
 import { Assignments, UserCurses } from '@/app/types/user';
 import { DayLabels } from '@/app/types/schedule';
+import { useUserPermissions } from '@/app/utils/rolePermissions';
 import { HiCalendar, HiPlus, HiX, HiClock, HiHome, HiUser, HiBookOpen } from 'react-icons/hi';
 import { HiCheck } from 'react-icons/hi2';
 
@@ -14,9 +15,11 @@ export const Schedule: React.FC = () => {
   const { users } = useTriskaContext();
   const { user } = useAuthContext();
 
-  const isStaff = user?.role === 1 || user?.role === 4 || user?.role === 2;
-  const isStudent = user?.role === 3;
-  const isFamily = user?.role === 5;
+  // Usar el nuevo sistema de permisos
+  const permissions = useUserPermissions(user?.role);
+  const isStaff = permissions.canViewAllGrades || permissions.isStaff;
+  const isStudent = permissions.isStudent;
+  const isFamily = permissions.isFamily;
   
   // Obtener el estudiante relacionado si es Familia
   const relatedStudent = React.useMemo(() => {

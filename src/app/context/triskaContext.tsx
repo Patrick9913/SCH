@@ -5,6 +5,7 @@ import { db } from '../config';
 import { collection, onSnapshot, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc } from "firebase/firestore";
 import { NewUserData, User } from "../types/user";
 import { useAuthContext } from "./authContext";
+import { isAnyAdmin, isStaff, isStudent, isTeacher, isFamily, isSecurity } from '@/app/utils/rolePermissions';
 import CryptoJS from 'crypto-js';
 import Swal from 'sweetalert2';
 // Firebase Functions removido - usando autenticación directa
@@ -71,8 +72,8 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         try {
             const userRef = collection(db, "users");
             
-            if (user.role === 1) {
-                // Admin: obtener todos los usuarios en tiempo real
+            if (isAnyAdmin(user.role)) {
+                // Admin y SuperAdmin: obtener todos los usuarios en tiempo real
                 const unsubscribe = onSnapshot(userRef, (snapshot) => {
                     const usersData = snapshot.docs.map((doc) => {
                         const data = doc.data() as Omit<User, 'id'>;
@@ -87,7 +88,7 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 });
 
                 return unsubscribe;
-            } else if (user.role === 2) {
+            } else if (isStaff(user.role)) {
                 // Staff/Preceptor: obtener todos los usuarios (necesita ver estudiantes de sus cursos asignados)
                 const unsubscribe = onSnapshot(userRef, (snapshot) => {
                     const usersData = snapshot.docs.map((doc) => {
@@ -103,7 +104,7 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 });
 
                 return unsubscribe;
-            } else if (user.role === 3) {
+            } else if (isStudent(user.role)) {
                 // Estudiante: obtener su propio documento Y los profesores asignados a sus materias
                 const userDocRef = doc(db, "users", user.id);
                 let studentData: User | null = null;
@@ -188,7 +189,7 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                     unsubscribeSelf();
                     unsubscribeSubjects();
                 };
-            } else if (user.role === 4) {
+            } else if (isTeacher(user.role)) {
                 // Docente: obtener todos los usuarios estudiantes para poder filtrarlos después
                 const unsubscribe = onSnapshot(userRef, (snapshot) => {
                     const usersData = snapshot.docs.map((doc) => {
@@ -204,7 +205,7 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 });
 
                 return unsubscribe;
-            } else if (user.role === 5) {
+            } else if (isFamily(user.role)) {
                 // Familia: obtener solo los usuarios estudiantes relacionados (vía childrenIds o childId)
                 const unsubscribe = onSnapshot(userRef, (snapshot) => {
                     const usersData = snapshot.docs.map((doc) => {
@@ -226,7 +227,7 @@ export const TriskaProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 });
 
                 return unsubscribe;
-            } else if (user.role === 6) {
+            } else if (isSecurity(user.role)) {
                 // Seguridad: no necesita cargar usuarios, solo datos básicos
                 setUsers([user]);
                 return undefined;

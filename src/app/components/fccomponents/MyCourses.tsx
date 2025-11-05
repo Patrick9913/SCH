@@ -9,8 +9,8 @@ import { UserCurses, CourseDivision } from '@/app/types/user';
 import { AttendanceStatus } from '@/app/types/attendance';
 import { HiBookOpen, HiCheck, HiXCircle, HiClock, HiCalendar, HiUserGroup } from 'react-icons/hi';
 import { RefreshButton } from '../reusable/RefreshButton';
+import { useUserPermissions, getCourseName } from '@/app/utils/rolePermissions';
 import Swal from 'sweetalert2';
-import { getCourseName } from '@/app/utils/permissions';
 
 export const MyCourses: React.FC = () => {
   const { records, addMultipleAttendances, refreshAttendance } = useAttendance();
@@ -18,7 +18,9 @@ export const MyCourses: React.FC = () => {
   const { user } = useAuthContext();
   const { subjects } = useSubjects();
 
-  const isStaff = user?.role === 2;
+  // Usar el nuevo sistema de permisos
+  const permissions = useUserPermissions(user?.role);
+  const isStaff = permissions.isStaff;
 
   // Estados para el registro diario
   const [selectedDate, setSelectedDate] = useState<string>(() => {

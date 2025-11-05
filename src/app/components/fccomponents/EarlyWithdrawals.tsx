@@ -6,6 +6,7 @@ import { useAuthContext } from '@/app/context/authContext';
 import { useTriskaContext } from '@/app/context/triskaContext';
 import { EarlyWithdrawal } from '@/app/types/withdrawal';
 import { UserCurses } from '@/app/types/user';
+import { useUserPermissions } from '@/app/utils/rolePermissions';
 import { HiCalendar, HiClock, HiUser, HiShieldCheck, HiX, HiCheckCircle } from 'react-icons/hi';
 import Swal from 'sweetalert2';
 import { QRCodeSVG } from 'qrcode.react';
@@ -14,6 +15,9 @@ export const EarlyWithdrawals: React.FC = () => {
   const { createWithdrawal, withdrawals, cancelWithdrawal, refreshWithdrawals } = useWithdrawals();
   const { user } = useAuthContext();
   const { users } = useTriskaContext();
+  
+  // Usar el nuevo sistema de permisos
+  const permissions = useUserPermissions(user?.role);
 
   const [pickerName, setPickerName] = useState('');
   const [pickerDni, setPickerDni] = useState('');
@@ -29,7 +33,7 @@ export const EarlyWithdrawals: React.FC = () => {
 
   // Obtener estudiantes relacionados (solo para familiares)
   const relatedStudents = useMemo(() => {
-    if (user?.role === 5) {
+    if (permissions.isFamily) {
       // Priorizar childrenIds (múltiples hijos)
       if (user.childrenIds && user.childrenIds.length > 0) {
         return users.filter(u => user.childrenIds?.includes(u.id) || user.childrenIds?.includes(u.uid));
@@ -38,7 +42,7 @@ export const EarlyWithdrawals: React.FC = () => {
       if (user.childId) {
         return users.filter(u => u.id === user.childId || u.uid === user.childId);
       }
-    } else if (user?.role === 1) {
+    } else if (permissions.isAnyAdmin) {
       // Admin puede ver todos los estudiantes
       return users.filter(u => u.role === 3);
     }

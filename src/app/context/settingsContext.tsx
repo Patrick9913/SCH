@@ -5,6 +5,7 @@ import { collection, doc, getDoc, onSnapshot, setDoc, Timestamp } from 'firebase
 import { db } from '../config';
 import { GradeSettings, ADMIN_EMAIL } from '../types/system';
 import { useAuthContext } from './authContext';
+import { hasPermission } from '@/app/utils/rolePermissions';
 import toast from 'react-hot-toast';
 
 interface SettingsContextProps {
@@ -32,10 +33,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const previousUpdated = useRef<number>(0); // Para detectar nuevas actualizaciones
   const isInitialized = useRef<boolean>(false); // Para saber si ya se inicializó
 
-  const isMainAdmin = user?.role === 1;
+  const isMainAdmin = hasPermission(user?.role, 'canAccessAdminPanel');
   
   // Verificar si el usuario puede gestionar calificaciones
-  const canManageGrades = user?.role === 1 || user?.role === 2 || user?.role === 4;
+  const canManageGrades = hasPermission(user?.role, 'canCreateGrades');
 
   // Función para probar la conexión a Firebase
   const testFirebaseConnection = async () => {
@@ -115,7 +116,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             isInitialized.current = true;
             
             // Solo intentar crear si el usuario es admin
-            if (canManageGrades && user?.role === 1 && user?.uid) {
+            if (hasPermission(user?.role, 'canManageSettings') && user?.uid) {
               setDoc(docRef, {
                 gradesLoadingEnabled: false,
                 createdAt: Date.now(),

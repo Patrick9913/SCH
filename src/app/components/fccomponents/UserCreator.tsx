@@ -8,6 +8,7 @@ import { useAuthContext } from "@/app/context/authContext";
 import { useCourses } from "@/app/context/courseContext";
 import { useSubjects } from "@/app/context/subjectContext";
 import { Assignments, UserCurses, CourseDivision } from "@/app/types/user";
+import { useUserPermissions } from "@/app/utils/rolePermissions";
 import toast from "react-hot-toast";
 
 export const UserCreator: React.FC = () => {
@@ -15,7 +16,9 @@ export const UserCreator: React.FC = () => {
     const { user: currentUser } = useAuthContext();
     const { courses, assignStudentToCourse } = useCourses();
     const { subjects } = useSubjects();
-    const isAdmin = currentUser?.role === 1;
+    
+    // Usar el nuevo sistema de permisos
+    const permissions = useUserPermissions(currentUser?.role);
 
     const [firstName, setFirstName] = useState('');
     const [mail, setMail] = useState('');
@@ -61,7 +64,7 @@ export const UserCreator: React.FC = () => {
             .sort((a, b) => a.name.localeCompare(b.name));
     }, [users]);
 
-    if (!isAdmin) {
+    if (!permissions.canCreateUsers) {
         return (
             <section className="flex-1 p-6 overflow-y-auto max-h-screen h-full bg-white">
                 <div className="text-center py-12">
@@ -142,6 +145,13 @@ export const UserCreator: React.FC = () => {
             toast.error('La contraseña es requerida'); 
             return; 
         }
+        
+        // Validar permisos para crear SuperAdmin o Admin
+        if ((role === 1 || role === 7) && !permissions.canManageAdmins) {
+            toast.error('Solo el Super Administrador puede crear Administradores y Super Administradores');
+            return;
+        }
+        
         if (role === 4 && !asignatura) { 
             toast.error('Selecciona una asignatura para el docente'); 
             return; 
@@ -247,13 +257,23 @@ export const UserCreator: React.FC = () => {
                         <label className="text-sm font-medium text-gray-700">Rol</label>
                         <select value={role} onChange={(e) => { setRole(Number(e.target.value)); setAsignatura(''); setSelectedCourseId(''); setSelectedChildrenIds([]); }} className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                             <option value={0} disabled>Seleccionar rol...</option>
-                            <option value={1}>Administrador</option>
+                            {permissions.canManageAdmins && (
+                                <>
+                                    <option value={7}>Super Administrador</option>
+                                    <option value={1}>Administrador</option>
+                                </>
+                            )}
                             <option value={2}>Staff</option>
                             <option value={3}>Estudiante</option>
                             <option value={4}>Docente</option>
                             <option value={5}>Familia</option>
                             <option value={6}>Seguridad</option>
                         </select>
+                        {!permissions.canManageAdmins && (role === 1 || role === 7) && (
+                            <p className="text-xs text-orange-600 mt-1">
+                                ⚠️ Solo el Super Administrador puede crear Administradores.
+                            </p>
+                        )}
                     </div>
                     {role === 4 && (
                         <div className="flex flex-col gap-y-2">

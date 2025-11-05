@@ -11,18 +11,10 @@ import { HiChartBar, HiCheck } from 'react-icons/hi';
 import { useSettings } from '@/app/context/settingsContext';
 import { useSubjects } from '@/app/context/subjectContext';
 import { Subject } from '@/app/types/subject';
+import { useUserPermissions } from '@/app/utils/rolePermissions';
 import { RefreshButton } from '../reusable/RefreshButton';
 import Swal from 'sweetalert2';
-import { 
-  isAdmin, 
-  isStaff, 
-  isTeacher, 
-  canManageGrades, 
-  getAvailableSubjects, 
-  getAvailableCourses,
-  getSubjectName,
-  getCourseName
-} from '@/app/utils/permissions';
+import { getSubjectName, getCourseName } from '@/app/utils/rolePermissions';
 
 export const Grades: React.FC = () => {
   const { grades, addMultipleGrades, getGradeForStudent, refreshGrades } = useGrades();
@@ -37,12 +29,14 @@ export const Grades: React.FC = () => {
     isTeacherAssignedToSubject 
   } = useSubjects();
 
-  const isStaffUser = isStaff(user);
-  const isAdminUser = isAdmin(user);
-  const isTeacherUser = isTeacher(user);
-  const isStudent = user?.role === 3;
-  const isFamily = user?.role === 5;
-  const canManage = canManageGrades(user);
+  // Usar el nuevo sistema de permisos
+  const permissions = useUserPermissions(user?.role);
+  const isStaffUser = permissions.isStaff;
+  const isAdminUser = permissions.isAdmin || permissions.isSuperAdmin;
+  const isTeacherUser = permissions.isTeacher;
+  const isStudent = permissions.isStudent;
+  const isFamily = permissions.isFamily;
+  const canManage = permissions.canCreateGrades;
   
   // Obtener el estudiante relacionado si es Familia
   const relatedStudent = useMemo(() => {
