@@ -24,7 +24,7 @@ export const Main: React.FC = () => {
 
     const { users, menu} = useTriskaContext();
 
-    const students = users.filter( s => s.role === 3)
+    const students = users.filter( s => s.role === 3 && s.status !== 'egresado')
     const teachers = users.filter( t => t.role === 4)
     
     return (

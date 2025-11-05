@@ -233,9 +233,9 @@ export const SubjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
     });
     
-    // Filtrar solo estudiantes que están en las materias del docente
+    // Filtrar solo estudiantes que están en las materias del docente y excluir egresados
     return users.filter(u => {
-      return u.role === 3 && studentUidsInTeacherSubjects.has(u.uid);
+      return u.role === 3 && u.status !== 'egresado' && studentUidsInTeacherSubjects.has(u.uid);
     });
   };
 

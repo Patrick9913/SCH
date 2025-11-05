@@ -57,9 +57,9 @@ export const Settings: React.FC = () => {
     const [selectionStart, setSelectionStart] = useState<{ day: number; time: string } | null>(null);
     const [currentHover, setCurrentHover] = useState<{ day: number; time: string } | null>(null);
 
-    // Filtrar usuarios por rol
+    // Filtrar usuarios por rol (excluir egresados)
     const students = useMemo(() => 
-        users.filter(u => u.role === UserRole.Estudiante), 
+        users.filter(u => u.role === UserRole.Estudiante && u.status !== 'egresado'), 
         [users]
     );
     

@@ -42,9 +42,9 @@ export const Courses: React.FC = () => {
     .filter(([_, value]) => !isNaN(Number(value)))
     .map(([label, value]) => ({ label, value: Number(value) }));
 
-  // Filtrar usuarios por rol
+  // Filtrar usuarios por rol (excluir egresados)
   const students = useMemo(() => 
-    users.filter(u => u.role === UserRole.Estudiante), 
+    users.filter(u => u.role === UserRole.Estudiante && u.status !== 'egresado'), 
     [users]
   );
   const preceptors = useMemo(() => 
