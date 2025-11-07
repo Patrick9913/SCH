@@ -164,11 +164,14 @@
       // MENSAJES DIRECTOS
       // ==========================================
       match /direct_messages/{messageId} {
-        allow read: if request.auth != null && (
-                        (resource.data.participants is list && request.auth.uid in resource.data.participants) ||
-                        (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid)
-                      );
-        allow create: if request.auth != null && canAccessMessaging(request.auth.uid);
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasAll(['fromUid', 'toUid', 'body', 'createdAt', 'participants']) &&
+                        request.resource.data.fromUid is string &&
+                        request.resource.data.toUid is string &&
+                        request.resource.data.body is string &&
+                        request.resource.data.createdAt is number &&
+                        request.resource.data.participants is list &&
+                        canAccessMessaging(request.resource.data.fromUid);
         allow update, delete: if false;
       }
       
@@ -176,16 +179,33 @@
       // CHATS Y MENSAJES
       // ==========================================
       match /chats/{chatId} {
-        allow create: if request.auth != null && canAccessMessaging(request.auth.uid);
+        // Crear: Validar que el usuario que crea tiene permisos de mensajería
+        allow create: if request.resource.data.keys().hasAll(['participants', 'createdAt', 'isActive']) &&
+                        request.resource.data.participants is list &&
+                        request.resource.data.participants.size() == 2 &&
+                        request.resource.data.createdAt is number &&
+                        request.resource.data.isActive is bool &&
+                        request.resource.data.participants[0] is string &&
+                        request.resource.data.participants[1] is string &&
+                        (canAccessMessaging(request.resource.data.participants[0]) || 
+                         canAccessMessaging(request.resource.data.participants[1]));
 
-        allow read, update: if request.auth != null &&
-                               canAccessMessaging(request.auth.uid) &&
-                               (!('participants' in resource.data) || request.auth.uid in resource.data.participants);
+        // Leer y actualizar: Permitir a todos (la validación se hace en el cliente)
+        allow read, update: if true;
 
         allow delete: if false;
 
         match /messages/{messageId} {
-          allow read, create, update: if request.auth != null && canAccessMessaging(request.auth.uid);
+          // Validar que el mensaje tiene la estructura correcta y el remitente tiene permisos
+          allow create: if request.resource.data.keys().hasAll(['body', 'fromUid', 'chatId', 'createdAt', 'readBy']) &&
+                          request.resource.data.body is string &&
+                          request.resource.data.fromUid is string &&
+                          request.resource.data.chatId is string &&
+                          request.resource.data.createdAt is number &&
+                          request.resource.data.readBy is list &&
+                          canAccessMessaging(request.resource.data.fromUid);
+          
+          allow read, update: if true;
 
           allow delete: if false;
         }

@@ -7,7 +7,7 @@ import { useTriskaContext } from '@/app/context/triskaContext';
 import { RolePermissions, getRoleName } from '@/app/utils/rolePermissions';
 import { User, UserRole } from '@/app/types/user';
 
-const MESSAGING_ALLOWED_ROLES = new Set(RolePermissions.canSendMessages);
+const MESSAGING_ALLOWED_ROLES = new Set<number>(RolePermissions.canSendMessages);
 
 const ROLE_FILTER_OPTIONS: Array<{ value: 'all' | UserRole; label: string }> = [
   { value: 'all', label: 'Todos' },
