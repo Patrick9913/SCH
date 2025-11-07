@@ -5,6 +5,7 @@ import { db } from '../config';
 import { addDoc, collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { DirectMessage } from '../types/messages';
 import { useAuthContext } from './authContext';
+import { hasPermission } from '../utils/rolePermissions';
 
 interface MessagesContextProps {
   directMessages: DirectMessage[];
@@ -20,7 +21,7 @@ export const useMessages = () => {
 };
 
 export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { uid } = useAuthContext();
+  const { uid, user } = useAuthContext();
   const [ directMessages, setDirectMessages ] = useState<DirectMessage[]>([]);
 
   useEffect(() => {
@@ -54,7 +55,11 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
 
   const sendDirectMessage = async (toUid: string, body: string) => {
-    if (!uid) return;
+    if (!uid || !user) return;
+    if (!hasPermission(user.role, 'canSendMessages')) {
+      throw new Error('No tienes permisos para enviar mensajes');
+    }
+
     await addDoc(collection(db, 'direct_messages'), {
       fromUid: uid,
       toUid,

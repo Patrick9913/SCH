@@ -81,7 +81,7 @@ export const RolePermissions = {
   canCancelWithdrawals: [UserRole.SuperAdmin, UserRole.Administrador, UserRole.Familia],
   
   // Permisos de mensajería
-  canSendMessages: [UserRole.SuperAdmin, UserRole.Administrador, UserRole.Staff, UserRole.Docente, UserRole.Estudiante, UserRole.Familia],
+  canSendMessages: [UserRole.SuperAdmin, UserRole.Administrador, UserRole.Staff, UserRole.Docente, UserRole.Familia, UserRole.Seguridad],
   
   // Permisos especiales
   canPerformYearTransition: [UserRole.SuperAdmin], // Solo SuperAdmin puede hacer pase de año

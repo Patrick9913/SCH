@@ -65,7 +65,7 @@ const Login: React.FC = () => {
       
       {/* Contenido del formulario */}
       <div className="relative z-20 flex items-center justify-center h-full md:p-4">
-        <div className="bg-white/95 backdrop-blur-md rounded-none md:rounded-2xl shadow-2xl w-full h-full md:h-auto md:max-w-md p-6 sm:p-8 md:p-10 transform transition-all flex flex-col justify-center">
+        <div className="bg-white/95 backdrop-blur-md rounded-none md:rounded-sm shadow-2xl w-full h-full md:h-auto md:max-w-md p-6 sm:p-8 md:p-10 transform transition-all flex flex-col justify-center">
           
           {/* Header */}
           <div className="text-center mb-6 md:mb-8">

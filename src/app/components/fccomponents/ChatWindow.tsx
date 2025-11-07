@@ -5,12 +5,14 @@ import { useChat } from '@/app/context/chatContext';
 import { useTriskaContext } from '@/app/context/triskaContext';
 import { useAuthContext } from '@/app/context/authContext';
 import { Chat, ChatMessage } from '@/app/types/messages';
+import { HiArrowLeft } from 'react-icons/hi';
 
 interface ChatWindowProps {
   chat: Chat;
+  onBack?: () => void;
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ chat }) => {
+export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, onBack }) => {
   const { currentChatMessages, sendMessage } = useChat();
   const { users } = useTriskaContext();
   const { uid } = useAuthContext();
@@ -43,8 +45,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat }) => {
     e.preventDefault();
     if (!messageText.trim()) return;
 
-    await sendMessage(chat.id, messageText);
     setMessageText('');
+    await sendMessage(chat.id, messageText);
   };
 
   // Manejar cambios en el input de mensaje
@@ -73,11 +75,21 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-gray-100/70">
       {/* Header del chat */}
-      <div className="p-4 border-b border-gray-200 bg-gray-50">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium">
+      <div className="px-4 sm:px-6 py-4 border-b border-gray-200 bg-white flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              aria-label="Volver a la lista de chats"
+            >
+              <HiArrowLeft className="w-5 h-5" />
+            </button>
+          )}
+          <div className="w-11 h-11 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium">
             {otherParticipantName.charAt(0).toUpperCase()}
           </div>
           <div>
@@ -90,11 +102,16 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat }) => {
       </div>
 
       {/* Área de mensajes */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-4 bg-gradient-to-br from-[#f0f4f9] via-[#f6f9fc] to-[#eef2f7]">
         {currentChatMessages.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">
-            <p>No hay mensajes aún</p>
-            <p className="text-sm">¡Envía el primer mensaje!</p>
+          <div className="text-center text-gray-500 py-12">
+            <div className="w-14 h-14 mx-auto mb-4 bg-white/80 border border-gray-200 rounded-full flex items-center justify-center">
+              <svg className="w-7 h-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <p className="font-medium text-gray-700">La conversación está vacía</p>
+            <p className="text-sm">Escribe un mensaje para comenzar el chat.</p>
           </div>
         ) : (
           currentChatMessages.map((message, index) => {
@@ -109,7 +126,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat }) => {
                   showAvatar ? 'mt-4' : 'mt-1'
                 }`}
               >
-                <div className={`flex max-w-xs lg:max-w-md ${isMyMsg ? 'flex-row-reverse' : 'flex-row'}`}>
+                <div className={`flex max-w-xs sm:max-w-sm lg:max-w-md ${isMyMsg ? 'flex-row-reverse' : 'flex-row'}`}>
                   {/* Avatar */}
                   {!isMyMsg && showAvatar && (
                     <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0 mr-2">
@@ -133,7 +150,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat }) => {
                     
                     {/* Timestamp y estado de lectura */}
                     <div className={`flex items-center space-x-1 mt-1 ${isMyMsg ? 'flex-row-reverse' : 'flex-row'}`}>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-[11px] text-gray-400">
                         {formatMessageTime(message.createdAt)}
                       </span>
                       {isMyMsg && (
@@ -175,19 +192,19 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat }) => {
       </div>
 
       {/* Input de mensaje */}
-      <div className="p-4 border-t border-gray-200 bg-gray-50">
-        <form onSubmit={handleSendMessage} className="flex space-x-2">
+      <div className="px-4 sm:px-6 py-4 border-t border-gray-200 bg-white">
+        <form onSubmit={handleSendMessage} className="flex items-center space-x-3">
           <input
             type="text"
             value={messageText}
             onChange={handleMessageChange}
-            placeholder="Escribe un mensaje..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Escribe un mensaje"
+            className="flex-1 px-4 py-2.5 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
           />
           <button
             type="submit"
             disabled={!messageText.trim()}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg px-6 py-2 font-medium transition-colors"
+            className="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white rounded-full px-5 py-2 font-medium transition-colors"
           >
             Enviar
           </button>

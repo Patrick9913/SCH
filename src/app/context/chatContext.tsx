@@ -2,31 +2,29 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { db } from '../config';
-import { 
-  addDoc, 
-  collection, 
-  onSnapshot, 
-  orderBy, 
+import {
+  addDoc,
+  collection,
+  onSnapshot,
+  orderBy,
   query,
   where,
-  getDocs, 
-  doc, 
-  updateDoc, 
+  getDocs,
+  doc,
+  updateDoc,
   getDoc,
-  serverTimestamp,
-  arrayUnion,
-  arrayRemove
+  setDoc,
+  arrayUnion
 } from 'firebase/firestore';
-import { Chat, ChatMessage, ChatParticipant } from '../types/messages';
+import { Chat, ChatMessage } from '../types/messages';
 import { useAuthContext } from './authContext';
-import { useTriskaContext } from './triskaContext';
 
 interface ChatContextProps {
   chats: Chat[];
   currentChat: Chat | null;
   currentChatMessages: ChatMessage[];
   setCurrentChat: (chat: Chat | null) => void;
-  createChat: (participantUid: string) => Promise<string>;
+  createChat: (participantUid: string) => Promise<Chat>;
   sendMessage: (chatId: string, body: string) => Promise<void>;
   markAsRead: (chatId: string) => Promise<void>;
   getChatWithUser: (userId: string) => Chat | null;
@@ -45,18 +43,34 @@ export const useChat = () => {
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { uid } = useAuthContext();
-  const { users } = useTriskaContext();
   const [chats, setChats] = useState<Chat[]>([]);
   const [currentChat, setCurrentChat] = useState<Chat | null>(null);
   const [currentChatMessages, setCurrentChatMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState<Record<string, boolean>>({});
 
-  // Mapeo de usuarios para obtener nombres
-  const uidToUser = useMemo(() => {
-    const map = new Map<string, ChatParticipant>();
-    users.forEach((u) => map.set(u.uid, { uid: u.uid, name: u.name }));
-    return map;
-  }, [users]);
+  const getChatId = (a: string, b: string) => [a, b].sort().join('__');
+
+  const buildChatFromData = (id: string, data: any): Chat => ({
+    id,
+    participants: data?.participants || [],
+    lastMessage: data?.lastMessage,
+    lastMessageAt: data?.lastMessageAt || data?.createdAt || 0,
+    createdAt: data?.createdAt || Date.now(),
+    isActive: data?.isActive !== false,
+    unreadCount: data?.unreadCount || {},
+  });
+
+  const upsertChat = (chat: Chat) => {
+    setChats((prev) => {
+      const existingIndex = prev.findIndex((c) => c.id === chat.id);
+      if (existingIndex !== -1) {
+        const clone = [...prev];
+        clone[existingIndex] = { ...clone[existingIndex], ...chat };
+        return clone;
+      }
+      return [chat, ...prev];
+    });
+  };
 
   // Suscripción a chats del usuario
   useEffect(() => {
@@ -71,18 +85,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     const unsub = onSnapshot(q, (snap) => {
-      const chatList: Chat[] = snap.docs.map((d) => {
-        const data = d.data();
-        return {
-          id: d.id,
-          participants: data.participants || [],
-          lastMessage: data.lastMessage,
-          lastMessageAt: data.lastMessageAt || data.createdAt,
-          createdAt: data.createdAt,
-          isActive: data.isActive !== false,
-          unreadCount: data.unreadCount || {}
-        };
-      });
+      const chatList: Chat[] = snap.docs.map((d) => buildChatFromData(d.id, d.data()));
       // Ordenar en memoria por lastMessageAt descendente
       chatList.sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
       setChats(chatList);
@@ -121,48 +124,52 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [currentChat, uid]);
 
   // Crear un nuevo chat
-  const createChat = async (participantUid: string): Promise<string> => {
+  const createChat = async (participantUid: string): Promise<Chat> => {
     if (!uid) throw new Error('Usuario no autenticado');
 
-    // Verificar si ya existe un chat con este usuario
-    const existingChat = getChatWithUser(participantUid);
-    if (existingChat) {
-      setCurrentChat(existingChat);
-      return existingChat.id;
-    }
+    const participants = [uid, participantUid].sort();
+    const chatId = getChatId(uid, participantUid);
+    const chatRef = doc(db, 'chats', chatId);
 
-    const chatData = {
-      participants: [uid, participantUid],
-      lastMessageAt: Date.now(),
-      createdAt: Date.now(),
-      isActive: true,
-      unreadCount: { [uid]: 0, [participantUid]: 0 }
-    };
-
-    const docRef = await addDoc(collection(db, 'chats'), chatData);
-    
-    // Crear un objeto chat temporal para seleccionarlo inmediatamente
-    const tempChat: Chat = {
-      id: docRef.id,
-      participants: [uid, participantUid],
-      lastMessageAt: Date.now(),
-      createdAt: Date.now(),
-      isActive: true,
-      unreadCount: { [uid]: 0, [participantUid]: 0 }
-    };
-    
-    setCurrentChat(tempChat);
-    
-    // Agregar el chat temporal a la lista local para evitar el problema de sincronización
-    setChats(prevChats => {
-      const existingChat = prevChats.find(c => c.id === docRef.id);
-      if (!existingChat) {
-        return [tempChat, ...prevChats];
+    try {
+      const snap = await getDoc(chatRef);
+      if (snap.exists()) {
+        const existingChat = buildChatFromData(chatId, snap.data());
+        setCurrentChat(existingChat);
+        upsertChat(existingChat);
+        return existingChat;
       }
-      return prevChats;
-    });
-    
-    return docRef.id;
+
+      const now = Date.now();
+      const unreadCount = {
+        [participants[0]]: 0,
+        [participants[1]]: 0,
+      };
+
+      await setDoc(chatRef, {
+        participants,
+        createdAt: now,
+        lastMessageAt: now,
+        isActive: true,
+        unreadCount,
+      });
+
+      const newChat: Chat = {
+        id: chatId,
+        participants,
+        createdAt: now,
+        lastMessageAt: now,
+        isActive: true,
+        unreadCount,
+      };
+
+      setCurrentChat(newChat);
+      upsertChat(newChat);
+      return newChat;
+    } catch (error) {
+      console.error('Error creando chat en Firestore:', error);
+      throw error;
+    }
   };
 
   // Enviar mensaje
@@ -275,7 +282,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isTyping,
     setTyping,
     refreshChats
-  }), [chats, currentChat, currentChatMessages, isTyping, uidToUser]);
+  }), [chats, currentChat, currentChatMessages, isTyping]);
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };

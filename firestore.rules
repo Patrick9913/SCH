@@ -64,6 +64,12 @@
       function isSecurity(userId) {
         return userId != null && getUserRole(userId) == 6;
       }
+
+      // Roles con acceso a mensajería (1, 2, 4, 5, 6, 7)
+      function canAccessMessaging(userId) {
+        return userId != null && getUserRole(userId) in [1, 2, 4, 5, 6, 7];
+      }
+
       
       // Verificar si gradesLoadingEnabled está habilitado
       function isGradesLoadingEnabled() {
@@ -158,42 +164,29 @@
       // MENSAJES DIRECTOS
       // ==========================================
       match /direct_messages/{messageId} {
-        allow read: if true; // Validación en cliente basada en participants
-        
-        allow create: if request.resource.data.keys().hasAll(['fromUid', 'toUid', 'body', 'createdAt', 'participants']) &&
-                        request.resource.data.fromUid is string &&
-                        request.resource.data.toUid is string &&
-                        request.resource.data.participants is list &&
-                        request.resource.data.fromUid in request.resource.data.participants &&
-                        request.resource.data.toUid in request.resource.data.participants;
-        
-        allow update, delete: if false; // Los mensajes no se editan ni eliminan
+        allow read: if request.auth != null && (
+                        (resource.data.participants is list && request.auth.uid in resource.data.participants) ||
+                        (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid)
+                      );
+        allow create: if request.auth != null && canAccessMessaging(request.auth.uid);
+        allow update, delete: if false;
       }
       
       // ==========================================
       // CHATS Y MENSAJES
       // ==========================================
       match /chats/{chatId} {
-        allow read: if true; // Validación en cliente basada en participants
-        
-        allow create: if request.resource.data.keys().hasAll(['participants', 'createdAt']) &&
-                        request.resource.data.participants is list &&
-                        request.resource.data.participants.size() == 2;
-        
-        allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'lastMessageAt', 'unreadCount', 'isActive']);
-        
+        allow create: if request.auth != null && canAccessMessaging(request.auth.uid);
+
+        allow read, update: if request.auth != null &&
+                               canAccessMessaging(request.auth.uid) &&
+                               (!('participants' in resource.data) || request.auth.uid in resource.data.participants);
+
         allow delete: if false;
-        
-        // Mensajes dentro de chats
+
         match /messages/{messageId} {
-          allow read: if true;
-          
-          allow create: if request.resource.data.keys().hasAll(['fromUid', 'body', 'createdAt']) &&
-                          request.resource.data.fromUid is string &&
-                          request.resource.data.body is string;
-          
-          allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']);
-          
+          allow read, create, update: if request.auth != null && canAccessMessaging(request.auth.uid);
+
           allow delete: if false;
         }
       }
