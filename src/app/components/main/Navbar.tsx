@@ -288,6 +288,17 @@ export const Navbar: React.FC = () => {
                                     <span>Calificaciones</span>
                                 </button>
                             </li>
+                            {permissions.canSendMessages && (
+                                <li>
+                                    <button 
+                                        onClick={() => setMenu(4)} 
+                                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                    >
+                                        <HiChatBubbleOvalLeft className="w-5 h-5" />
+                                        <span>Mensajes</span>
+                                    </button>
+                                </li>
+                            )}
                         </>
                     )}
                     {/* Opciones para STAFF/PRECEPTOR */}
@@ -311,6 +322,17 @@ export const Navbar: React.FC = () => {
                                     <span>Asistencias</span>
                                 </button>
                             </li>
+                            {permissions.canSendMessages && (
+                                <li>
+                                    <button 
+                                        onClick={() => setMenu(4)} 
+                                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                    >
+                                        <HiChatBubbleOvalLeft className="w-5 h-5" />
+                                        <span>Mensajes</span>
+                                    </button>
+                                </li>
+                            )}
                         </>
                     )}
                     {/* Opciones para FAMILIA */}
@@ -393,6 +415,17 @@ export const Navbar: React.FC = () => {
                                     <span>Historial de Retiros</span>
                                 </button>
                             </li>
+                            {permissions.canSendMessages && (
+                                <li>
+                                    <button 
+                                        onClick={() => setMenu(4)} 
+                                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-colors"
+                                    >
+                                        <HiChatBubbleOvalLeft className="w-5 h-5" />
+                                        <span>Mensajes</span>
+                                    </button>
+                                </li>
+                            )}
                         </>
                     )}
                     {/* Opciones comunes para todos */}

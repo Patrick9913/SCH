@@ -282,6 +282,9 @@ export function useUserPermissions(userRole: number | undefined | null) {
     canAccessAdminPanel: hasPermission(userRole, 'canAccessAdminPanel'),
     canManageAdmins: hasPermission(userRole, 'canManageAdmins'),
     
+    // Permisos de mensajería
+    canSendMessages: hasPermission(userRole, 'canSendMessages'),
+    
     // Verificadores de rol
     isSuperAdmin: isSuperAdmin(userRole),
     isAdmin: isAdmin(userRole),

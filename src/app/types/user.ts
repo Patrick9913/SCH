@@ -56,6 +56,8 @@ export interface User {
   status?: 'pending' | 'active' | 'suspended' | 'egresado'; // Estado del usuario
   egresadoDate?: number; // Timestamp cuando se egresó
   egresadoYear?: number; // Año de egreso (ej: 2025)
+  online?: boolean;
+  lastOnlineAt?: number;
 }
 
 export interface PersonalView {

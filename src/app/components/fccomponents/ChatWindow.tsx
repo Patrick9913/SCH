@@ -20,16 +20,52 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, onBack }) => {
   const otherUserTyping = false; // TODO: Implementar sistema de typing indicator
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Mapeo de usuarios para obtener nombres
-  const uidToName = useMemo(() => {
-    const map = new Map<string, string>();
-    users.forEach((u) => map.set(u.uid, u.name));
+  // Mapeo de usuarios para obtener información completa
+  const uidToUser = useMemo(() => {
+    const map = new Map<string, (typeof users)[number]>();
+    users.forEach((u) => map.set(u.uid, u));
     return map;
   }, [users]);
 
   // Obtener el otro participante
   const otherParticipant = chat.participants.find(p => p !== uid);
-  const otherParticipantName = otherParticipant ? uidToName.get(otherParticipant) || 'Usuario desconocido' : 'Usuario';
+  const otherParticipantData = otherParticipant ? uidToUser.get(otherParticipant) : undefined;
+  const otherParticipantName = otherParticipantData?.name || 'Usuario desconocido';
+  const isOtherParticipantOnline = otherParticipantData?.online === true;
+  const otherParticipantLastOnlineAt = otherParticipantData?.lastOnlineAt;
+
+  const getLastSeenLabel = (timestamp?: number) => {
+    if (!timestamp) return 'Última vez hace un momento';
+
+    const now = Date.now();
+    const diff = now - timestamp;
+
+    const minute = 60 * 1000;
+    const hour = 60 * minute;
+    const day = 24 * hour;
+
+    if (diff < minute) {
+      return 'Última vez hace instantes';
+    }
+
+    if (diff < hour) {
+      const minutes = Math.floor(diff / minute);
+      return `Última vez hace ${minutes} min`;
+    }
+
+    if (diff < day) {
+      const hours = Math.floor(diff / hour);
+      return `Última vez hace ${hours} h`;
+    }
+
+    const date = new Date(timestamp);
+    return `Última vez el ${date.toLocaleDateString('es-AR')} a las ${date.toLocaleTimeString('es-AR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })}`;
+  };
+
+  const presenceLabel = isOtherParticipantOnline ? 'En línea' : getLastSeenLabel(otherParticipantLastOnlineAt);
 
   // Scroll automático al final de los mensajes
   const scrollToBottom = () => {
@@ -95,7 +131,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, onBack }) => {
           <div>
             <h3 className="font-medium text-gray-900">{otherParticipantName}</h3>
             <p className="text-sm text-gray-500">
-              {otherParticipant ? 'En línea' : 'Última vez hace un momento'}
+              {presenceLabel}
             </p>
           </div>
         </div>
